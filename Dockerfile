@@ -1,9 +1,6 @@
-FROM node:20-slim
+FROM node:24-slim
 
 WORKDIR /app
-
-# Install system libs (better-sqlite3 requirement)
-RUN apt-get update && apt-get install -y python3 g++ make && rm -rf /var/lib/apt/lists/*
 
 # Install deps first (cache layer)
 COPY package*.json ./
@@ -13,6 +10,6 @@ RUN npm install
 COPY . .
 
 # Expose both ports
-EXPOSE 3000 5173
+EXPOSE 3000
 
-CMD ["npm", "run", "dev"]
+CMD ["npm", "run", "dev:backend"]

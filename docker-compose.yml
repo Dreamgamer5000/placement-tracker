@@ -1,7 +1,7 @@
 services:
   tracker:
     build: .
-    container_name: tracker-vit
+    container_name: trackervit
     volumes:
       - ${PWD}/placement.db:/app/placement.db
     labels:

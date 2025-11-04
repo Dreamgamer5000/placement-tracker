@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
 import db from './db/index.js';
 
 const app = new Hono();
@@ -478,6 +479,8 @@ function updateCompanyAnalytics(companyId: number) {
     );
   }
 }
+
+app.use('/*', serveStatic({ root: './dist' }));
 
 const port = 3000;
 console.log(`Server is running on port ${port}`);

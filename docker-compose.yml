@@ -1,0 +1,8 @@
+services:
+  tracker:
+    build: .
+    container_name: tracker_vit
+    volumes:
+      - ./placement.db:/app/placement.db
+    labels:
+      - traefik.enable=true

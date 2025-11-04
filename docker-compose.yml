@@ -6,3 +6,4 @@ services:
       - ${PWD}/placement.db:/app/placement.db
     labels:
       - traefik.enable=true
+    restart: unless-stopped

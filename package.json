@@ -1,0 +1,36 @@
+{
+  "name": "placement-tracker",
+  "version": "1.0.0",
+  "description": "Student placement tracking platform",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "tsx watch src/backend/index.ts",
+    "dev:frontend": "vite",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:backend": "tsc",
+    "build:frontend": "vite build",
+    "setup:db": "tsx src/backend/scripts/setup-db.ts",
+    "import:data": "tsx src/backend/scripts/import-data.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.12.2",
+    "better-sqlite3": "^11.3.0",
+    "hono": "^4.6.2",
+    "papaparse": "^5.4.1",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^3.1.2",
+    "@tailwindcss/vite": "^4.1.14",
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.5.5",
+    "@types/papaparse": "^5.3.14",
+    "concurrently": "^9.0.1",
+    "svelte": "^4.2.19",
+    "tailwindcss": "^4.1.14",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
+  }
+}

@@ -482,7 +482,7 @@ function updateCompanyAnalytics(companyId: number) {
 
 app.use('/*', serveStatic({ root: './dist' }));
 
-const port = 3000;
+const port = Number(process.env.PORT) || 3001;
 console.log(`Server is running on port ${port}`);
 
 serve({

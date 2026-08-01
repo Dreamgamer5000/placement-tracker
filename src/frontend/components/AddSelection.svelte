@@ -4,17 +4,9 @@
   let companies: any[] = [];
   let selectedCompanyId = '';
   let regnos = '';
+  let offerStatus: 'placed' | 'intern' = 'placed';
   let message = '';
   let messageType: 'success' | 'error' = 'success';
-  
-  // New company form
-  let showNewCompanyForm = false;
-  let newCompany = { 
-    name: '', 
-    notes: '', 
-    rounds: '', 
-    experience_required: '' 
-  };
 
   onMount(async () => {
     await loadCompanies();
@@ -27,51 +19,6 @@
     } catch (error) {
       console.error('Error loading companies:', error);
     }
-  }
-
-  async function createCompany() {
-    if (!newCompany.name.trim()) {
-      message = 'Company name is required';
-      messageType = 'error';
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/companies', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newCompany.name,
-          notes: newCompany.notes || null,
-          rounds: newCompany.rounds ? parseInt(newCompany.rounds) : null,
-          experience_required: newCompany.experience_required || null
-        })
-      });
-
-      if (response.ok) {
-        const created = await response.json();
-        message = `Company "${newCompany.name}" created successfully!`;
-        messageType = 'success';
-        
-        newCompany = { name: '', notes: '', rounds: '', experience_required: '' };
-        showNewCompanyForm = false;
-        
-        await loadCompanies();
-        selectedCompanyId = created.id.toString();
-      } else {
-        const error = await response.json();
-        message = error.error || 'Failed to create company';
-        messageType = 'error';
-      }
-    } catch (error) {
-      message = 'Error creating company';
-      messageType = 'error';
-      console.error(error);
-    }
-
-    setTimeout(() => {
-      message = '';
-    }, 5000);
   }
 
   async function addSelections() {
@@ -93,7 +40,10 @@
       const response = await fetch(`/api/companies/${selectedCompanyId}/selections`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ regnos: regnoList })
+        body: JSON.stringify({
+          regnos: regnoList,
+          status: offerStatus
+        })
       });
 
       // Check if response is actually JSON
@@ -114,13 +64,12 @@
         return;
       }
 
-      console.log('Selection API Response:', result);
-      
       const successCount = result.results ? result.results.filter((r: any) => r.success).length : 0;
       const errorCount = result.errors ? result.errors.length : 0;
       
+      const statusLabel = offerStatus === 'intern' ? 'Intern' : 'Placed (Full-Time)';
       if (successCount > 0) {
-        message = `Successfully added ${successCount} student(s) to final selections.`;
+        message = `Successfully added ${successCount} student(s) to final selections as "${statusLabel}".`;
         if (errorCount > 0) {
           message += ` ${errorCount} error(s) occurred (students not found).`;
         }
@@ -148,7 +97,7 @@
 <div>
   <h2 class="text-3xl font-bold text-gray-800 mb-6">✅ Add Final Selections</h2>
   
-  <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+  <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
     <div class="flex">
       <div class="flex-shrink-0">
         <svg class="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
@@ -156,9 +105,8 @@
         </svg>
       </div>
       <div class="ml-3">
-        <p class="text-sm text-blue-700">
-          <strong>Note:</strong> Use this to add students who received <strong>final selection/offer</strong> from the company. 
-          This is different from shortlisting. Students marked as selected will be automatically marked as "placed".
+        <p class="text-sm text-blue-800">
+          <strong>Note:</strong> Use this to add students who received <strong>final selection/offer</strong> from the company.
         </p>
       </div>
     </div>
@@ -169,117 +117,64 @@
       <label for="company" class="block text-sm font-semibold text-gray-700 mb-2">
         Select Company *
       </label>
-      <div class="flex gap-3">
-        <select 
-          id="company" 
-          bind:value={selectedCompanyId}
-          class="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+      <select 
+        id="company" 
+        bind:value={selectedCompanyId}
+        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+      >
+        <option value="">-- Select a company --</option>
+        {#each companies as company}
+          <option value={company.id}>{company.name}</option>
+        {/each}
+      </select>
+      <p class="mt-1 text-xs text-gray-500">Note: New companies can be added from the <strong>Companies</strong> page.</p>
+    </div>
+
+    <!-- Offer Type Selector -->
+    <div class="mb-6 bg-blue-50/70 p-4 rounded-xl border border-blue-200">
+      <label class="block text-sm font-bold text-blue-900 mb-2">
+        Offer / Selection Type *
+      </label>
+      <div class="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {offerStatus === 'placed' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'}"
+          on:click={() => offerStatus = 'placed'}
         >
-          <option value="">-- Select a company --</option>
-          {#each companies as company}
-            <option value={company.id}>{company.name}</option>
-          {/each}
-        </select>
-        <button 
-          on:click={() => showNewCompanyForm = !showNewCompanyForm}
-          class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors duration-200"
+          ✓ Placed (Full-Time)
+        </button>
+        <button
+          type="button"
+          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {offerStatus === 'intern' ? 'bg-cyan-600 text-white border-cyan-600 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'}"
+          on:click={() => offerStatus = 'intern'}
         >
-          {showNewCompanyForm ? 'Cancel' : '+ New Company'}
+          💼 Intern (Internship)
         </button>
       </div>
     </div>
 
-    {#if showNewCompanyForm}
-      <div class="border-2 border-green-200 rounded-lg p-6 mb-6 bg-green-50">
-        <h3 class="text-xl font-bold text-gray-800 mb-4">Create New Company</h3>
-        
-        <div class="space-y-4">
-          <div>
-            <label for="companyName" class="block text-sm font-semibold text-gray-700 mb-2">
-              Company Name *
-            </label>
-            <input 
-              id="companyName"
-              type="text" 
-              placeholder="e.g., Google, Microsoft, Amazon" 
-              bind:value={newCompany.name}
-              class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label for="notes" class="block text-sm font-semibold text-gray-700 mb-2">
-              Notes (optional)
-            </label>
-            <textarea 
-              id="notes"
-              placeholder="Add notes about the company, role, or requirements"
-              bind:value={newCompany.notes}
-              rows="3"
-              class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-vertical"
-            />
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label for="rounds" class="block text-sm font-semibold text-gray-700 mb-2">
-                Number of Rounds (optional)
-              </label>
-              <input 
-                id="rounds"
-                type="number" 
-                placeholder="e.g., 3"
-                bind:value={newCompany.rounds}
-                class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label for="experience" class="block text-sm font-semibold text-gray-700 mb-2">
-                Experience Required (optional)
-              </label>
-              <input 
-                id="experience"
-                type="text" 
-                placeholder="e.g., 0-1 years, Internship"
-                bind:value={newCompany.experience_required}
-                class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          <button 
-            on:click={createCompany}
-            class="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors duration-200"
-          >
-            Create Company
-          </button>
-        </div>
-      </div>
-    {/if}
-
     <div class="mb-6">
       <label for="regnos" class="block text-sm font-semibold text-gray-700 mb-2">
-        Registration Numbers (one per line) *
+        Register Numbers or Neo IDs (one per line) *
       </label>
       <textarea 
         id="regnos"
         bind:value={regnos}
-        placeholder="Enter one registration number per line:&#10;23BAI1001&#10;23BAI1002&#10;23BAI1003"
+        placeholder="Enter one Register Number or Neo ID per line:&#10;23BAI1008&#10;O3W3I4P1&#10;A621V0L6"
         rows="10"
-        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-mono resize-vertical"
+        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-mono resize-vertical"
       />
-      <div class="mt-2 text-sm text-gray-600">
-        <p>Enter one registration number per line</p>
-        <p class="mt-1 text-xs text-gray-500">
-          <strong>Example student IDs:</strong> 23BAI1001, 23BAI1002, 23BAI1003, 23BAI0002, 23BAI0003
+      <div class="mt-2 text-sm text-gray-600 space-y-1">
+        <p>Enter Register Numbers (e.g. 23BAI1008) or Neo IDs (e.g. O3W3I4P1), one per line.</p>
+        <p class="text-xs text-gray-500">
+          <strong>Tip:</strong> Selected candidates will be updated to the chosen offer status. Unmapped Neo IDs are stored in the mapping table for future matching.
         </p>
       </div>
     </div>
 
     <button 
       on:click={addSelections}
-      class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors duration-200"
+      class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
     >
       Add to Final Selections
     </button>
@@ -293,22 +188,26 @@
 
   <div class="bg-white rounded-lg shadow-md p-6">
     <h3 class="text-xl font-bold text-gray-800 mb-4">ℹ️ Instructions</h3>
-    <ul class="space-y-2 text-gray-700">
+    <ul class="space-y-3 text-gray-700">
       <li class="flex items-start">
-        <span class="text-blue-600 mr-2">•</span>
-        <span>Use this page to mark students who received <strong>final offers</strong> from companies</span>
+        <span class="text-primary-600 mr-2">•</span>
+        <span>Select an existing company from the dropdown list. (New companies can be created on the <strong>Companies</strong> page)</span>
       </li>
       <li class="flex items-start">
-        <span class="text-blue-600 mr-2">•</span>
-        <span>Students added here will be automatically marked as "placed"</span>
+        <span class="text-primary-600 mr-2">•</span>
+        <span>Select the Offer Type (Full-Time Placed vs Internship)</span>
       </li>
       <li class="flex items-start">
-        <span class="text-blue-600 mr-2">•</span>
-        <span>This is different from shortlisting - use "Add Shortlist" for students who got shortlisted but not selected</span>
+        <span class="text-primary-600 mr-2">•</span>
+        <span>Paste Register Numbers or Neo IDs of selected candidates (one per line)</span>
       </li>
       <li class="flex items-start">
-        <span class="text-blue-600 mr-2">•</span>
-        <span>The system will calculate selection ratios and final selection analytics</span>
+        <span class="text-primary-600 mr-2">•</span>
+        <span>Unmapped Neo IDs are recorded into the database mapping table automatically</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-primary-600 mr-2">•</span>
+        <span>Company analytics update instantly</span>
       </li>
     </ul>
   </div>

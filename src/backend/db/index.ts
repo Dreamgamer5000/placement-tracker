@@ -16,17 +16,31 @@ const Student = z.object({
   resume_link: z.string().optional(),
   branch: z.string(),
   campus: z.string(),
+  neo_id: z.string().optional(),
   placed: z.boolean(),
+  masters: z.boolean().optional(),
+  status: z.enum(['placed', 'intern', 'masters', 'not_placed']).default('not_placed'),
   final_company_id: z.number().optional()
 })
 
 type Student = z.infer<typeof Student>
+
+export interface NeoIdRecord {
+  id?: number;
+  neo_id: string;
+  campus: string;
+  student_id?: number;
+  regno?: string;
+}
 
 export interface Company {
   id?: number;
   name: string;
   notes?: string;
   rounds?: number;
+  ctc?: string;
+  total_rounds?: number;
+  round_details?: string;
   experience_required?: string;
 }
 
@@ -62,6 +76,8 @@ export interface Shortlist {
   id?: number;
   student_id: number;
   company_id: number;
+  round_number?: number;
+  round_name?: string;
   shortlisted_at: string;
 }
 
@@ -94,9 +110,24 @@ export function initDatabase() {
       resume_link TEXT,
       branch TEXT NOT NULL,
       campus TEXT NOT NULL,
+      neo_id TEXT,
       placed BOOLEAN DEFAULT 0,
+      masters BOOLEAN DEFAULT 0,
+      status TEXT DEFAULT 'not_placed',
       final_company_id INTEGER,
       FOREIGN KEY (final_company_id) REFERENCES companies(id)
+    )
+  `);
+
+  // Neo IDs table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS neo_ids (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      neo_id TEXT UNIQUE NOT NULL,
+      campus TEXT NOT NULL DEFAULT 'Unknown',
+      student_id INTEGER,
+      regno TEXT,
+      FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL
     )
   `);
 
@@ -107,20 +138,25 @@ export function initDatabase() {
       name TEXT UNIQUE NOT NULL,
       notes TEXT,
       rounds INTEGER,
+      ctc TEXT,
+      total_rounds INTEGER,
+      round_details TEXT,
       experience_required TEXT
     )
   `);
 
-  // Shortlists table (many-to-many relationship)
+  // Shortlists table (many-to-many relationship supporting multi-round shortlists)
   db.exec(`
     CREATE TABLE IF NOT EXISTS shortlists (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       student_id INTEGER NOT NULL,
       company_id INTEGER NOT NULL,
+      round_number INTEGER NOT NULL DEFAULT 1,
+      round_name TEXT NOT NULL DEFAULT 'Shortlist 1',
       shortlisted_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
       FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
-      UNIQUE(student_id, company_id)
+      UNIQUE(student_id, company_id, round_number)
     )
   `);
 

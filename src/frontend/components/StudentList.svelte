@@ -4,27 +4,69 @@
   let students: any[] = [];
   let loading = true;
   let searchTerm = '';
+  let debouncedSearch = '';
+  let searchTimer: any = null;
+  let page = 1;
+  let limit = 50;
+  let totalCount = 0;
+  let totalPages = 1;
+
   let selectedStudent: any = null;
+  let editingStudent: any = null;
+  let saveLoading = false;
+  let saveMessage = '';
   let sortBy: 'default' | 'shortlists' = 'default';
 
   onMount(async () => {
     await loadStudents();
   });
 
-  async function loadStudents(sortByShortlists = false) {
+  function handleSearchInput(e: Event) {
+    const val = (e.target as HTMLInputElement).value;
+    searchTerm = val;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      debouncedSearch = val;
+      page = 1;
+      loadStudents();
+    }, 300);
+  }
+
+  async function loadStudents() {
     loading = true;
     try {
-      const endpoint = sortByShortlists ? '/api/students/by-shortlists' : '/api/students';
-      const response = await fetch(endpoint);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        search: debouncedSearch,
+        sortByShortlists: (sortBy === 'shortlists').toString()
+      });
+      const response = await fetch(`/api/students?${params.toString()}`);
       const data = await response.json();
-      // Ensure we always have an array
-      students = Array.isArray(data) ? data : [];
+
+      if (data && Array.isArray(data.students)) {
+        students = data.students;
+        totalCount = data.totalCount || data.students.length;
+        totalPages = data.totalPages || 1;
+      } else if (Array.isArray(data)) {
+        students = data;
+        totalCount = data.length;
+        totalPages = 1;
+      } else {
+        students = [];
+      }
     } catch (error) {
       console.error('Error loading students:', error);
       students = [];
     } finally {
       loading = false;
     }
+  }
+
+  async function changePage(newPage: number) {
+    if (newPage < 1 || newPage > totalPages) return;
+    page = newPage;
+    await loadStudents();
   }
 
   async function viewStudent(id: number) {
@@ -36,43 +78,90 @@
     }
   }
 
-  async function toggleSort() {
-    if (sortBy === 'default') {
-      sortBy = 'shortlists';
-      await loadStudents(true);
-    } else {
-      sortBy = 'default';
-      await loadStudents(false);
+  function openEdit(student: any) {
+    editingStudent = { ...student };
+    saveMessage = '';
+  }
+
+  async function saveStudent() {
+    if (!editingStudent) return;
+    saveLoading = true;
+    saveMessage = '';
+    try {
+      const response = await fetch(`/api/students/${editingStudent.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingStudent)
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to save student details');
+      }
+
+      const updated = await response.json();
+      saveMessage = '✅ Student details updated successfully!';
+      
+      // Update in local state
+      students = students.map(s => s.id === updated.id ? { ...s, ...updated } : s);
+      if (selectedStudent && selectedStudent.id === updated.id) {
+        selectedStudent = { ...selectedStudent, ...updated };
+      }
+      setTimeout(() => {
+        editingStudent = null;
+        saveMessage = '';
+      }, 1000);
+    } catch (error: any) {
+      saveMessage = `❌ Error: ${error.message}`;
+    } finally {
+      saveLoading = false;
     }
   }
 
-  $: filteredStudents = Array.isArray(students) ? students.filter(s => 
-    s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.regno?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.branch?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  async function toggleSort() {
+    if (sortBy === 'default') {
+      sortBy = 'shortlists';
+    } else {
+      sortBy = 'default';
+    }
+    page = 1;
+    await loadStudents();
+  }
 </script>
 
 <div class="student-list">
-  <h2>👥 Students</h2>
+  <div class="header-row">
+    <h2>👥 Student Directory</h2>
+    <span class="total-badge">{totalCount} Students</span>
+  </div>
   
-  <input 
-    type="text" 
-    class="search-box"
-    placeholder="Search by name, regno, or branch..." 
-    bind:value={searchTerm}
-  />
+  <div class="search-container">
+    <input 
+      type="text" 
+      class="search-box"
+      placeholder="🔍 Search by name, regno, neoID, or branch (fuzzy search)..." 
+      value={searchTerm}
+      on:input={handleSearchInput}
+    />
+  </div>
 
   {#if loading}
-    <div class="loading">Loading students...</div>
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Loading students...</p>
+    </div>
+  {:else if students.length === 0}
+    <div class="empty-state">
+      <p>No students found matching "{searchTerm}"</p>
+    </div>
   {:else}
     <div class="table-container">
       <table>
         <thead>
           <tr>
             <th>Reg No</th>
+            <th>Neo ID</th>
             <th>Name</th>
-            <th>Branch</th>
             <th>Campus</th>
             <th>CGPA</th>
             <th class="sortable" on:click={toggleSort}>
@@ -88,25 +177,35 @@
           </tr>
         </thead>
         <tbody>
-          {#each filteredStudents as student}
+          {#each students as student}
             <tr>
-              <td>{student.regno}</td>
-              <td>{student.name}</td>
-              <td>{student.branch}</td>
+              <td><span class="regno-tag">{student.regno}</span></td>
+              <td>
+                <span class="neo-badge" class:has-neoid={student.neo_id}>
+                  {student.neo_id || 'Not Assigned'}
+                </span>
+              </td>
+              <td class="name-cell">{student.name}</td>
               <td>{student.campus}</td>
-              <td>{student.cgpa || 'N/A'}</td>
+              <td><strong>{student.cgpa || 'N/A'}</strong></td>
               <td>
                 <span class="shortlist-count" class:has-shortlists={student.shortlist_count > 0}>
                   {student.shortlist_count || 0}
                 </span>
               </td>
               <td>
-                <span class="status" class:placed={student.placed}>
-                  {student.placed ? '✓ Placed' : 'Not Placed'}
-                </span>
+                {#if student.status === 'placed'}
+                  <span class="status placed">✓ Placed</span>
+                {:else if student.status === 'intern'}
+                  <span class="status intern">💼 Intern</span>
+                {:else if student.status === 'masters'}
+                  <span class="status masters">🎓 Masters</span>
+                {:else}
+                  <span class="status not-placed">Not Placed</span>
+                {/if}
               </td>
-              <td>
-                <button class="btn-small" on:click={() => viewStudent(student.id)}>
+              <td class="action-cells">
+                <button class="btn-action btn-view" on:click={() => viewStudent(student.id)}>
                   View Details
                 </button>
               </td>
@@ -114,6 +213,23 @@
           {/each}
         </tbody>
       </table>
+    </div>
+
+    <!-- Pagination Bar -->
+    <div class="pagination-bar">
+      <span class="pagination-info">
+        Showing <strong>{(page - 1) * limit + 1}</strong> to <strong>{Math.min(page * limit, totalCount)}</strong> of <strong>{totalCount}</strong> students
+      </span>
+
+      <div class="pagination-controls">
+        <button class="btn-page" disabled={page === 1} on:click={() => changePage(page - 1)}>
+          ← Previous
+        </button>
+        <span class="page-indicator">Page {page} of {totalPages}</span>
+        <button class="btn-page" disabled={page >= totalPages} on:click={() => changePage(page + 1)}>
+          Next →
+        </button>
+      </div>
     </div>
   {/if}
 </div>
@@ -123,11 +239,22 @@
     <div class="modal-content" on:click|stopPropagation>
       <button class="close-btn" on:click={() => selectedStudent = null}>×</button>
       
-      <h3>{selectedStudent.name}</h3>
+      <div class="modal-header">
+        <h3>{selectedStudent.name}</h3>
+        <button class="btn-primary btn-edit-header" on:click={() => openEdit(selectedStudent)}>
+          ✏️ Edit Details
+        </button>
+      </div>
       
       <div class="details-grid">
         <div class="detail-item">
           <strong>Registration No:</strong> {selectedStudent.regno}
+        </div>
+        <div class="detail-item">
+          <strong>Neo ID:</strong> 
+          <span class="neo-badge" class:has-neoid={selectedStudent.neo_id}>
+            {selectedStudent.neo_id || 'Not Assigned'}
+          </span>
         </div>
         <div class="detail-item">
           <strong>Email:</strong> {selectedStudent.email}
@@ -189,225 +316,582 @@
   </div>
 {/if}
 
+{#if editingStudent}
+  <div class="modal" on:click={() => editingStudent = null}>
+    <div class="modal-content edit-modal" on:click|stopPropagation>
+      <button class="close-btn" on:click={() => editingStudent = null}>×</button>
+      <h3>✏️ Edit Student Details</h3>
+
+      {#if saveMessage}
+        <div class="alert" class:alert-error={saveMessage.includes('❌')} class:alert-success={saveMessage.includes('✅')}>
+          {saveMessage}
+        </div>
+      {/if}
+
+      <form on:submit|preventDefault={saveStudent} class="edit-form">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="edit-name">Name *</label>
+            <input id="edit-name" type="text" bind:value={editingStudent.name} required />
+          </div>
+
+          <div class="form-group">
+            <label for="edit-regno">Register Number *</label>
+            <input id="edit-regno" type="text" bind:value={editingStudent.regno} required />
+          </div>
+
+          <div class="form-group">
+            <label for="edit-neoid">Neo ID (e.g. O3U8P6W1)</label>
+            <input id="edit-neoid" type="text" bind:value={editingStudent.neo_id} placeholder="O3U8P6W1" />
+          </div>
+
+          <div class="form-group">
+            <label for="edit-email">Email *</label>
+            <input id="edit-email" type="email" bind:value={editingStudent.email} required />
+          </div>
+
+          <div class="form-group">
+            <label for="edit-personal-email">Personal Email</label>
+            <input id="edit-personal-email" type="email" bind:value={editingStudent.personal_email} />
+          </div>
+
+          <div class="form-group">
+            <label for="edit-phone">Phone</label>
+            <input id="edit-phone" type="text" bind:value={editingStudent.phone} />
+          </div>
+
+          <div class="form-group">
+            <label for="edit-gender">Gender</label>
+            <select id="edit-gender" bind:value={editingStudent.gender}>
+              <option value="">Select Gender</option>
+              <option value="M">Male (M)</option>
+              <option value="F">Female (F)</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="edit-branch">Branch</label>
+            <input id="edit-branch" type="text" bind:value={editingStudent.branch} />
+          </div>
+
+          <div class="form-group">
+            <label for="edit-campus">Campus</label>
+            <input id="edit-campus" type="text" bind:value={editingStudent.campus} />
+          </div>
+
+          <div class="form-group">
+            <label for="edit-cgpa">CGPA</label>
+            <input id="edit-cgpa" type="number" step="0.01" min="0" max="10" bind:value={editingStudent.cgpa} />
+          </div>
+
+          <div class="form-group">
+            <label for="edit-tenth">10th Marks (%)</label>
+            <input id="edit-tenth" type="number" step="0.01" min="0" max="100" bind:value={editingStudent.tenth_marks} />
+          </div>
+
+          <div class="form-group">
+            <label for="edit-twelfth">12th Marks (%)</label>
+            <input id="edit-twelfth" type="number" step="0.01" min="0" max="100" bind:value={editingStudent.twelfth_marks} />
+          </div>
+
+          <div class="form-group full-width">
+            <label for="edit-resume">Resume Link</label>
+            <input id="edit-resume" type="url" bind:value={editingStudent.resume_link} placeholder="https://..." />
+          </div>
+
+          <div class="form-group full-width">
+            <label for="edit-status">Placement / Academic Status *</label>
+            <select id="edit-status" bind:value={editingStudent.status} class="w-full">
+              <option value="not_placed">Not Placed</option>
+              <option value="intern">💼 Intern (Internship)</option>
+              <option value="placed">✓ Placed (Full-Time Offer)</option>
+              <option value="masters">🎓 Masters (Higher Studies)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" on:click={() => editingStudent = null}>Cancel</button>
+          <button type="submit" class="btn-primary" disabled={saveLoading}>
+            {saveLoading ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
+
 <style>
   .student-list {
-    padding: 2rem;
+    padding: 2.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
   }
 
   h2 {
-    color: #333;
+    color: #1e293b;
+    font-size: 1.875rem;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .total-badge {
+    padding: 0.4rem 1rem;
+    background: #e0e7ff;
+    color: #4338ca;
+    font-weight: 700;
+    border-radius: 20px;
+    font-size: 0.9rem;
+  }
+
+  .search-container {
     margin-bottom: 2rem;
   }
 
   .search-box {
     width: 100%;
-    padding: 1rem;
-    margin-bottom: 1.5rem;
-    border: 2px solid #ddd;
-    border-radius: 8px;
-    font-size: 1rem;
+    padding: 1.1rem 1.5rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease-in-out;
   }
 
   .search-box:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
   }
 
-  .loading {
+  .loading, .empty-state {
     text-align: center;
-    padding: 3rem;
-    color: #666;
+    padding: 4rem 2rem;
+    background: #ffffff;
+    border-radius: 16px;
+    color: #64748b;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  }
+
+  .spinner {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 3px solid #e2e8f0;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem auto;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 
   .table-container {
     background: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
     overflow-x: auto;
+    border: 1px solid #f1f5f9;
   }
 
   table {
     width: 100%;
-    border-collapse: collapse;
-  }
-
-  th, td {
-    padding: 1rem;
-    text-align: left;
-    border-bottom: 1px solid #eee;
+    border-collapse: separate;
+    border-spacing: 0;
   }
 
   th {
-    background: #f8f9fa;
+    background: #f8fafc;
+    font-weight: 700;
+    color: #475569;
+    padding: 1.25rem 1.5rem;
+    text-align: left;
+    border-bottom: 2px solid #e2e8f0;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  td {
+    padding: 1.25rem 1.5rem;
+    text-align: left;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    font-size: 0.975rem;
+    vertical-align: middle;
+  }
+
+  tbody tr {
+    transition: background 0.15s ease-in-out;
+  }
+
+  tbody tr:hover {
+    background: #f8fafc;
+  }
+
+  .name-cell {
     font-weight: 600;
-    color: #555;
-    position: sticky;
-    top: 0;
+    color: #0f172a;
+  }
+
+  .regno-tag {
+    font-family: monospace;
+    font-weight: 700;
+    color: #334155;
+    background: #f1f5f9;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
   }
 
   .sortable {
     cursor: pointer;
     user-select: none;
-    transition: background 0.2s;
   }
 
   .sortable:hover {
-    background: #e9ecef;
+    color: #4338ca;
   }
 
   .sort-icon {
-    font-size: 0.8rem;
-    margin-left: 0.25rem;
-    opacity: 0.7;
+    font-size: 0.85rem;
+    margin-left: 0.35rem;
+  }
+
+  .neo-badge {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    border-radius: 8px;
+    background: #f1f5f9;
+    color: #94a3b8;
+    font-size: 0.85rem;
+    font-family: monospace;
+  }
+
+  .neo-badge.has-neoid {
+    background: #e0e7ff;
+    color: #4338ca;
+    font-weight: 700;
   }
 
   .shortlist-count {
     display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    background: #e9ecef;
-    color: #666;
-    font-weight: 600;
-    min-width: 2rem;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    background: #f1f5f9;
+    color: #64748b;
+    font-weight: 700;
+    min-width: 2.2rem;
     text-align: center;
   }
 
   .shortlist-count.has-shortlists {
-    background: #667eea;
+    background: #6366f1;
     color: white;
-  }
-
-  tbody tr:hover {
-    background: #f8f9fa;
   }
 
   .status {
-    padding: 0.25rem 0.75rem;
+    padding: 0.35rem 0.85rem;
     border-radius: 20px;
-    font-size: 0.875rem;
-    background: #ffc107;
-    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #fef3c7;
+    color: #d97706;
+    white-space: nowrap;
+    word-break: keep-all;
+    display: inline-block;
   }
 
   .status.placed {
-    background: #28a745;
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
   }
 
-  .btn-small {
+  .status.intern {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+    font-weight: 700;
+  }
+
+  .status.masters {
+    background: #f3e8ff;
+    color: #7e22ce;
+    border: 1px solid #e9d5ff;
+  }
+
+  .action-cells {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+  }
+
+  .btn-action {
     padding: 0.5rem 1rem;
-    background: #667eea;
-    color: white;
+    border-radius: 8px;
     border: none;
-    border-radius: 5px;
-    cursor: pointer;
+    font-weight: 600;
     font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
   }
 
-  .btn-small:hover {
-    background: #5568d3;
+  .btn-view {
+    background: #4f46e5;
+    color: white;
   }
 
+  .btn-view:hover {
+    background: #4338ca;
+  }
+
+  .pagination-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    background: #ffffff;
+    border-radius: 16px;
+    margin-top: 1.5rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    border: 1px solid #f1f5f9;
+  }
+
+  .pagination-info {
+    color: #64748b;
+    font-size: 0.95rem;
+  }
+
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .btn-page {
+    padding: 0.6rem 1.25rem;
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 10px;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-page:hover:not(:disabled) {
+    background: #6366f1;
+    border-color: #6366f1;
+    color: white;
+  }
+
+  .btn-page:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .page-indicator {
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 0.95rem;
+  }
+
+  /* Modals */
   .modal {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.5);
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    padding: 1.5rem;
   }
 
   .modal-content {
     background: white;
-    padding: 2rem;
-    border-radius: 10px;
-    max-width: 800px;
-    width: 90%;
+    padding: 2.5rem;
+    border-radius: 20px;
+    max-width: 850px;
+    width: 100%;
     max-height: 90vh;
     overflow-y: auto;
     position: relative;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   }
 
   .close-btn {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
-    background: none;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: #f1f5f9;
     border: none;
-    font-size: 2rem;
+    font-size: 1.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
     cursor: pointer;
-    color: #999;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .close-btn:hover {
-    color: #333;
+    background: #e2e8f0;
+    color: #0f172a;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-right: 3rem;
+  }
+
+  .modal-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #0f172a;
   }
 
   .details-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-    margin: 1.5rem 0;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.75rem;
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: #f8fafc;
+    border-radius: 14px;
+    border: 1px solid #f1f5f9;
   }
 
   .detail-item {
-    padding: 0.5rem 0;
+    font-size: 0.975rem;
+    color: #334155;
   }
 
   .detail-item strong {
-    color: #667eea;
+    display: block;
+    color: #64748b;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.3rem;
   }
 
-  .detail-item a {
-    color: #667eea;
-    text-decoration: none;
-  }
-
-  .detail-item a:hover {
-    text-decoration: underline;
-  }
-
-  h4 {
-    color: #333;
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
     margin-top: 1.5rem;
   }
 
-  ul {
-    list-style: none;
-    padding: 0;
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
   }
 
-  ul li {
-    padding: 0.5rem;
-    background: #f8f9fa;
-    margin: 0.5rem 0;
-    border-radius: 5px;
+  .form-group.full-width {
+    grid-column: 1 / -1;
   }
 
-  .company-list li {
-    background: #f3f4f6;
-    border-left: 3px solid #667eea;
+  .form-group label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #334155;
   }
 
-  .selection-list li {
-    background: #f0fdf4;
-    border-left: 3px solid #10b981;
+  .form-group input,
+  .form-group select {
+    padding: 0.8rem 1rem;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 10px;
+    font-size: 1rem;
+    background: #ffffff;
+    transition: all 0.2s;
+  }
+
+  .form-group input:focus,
+  .form-group select:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1.25rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .btn-primary {
+    padding: 0.75rem 1.75rem;
+    background: #6366f1;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: background 0.2s;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: #4f46e5;
+  }
+
+  .btn-secondary {
+    padding: 0.75rem 1.5rem;
+    background: #f1f5f9;
+    color: #475569;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1rem;
+  }
+
+  .btn-secondary:hover {
+    background: #e2e8f0;
+  }
+
+  .alert {
+    padding: 1rem 1.25rem;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
     font-weight: 600;
   }
 
-  .placed-info {
-    margin-top: 1.5rem;
-    padding: 1rem;
-    background: #d4edda;
-    border-radius: 8px;
-    border-left: 4px solid #28a745;
+  .alert-success {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
   }
 
-  .placed-info h4 {
-    margin: 0;
-    color: #155724;
+  .alert-error {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
   }
 </style>

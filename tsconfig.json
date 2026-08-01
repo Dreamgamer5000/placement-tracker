@@ -13,6 +13,6 @@
     "rootDir": "./src",
     "types": ["node"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/backend/**/*"],
+  "exclude": ["node_modules", "dist", "src/frontend"]
 }

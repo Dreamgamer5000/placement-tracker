@@ -21,6 +21,12 @@ if (!hasStatusColumn && studentTableInfo.length > 0) {
   db.exec("ALTER TABLE students ADD COLUMN status TEXT DEFAULT 'not_placed'");
 }
 
+const hasTopcoderStudent = studentTableInfo.some((col) => col.name === 'topcoder');
+if (!hasTopcoderStudent && studentTableInfo.length > 0) {
+  console.log('Adding topcoder column to students table...');
+  db.exec('ALTER TABLE students ADD COLUMN topcoder BOOLEAN DEFAULT 0');
+}
+
 // Data Conversion: convert all currently placed values to 'intern' as requested
 console.log("Migrating student statuses (converting placed -> 'intern')...");
 db.exec("UPDATE students SET status = 'intern' WHERE placed = 1 OR placed = '1' OR placed = 'true'");
@@ -39,6 +45,12 @@ const hasRegNo = neoIdTableInfo.some((col) => col.name === 'regno');
 if (!hasRegNo && neoIdTableInfo.length > 0) {
   console.log('Adding regno column to neo_ids table...');
   db.exec('ALTER TABLE neo_ids ADD COLUMN regno TEXT');
+}
+
+const hasTopcoderNeoId = neoIdTableInfo.some((col) => col.name === 'topcoder');
+if (!hasTopcoderNeoId && neoIdTableInfo.length > 0) {
+  console.log('Adding topcoder column to neo_ids table...');
+  db.exec('ALTER TABLE neo_ids ADD COLUMN topcoder BOOLEAN DEFAULT 0');
 }
 
 // Check and add ctc, total_rounds, and round_details columns to companies table if missing

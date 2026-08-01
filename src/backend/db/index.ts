@@ -20,6 +20,7 @@ const Student = z.object({
   placed: z.boolean(),
   masters: z.boolean().optional(),
   status: z.enum(['placed', 'intern', 'masters', 'not_placed']).default('not_placed'),
+  topcoder: z.boolean().optional(),
   final_company_id: z.number().optional()
 })
 
@@ -31,6 +32,7 @@ export interface NeoIdRecord {
   campus: string;
   student_id?: number;
   regno?: string;
+  topcoder?: boolean;
 }
 
 export interface Company {
@@ -114,6 +116,7 @@ export function initDatabase() {
       placed BOOLEAN DEFAULT 0,
       masters BOOLEAN DEFAULT 0,
       status TEXT DEFAULT 'not_placed',
+      topcoder BOOLEAN DEFAULT 0,
       final_company_id INTEGER,
       FOREIGN KEY (final_company_id) REFERENCES companies(id)
     )
@@ -127,6 +130,7 @@ export function initDatabase() {
       campus TEXT NOT NULL DEFAULT 'Unknown',
       student_id INTEGER,
       regno TEXT,
+      topcoder BOOLEAN DEFAULT 0,
       FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL
     )
   `);

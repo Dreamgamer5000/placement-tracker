@@ -435,12 +435,12 @@
         {/if}
       </div>
 
-      <!-- SECTION 2 (SECOND): Finally Selected Students -->
+      <!-- SECTION 2 (SECOND): Finally Selected / Interned Students Analytics & List -->
       {#if selectedCompany.analytics && selectedCompany.analytics.total_selected > 0}
-        <div class="border-2 border-green-500 rounded-2xl p-6 bg-green-50/60 mb-8">
-          <h4 class="text-2xl font-bold text-green-900 mb-4">✅ Selection Analytics</h4>
+        <div class="border-2 border-blue-500 rounded-2xl p-6 bg-blue-50/60 mb-8">
+          <h4 class="text-2xl font-bold text-blue-950 mb-4">💼 Selection & Interned Analytics</h4>
           
-          <div class="bg-gradient-to-r from-green-600 to-green-500 text-white p-6 rounded-xl text-center mb-6 shadow-md">
+          <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-xl text-center mb-6 shadow-md">
             <div class="text-sm opacity-90 mb-1">Selection Ratio</div>
             <div class="text-4xl font-bold">
               {selectedCompany.analytics.total_selected} / {selectedCompany.analytics.total_shortlisted}
@@ -449,62 +449,91 @@
           </div>
 
           <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div class="bg-white border-2 border-green-400 p-4 rounded-xl text-center">
+            <div class="bg-white border-2 border-blue-400 p-4 rounded-xl text-center">
               <div class="text-xs text-gray-500 font-semibold mb-1 uppercase">Total Selected</div>
-              <div class="text-2xl font-bold text-green-700">{selectedCompany.analytics.total_selected || 0}</div>
+              <div class="text-2xl font-bold text-blue-700">{selectedCompany.analytics.total_selected || 0}</div>
             </div>
-            <div class="bg-white border-2 border-green-400 p-4 rounded-xl text-center">
+            <div class="bg-white border-2 border-blue-400 p-4 rounded-xl text-center">
               <div class="text-xs text-gray-500 font-semibold mb-1 uppercase">Gender Ratio</div>
-              <div class="text-2xl font-bold text-green-700">{selectedCompany.analytics.gender_ratio_selected || 'N/A'}</div>
+              <div class="text-2xl font-bold text-blue-700">{selectedCompany.analytics.gender_ratio_selected || 'N/A'}</div>
             </div>
-            <div class="bg-white border-2 border-green-400 p-4 rounded-xl text-center">
+            <div class="bg-white border-2 border-blue-400 p-4 rounded-xl text-center">
               <div class="text-xs text-gray-500 font-semibold mb-1 uppercase">Min CGPA</div>
-              <div class="text-2xl font-bold text-green-700">{selectedCompany.analytics.min_cgpa_selected?.toFixed(2) || 'N/A'}</div>
+              <div class="text-2xl font-bold text-blue-700">{selectedCompany.analytics.min_cgpa_selected?.toFixed(2) || 'N/A'}</div>
             </div>
-            <div class="bg-white border-2 border-green-400 p-4 rounded-xl text-center">
+            <div class="bg-white border-2 border-blue-400 p-4 rounded-xl text-center">
               <div class="text-xs text-gray-500 font-semibold mb-1 uppercase">Avg CGPA</div>
-              <div class="text-2xl font-bold text-green-700">{selectedCompany.analytics.avg_cgpa_selected?.toFixed(2) || 'N/A'}</div>
+              <div class="text-2xl font-bold text-blue-700">{selectedCompany.analytics.avg_cgpa_selected?.toFixed(2) || 'N/A'}</div>
             </div>
-            <div class="bg-white border-2 border-green-400 p-4 rounded-xl text-center">
+            <div class="bg-white border-2 border-blue-400 p-4 rounded-xl text-center">
               <div class="text-xs text-gray-500 font-semibold mb-1 uppercase">Min 10th</div>
-              <div class="text-2xl font-bold text-green-700">{selectedCompany.analytics.min_tenth_selected?.toFixed(2) || 'N/A'}</div>
+              <div class="text-2xl font-bold text-blue-700">{selectedCompany.analytics.min_tenth_selected?.toFixed(2) || 'N/A'}</div>
             </div>
-            <div class="bg-white border-2 border-green-400 p-4 rounded-xl text-center">
+            <div class="bg-white border-2 border-blue-400 p-4 rounded-xl text-center">
               <div class="text-xs text-gray-500 font-semibold mb-1 uppercase">Min 12th</div>
-              <div class="text-2xl font-bold text-green-700">{selectedCompany.analytics.min_twelfth_selected?.toFixed(2) || 'N/A'}</div>
+              <div class="text-2xl font-bold text-blue-700">{selectedCompany.analytics.min_twelfth_selected?.toFixed(2) || 'N/A'}</div>
             </div>
           </div>
         </div>
       {/if}
 
-      {#if selectedCompany.placed && selectedCompany.placed.length > 0}
-        <div class="mb-8">
-          <h4 class="text-2xl font-bold text-gray-900 mb-4">✅ Finally Selected Students ({selectedCompany.placed.length})</h4>
-          <div class="overflow-x-auto rounded-xl border border-green-200 bg-green-50/40">
-            <table class="min-w-full divide-y divide-green-200">
-              <thead class="bg-green-100/70">
+      {#if (selectedCompany.selected && selectedCompany.selected.length > 0) || (selectedCompany.placed && selectedCompany.placed.length > 0)}
+        {@const candidates = selectedCompany.selected && selectedCompany.selected.length > 0 ? selectedCompany.selected : selectedCompany.placed}
+        <div class="mb-8 border border-blue-200 rounded-2xl bg-blue-50/30 overflow-hidden shadow-sm">
+          <div class="bg-blue-100/70 px-6 py-4 flex justify-between items-center border-b border-blue-200">
+            <h4 class="text-2xl font-bold text-blue-950 flex items-center gap-2">
+              💼 Finally Interned / Placed Students
+            </h4>
+            <span class="px-3 py-1 bg-blue-700 text-white text-xs font-bold rounded-full">
+              {candidates.length} Candidate{candidates.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-blue-100">
+              <thead class="bg-white/80">
                 <tr>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Reg No</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Name</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">CGPA</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">10th</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">12th</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Gender</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Resume</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">Reg No / Neo ID</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">Name</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">Campus</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">TopCoder</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">CGPA</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">Offer Status</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">Gender</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">Resume</th>
                 </tr>
               </thead>
-              <tbody class="bg-white divide-y divide-green-100">
-                {#each selectedCompany.placed as student}
-                  <tr class="hover:bg-green-50">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{student.regno}</td>
+              <tbody class="bg-white divide-y divide-blue-50">
+                {#each candidates as student}
+                  <tr class="hover:bg-blue-50/50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                      {student.regno}
+                      {#if student.neo_id}
+                        <span class="ml-1.5 px-1.5 py-0.5 text-xs font-mono bg-blue-100 text-blue-800 rounded font-semibold">{student.neo_id}</span>
+                      {/if}
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <span class="px-2 py-0.5 rounded-full text-xs font-bold {student.campus === 'Unknown' || !student.campus ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'}">
+                        {student.campus || 'Unknown'}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      {#if student.topcoder}
+                        <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">⚡ TopCoder</span>
+                      {:else}
+                        <span class="text-gray-400 text-xs">No</span>
+                      {/if}
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.cgpa?.toFixed(2) || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.tenth_marks?.toFixed(2) || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.twelfth_marks?.toFixed(2) || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <span class="px-2.5 py-0.5 rounded-full text-xs font-bold {student.status === 'placed' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-300'}">
+                        {student.status === 'placed' ? '✓ Full-Time' : '💼 Intern'}
+                      </span>
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.gender || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">
                       {#if student.resume_link}
-                        <a href={student.resume_link} target="_blank" class="text-green-600 hover:text-green-800 font-semibold">📄 View</a>
+                        <a href={student.resume_link} target="_blank" class="text-blue-600 hover:text-blue-800 font-semibold">📄 View</a>
                       {:else}
                         <span class="text-gray-400">N/A</span>
                       {/if}
@@ -579,6 +608,7 @@
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Reg No / Neo ID</th>
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Name</th>
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Campus</th>
+                      <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">TopCoder</th>
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">CGPA</th>
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">10th</th>
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">12th</th>
@@ -600,6 +630,13 @@
                           <span class="px-2 py-0.5 rounded-full text-xs font-bold {student.campus === 'Unknown' || !student.campus ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'}">
                             {student.campus || 'Unknown'}
                           </span>
+                        </td>
+                        <td class="px-6 py-3.5 whitespace-nowrap text-sm">
+                          {#if student.topcoder}
+                            <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">⚡ TopCoder</span>
+                          {:else}
+                            <span class="text-gray-400 text-xs">No</span>
+                          {/if}
                         </td>
                         <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.cgpa?.toFixed(2) || 'N/A'}</td>
                         <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.tenth_marks?.toFixed(2) || 'N/A'}</td>

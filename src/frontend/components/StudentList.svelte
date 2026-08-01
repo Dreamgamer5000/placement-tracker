@@ -15,6 +15,8 @@
   let editingStudent: any = null;
   let saveLoading = false;
   let saveMessage = '';
+  let filterUnmappedChennai = false;
+  let unmappedChennaiCount = 0;
   let sortBy: 'default' | 'shortlists' = 'default';
 
   onMount(async () => {
@@ -32,6 +34,12 @@
     }, 300);
   }
 
+  async function toggleUnmappedChennaiFilter() {
+    filterUnmappedChennai = !filterUnmappedChennai;
+    page = 1;
+    await loadStudents();
+  }
+
   async function loadStudents() {
     loading = true;
     try {
@@ -39,7 +47,8 @@
         page: page.toString(),
         limit: limit.toString(),
         search: debouncedSearch,
-        sortByShortlists: (sortBy === 'shortlists').toString()
+        sortByShortlists: (sortBy === 'shortlists').toString(),
+        unmappedChennai: filterUnmappedChennai.toString()
       });
       const response = await fetch(`/api/students?${params.toString()}`);
       const data = await response.json();
@@ -47,6 +56,7 @@
       if (data && Array.isArray(data.students)) {
         students = data.students;
         totalCount = data.totalCount || data.students.length;
+        unmappedChennaiCount = data.unmappedChennaiCount || 0;
         totalPages = data.totalPages || 1;
       } else if (Array.isArray(data)) {
         students = data;
@@ -69,12 +79,10 @@
     await loadStudents();
   }
 
-  async function viewStudent(id: number) {
-    try {
-      const response = await fetch(`/api/students/${id}`);
-      selectedStudent = await response.json();
-    } catch (error) {
-      console.error('Error loading student details:', error);
+  function viewStudent(id: number) {
+    const s = students.find(item => item.id === id);
+    if (s) {
+      selectedStudent = s;
     }
   }
 
@@ -108,9 +116,8 @@
         selectedStudent = { ...selectedStudent, ...updated };
       }
       setTimeout(() => {
-        editingStudent = null;
         saveMessage = '';
-      }, 1000);
+      }, 4000);
     } catch (error: any) {
       saveMessage = `❌ Error: ${error.message}`;
     } finally {
@@ -131,8 +138,26 @@
 
 <div class="student-list">
   <div class="header-row">
-    <h2>👥 Student Directory</h2>
-    <span class="total-badge">{totalCount} Students</span>
+    <div>
+      <h2>👥 Student Directory</h2>
+      <p class="text-xs text-gray-500 mt-1">Manage students, Neo IDs, placement statuses, and company shortlists.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button 
+        type="button"
+        class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 {!filterUnmappedChennai ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'}"
+        on:click={() => { if (filterUnmappedChennai) { filterUnmappedChennai = false; page = 1; loadStudents(); } }}
+      >
+        All Students ({filterUnmappedChennai ? 'Show All' : totalCount})
+      </button>
+      <button 
+        type="button"
+        class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 {filterUnmappedChennai ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'}"
+        on:click={toggleUnmappedChennaiFilter}
+      >
+        ⚠️ Unmapped Chennai NeoIDs ({unmappedChennaiCount})
+      </button>
+    </div>
   </div>
   
   <div class="search-container">
@@ -162,6 +187,7 @@
             <th>Reg No</th>
             <th>Neo ID</th>
             <th>Name</th>
+            <th>TopCoder</th>
             <th>Campus</th>
             <th>CGPA</th>
             <th class="sortable" on:click={toggleSort}>
@@ -186,6 +212,13 @@
                 </span>
               </td>
               <td class="name-cell">{student.name}</td>
+              <td>
+                {#if student.topcoder}
+                  <span class="status topcoder">⚡ TopCoder</span>
+                {:else}
+                  <span class="text-gray-400 text-xs">No</span>
+                {/if}
+              </td>
               <td>{student.campus}</td>
               <td><strong>{student.cgpa || 'N/A'}</strong></td>
               <td>
@@ -263,6 +296,14 @@
         <div class="detail-item"><strong>12th Marks:</strong> {selectedStudent.twelfth_marks || 'N/A'}</div>
         <div class="detail-item"><strong>Campus:</strong> {selectedStudent.campus}</div>
         <div class="detail-item"><strong>Status:</strong> {selectedStudent.status}</div>
+        <div class="detail-item">
+          <strong>TopCoder:</strong> 
+          {#if selectedStudent.topcoder}
+            <span class="status topcoder">⚡ Yes (TopCoder)</span>
+          {:else}
+            No
+          {/if}
+        </div>
       </div>
 
       {#if selectedStudent.resume_link}
@@ -394,6 +435,13 @@
               <option value="masters">🎓 Masters (Higher Studies)</option>
             </select>
           </div>
+
+          <div class="form-group full-width bg-amber-50/60 p-3 rounded-xl border border-amber-200">
+            <label for="edit-topcoder" class="flex items-center gap-3 cursor-pointer">
+              <input id="edit-topcoder" type="checkbox" bind:checked={editingStudent.topcoder} class="w-5 h-5 accent-amber-600 rounded cursor-pointer" />
+              <span class="font-bold text-amber-950 text-sm">⚡ TopCoder Student</span>
+            </label>
+          </div>
         </div>
 
         <div class="form-actions">
@@ -426,15 +474,6 @@
     font-size: 1.875rem;
     font-weight: 700;
     margin: 0;
-  }
-
-  .total-badge {
-    padding: 0.4rem 1rem;
-    background: #e0e7ff;
-    color: #4338ca;
-    font-weight: 700;
-    border-radius: 20px;
-    font-size: 0.9rem;
   }
 
   .search-container {
@@ -614,6 +653,13 @@
     background: #f3e8ff;
     color: #7e22ce;
     border: 1px solid #e9d5ff;
+  }
+
+  .status.topcoder {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+    font-weight: 700;
   }
 
   .action-cells {

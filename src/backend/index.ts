@@ -19,23 +19,36 @@ app.get('/api/students', (c) => {
   const page = Math.max(1, parseInt(c.req.query('page') || '1'));
   const limit = Math.min(100, Math.max(1, parseInt(c.req.query('limit') || '50')));
   const sortByShortlists = c.req.query('sortByShortlists') === 'true' || c.req.query('sort') === 'shortlists';
+  const unmappedChennai = c.req.query('unmappedChennai') === 'true';
 
   const offset = (page - 1) * limit;
 
-  let whereClause = '';
+  const conditions: string[] = [];
   const params: any[] = [];
 
+  if (unmappedChennai) {
+    conditions.push(`(s.campus = 'Chennai' OR s.campus LIKE '%Chennai%') AND (s.neo_id IS NULL OR s.neo_id = '' OR s.neo_id = 'Unknown')`);
+  }
+
   if (search) {
-    whereClause = `WHERE s.name LIKE ? OR s.regno LIKE ? OR s.neo_id LIKE ? OR s.branch LIKE ? OR s.campus LIKE ?`;
+    conditions.push(`(s.name LIKE ? OR s.regno LIKE ? OR s.neo_id LIKE ? OR s.branch LIKE ? OR s.campus LIKE ?)`);
     const searchPattern = `%${search}%`;
     params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
   }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   // Count total matching
   const countSql = `SELECT COUNT(*) as count FROM students s ${whereClause}`;
   const totalRow = db.prepare(countSql).get(...params) as { count: number } | undefined;
   const totalCount = totalRow ? totalRow.count : 0;
   const totalPages = Math.ceil(totalCount / limit) || 1;
+
+  // Global count of unmapped Chennai students
+  const unmappedChennaiRow = db.prepare(
+    `SELECT COUNT(*) as count FROM students WHERE (campus = 'Chennai' OR campus LIKE '%Chennai%') AND (neo_id IS NULL OR neo_id = '' OR neo_id = 'Unknown')`
+  ).get() as { count: number } | undefined;
+  const unmappedChennaiCount = unmappedChennaiRow ? unmappedChennaiRow.count : 0;
 
   let orderClause = 'ORDER BY s.name ASC';
   if (sortByShortlists) {
@@ -57,6 +70,7 @@ app.get('/api/students', (c) => {
   return c.json({
     students,
     totalCount,
+    unmappedChennaiCount,
     page,
     limit,
     totalPages
@@ -145,7 +159,8 @@ app.put('/api/students/:id', async (c) => {
     neo_id,
     placed,
     masters,
-    status
+    status,
+    topcoder
   } = body;
 
   if (!name || !regno || !email) {
@@ -162,6 +177,7 @@ app.put('/api/students/:id', async (c) => {
   // Sync boolean flags for backward compatibility
   const isPlaced = status === 'placed' || status === 'intern';
   const isMasters = status === 'masters';
+  const isTopcoder = topcoder ? 1 : 0;
 
   const updateStmt = db.prepare(`
     UPDATE students
@@ -180,7 +196,8 @@ app.put('/api/students/:id', async (c) => {
         neo_id = ?,
         placed = ?,
         masters = ?,
-        status = ?
+        status = ?,
+        topcoder = ?
     WHERE id = ?
   `);
 
@@ -201,6 +218,7 @@ app.put('/api/students/:id', async (c) => {
     isPlaced ? 1 : 0,
     isMasters ? 1 : 0,
     status,
+    isTopcoder,
     id
   );
 
@@ -209,10 +227,10 @@ app.put('/api/students/:id', async (c) => {
     const trimmedNeoId = String(neo_id).trim();
     const studentCampus = campus || 'Chennai';
     db.prepare(`
-      INSERT INTO neo_ids (neo_id, campus, student_id, regno)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(neo_id) DO UPDATE SET campus = excluded.campus, student_id = excluded.student_id, regno = excluded.regno
-    `).run(trimmedNeoId, studentCampus, id, regno);
+      INSERT INTO neo_ids (neo_id, campus, student_id, regno, topcoder)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(neo_id) DO UPDATE SET campus = excluded.campus, student_id = excluded.student_id, regno = excluded.regno, topcoder = excluded.topcoder
+    `).run(trimmedNeoId, studentCampus, id, regno, isTopcoder);
   }
 
   const updatedStudent = db.prepare('SELECT * FROM students WHERE id = ?').get(id);
@@ -572,17 +590,19 @@ app.post('/api/predict-companies', async (c) => {
 // Get analytics summary
 app.get('/api/analytics/summary', (c) => {
   const totalStudents = db.prepare('SELECT COUNT(*) as count FROM students').get() as any;
-  const placedStudents = db.prepare('SELECT COUNT(*) as count FROM students WHERE placed = 1').get() as any;
+  const internedStudents = db.prepare(`
+    SELECT COUNT(*) as count FROM students WHERE placed = 1 OR status IN ('placed', 'intern')
+  `).get() as any;
   const totalCompanies = db.prepare('SELECT COUNT(*) as count FROM companies').get() as any;
   
   const branchStats = db.prepare(`
-    SELECT branch, COUNT(*) as total, SUM(placed) as placed
+    SELECT branch, COUNT(*) as total, SUM(CASE WHEN placed = 1 OR status IN ('placed', 'intern') THEN 1 ELSE 0 END) as placed
     FROM students
     GROUP BY branch
   `).all();
   
   const campusStats = db.prepare(`
-    SELECT campus, COUNT(*) as total, SUM(placed) as placed
+    SELECT campus, COUNT(*) as total, SUM(CASE WHEN placed = 1 OR status IN ('placed', 'intern') THEN 1 ELSE 0 END) as placed
     FROM students
     GROUP BY campus
   `).all();
@@ -598,9 +618,9 @@ app.get('/api/analytics/summary', (c) => {
   
   return c.json({
     totalStudents: totalStudents.count,
-    placedStudents: placedStudents.count,
+    placedStudents: internedStudents.count,
     totalCompanies: totalCompanies.count,
-    placementRate: ((placedStudents.count / totalStudents.count) * 100).toFixed(2),
+    placementRate: ((internedStudents.count / totalStudents.count) * 100).toFixed(2),
     branchStats,
     campusStats,
     topCompanies

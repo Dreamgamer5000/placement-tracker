@@ -35,12 +35,12 @@
       
       <div class="stat-card">
         <div class="stat-value">{summary.placedStudents}</div>
-        <div class="stat-label">Placed Students</div>
+        <div class="stat-label">Interned Students</div>
       </div>
       
       <div class="stat-card">
         <div class="stat-value">{summary.placementRate}%</div>
-        <div class="stat-label">Placement Rate</div>
+        <div class="stat-label">Internship Rate</div>
       </div>
       
       <div class="stat-card">
@@ -57,7 +57,7 @@
             <tr>
               <th>Branch</th>
               <th>Total</th>
-              <th>Placed</th>
+              <th>Interned</th>
               <th>Rate</th>
             </tr>
           </thead>
@@ -81,7 +81,7 @@
             <tr>
               <th>Campus</th>
               <th>Total</th>
-              <th>Placed</th>
+              <th>Interned</th>
               <th>Rate</th>
             </tr>
           </thead>

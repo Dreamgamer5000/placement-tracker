@@ -235,8 +235,8 @@
 </div>
 
 {#if selectedStudent}
-  <div class="modal" on:click={() => selectedStudent = null}>
-    <div class="modal-content" on:click|stopPropagation>
+  <button class="modal" type="button" on:click|self={() => selectedStudent = null}>
+    <div class="modal-content text-left cursor-default">
       <button class="close-btn" on:click={() => selectedStudent = null}>×</button>
       
       <div class="modal-header">
@@ -245,55 +245,40 @@
           ✏️ Edit Details
         </button>
       </div>
-      
+
       <div class="details-grid">
-        <div class="detail-item">
-          <strong>Registration No:</strong> {selectedStudent.regno}
-        </div>
+        <div class="detail-item"><strong>Registration No:</strong> {selectedStudent.regno}</div>
         <div class="detail-item">
           <strong>Neo ID:</strong> 
           <span class="neo-badge" class:has-neoid={selectedStudent.neo_id}>
             {selectedStudent.neo_id || 'Not Assigned'}
           </span>
         </div>
-        <div class="detail-item">
-          <strong>Email:</strong> {selectedStudent.email}
-        </div>
-        <div class="detail-item">
-          <strong>Phone:</strong> {selectedStudent.phone || 'N/A'}
-        </div>
-        <div class="detail-item">
-          <strong>Gender:</strong> {selectedStudent.gender || 'N/A'}
-        </div>
-        <div class="detail-item">
-          <strong>Branch:</strong> {selectedStudent.branch}
-        </div>
-        <div class="detail-item">
-          <strong>Campus:</strong> {selectedStudent.campus}
-        </div>
-        <div class="detail-item">
-          <strong>CGPA:</strong> {selectedStudent.cgpa || 'N/A'}
-        </div>
-        <div class="detail-item">
-          <strong>10th Marks:</strong> {selectedStudent.tenth_marks || 'N/A'}
-        </div>
-        <div class="detail-item">
-          <strong>12th Marks:</strong> {selectedStudent.twelfth_marks || 'N/A'}
-        </div>
+        <div class="detail-item"><strong>Email:</strong> {selectedStudent.email}</div>
+        <div class="detail-item"><strong>Phone:</strong> {selectedStudent.phone || 'N/A'}</div>
+        <div class="detail-item"><strong>Personal Email:</strong> {selectedStudent.personal_email || 'N/A'}</div>
+        <div class="detail-item"><strong>Gender:</strong> {selectedStudent.gender || 'N/A'}</div>
+        <div class="detail-item"><strong>CGPA:</strong> {selectedStudent.cgpa || 'N/A'}</div>
+        <div class="detail-item"><strong>10th Marks:</strong> {selectedStudent.tenth_marks || 'N/A'}</div>
+        <div class="detail-item"><strong>12th Marks:</strong> {selectedStudent.twelfth_marks || 'N/A'}</div>
+        <div class="detail-item"><strong>Campus:</strong> {selectedStudent.campus}</div>
+        <div class="detail-item"><strong>Status:</strong> {selectedStudent.status}</div>
       </div>
 
       {#if selectedStudent.resume_link}
         <div class="detail-item">
           <strong>Resume:</strong> 
-          <a href={selectedStudent.resume_link} target="_blank">View Resume</a>
+          <a href={selectedStudent.resume_link} target="_blank" rel="noopener noreferrer">
+            View Resume 🔗
+          </a>
         </div>
       {/if}
 
       {#if selectedStudent.shortlists && selectedStudent.shortlists.length > 0}
-        <h4>📋 Shortlisted Companies ({selectedStudent.shortlists.length})</h4>
+        <h4>Shortlisted Companies ({selectedStudent.shortlists.length})</h4>
         <ul class="company-list">
-          {#each selectedStudent.shortlists as shortlist}
-            <li>{shortlist.name}</li>
+          {#each selectedStudent.shortlists as company}
+            <li>{company.name}</li>
           {/each}
         </ul>
       {/if}
@@ -313,12 +298,12 @@
         </div>
       {/if}
     </div>
-  </div>
+  </button>
 {/if}
 
 {#if editingStudent}
-  <div class="modal" on:click={() => editingStudent = null}>
-    <div class="modal-content edit-modal" on:click|stopPropagation>
+  <button class="modal" type="button" on:click|self={() => editingStudent = null}>
+    <div class="modal-content edit-modal text-left cursor-default">
       <button class="close-btn" on:click={() => editingStudent = null}>×</button>
       <h3>✏️ Edit Student Details</h3>
 
@@ -419,7 +404,7 @@
         </div>
       </form>
     </div>
-  </div>
+  </button>
 {/if}
 
 <style>

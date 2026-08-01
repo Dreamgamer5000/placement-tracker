@@ -2,12 +2,30 @@
   import { onMount } from 'svelte';
 
   let companies: any[] = [];
+  let companySearchTerm = '';
   let selectedCompanyId = '';
   let regnos = '';
   let roundNumber = 1;
   let customRoundName = '';
   let message = '';
   let messageType: 'success' | 'error' = 'success';
+
+  $: filteredCompanies = Array.isArray(companies) ? companies.filter(c => {
+    if (!companySearchTerm || !companySearchTerm.trim()) return true;
+    
+    const tokens = companySearchTerm.toLowerCase().trim().split(/\s+/);
+    const combinedText = [
+      c.name,
+      c.ctc,
+      c.notes,
+      c.round_details,
+      c.experience_required,
+      c.rounds ? `${c.rounds} rounds` : '',
+      c.total_rounds ? `${c.total_rounds} rounds` : ''
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    return tokens.every(token => combinedText.includes(token));
+  }) : [];
 
   onMount(async () => {
     await loadCompanies();
@@ -102,26 +120,37 @@
   
   <div class="bg-white rounded-lg shadow-md p-6 mb-6">
     <div class="mb-6">
-      <label for="company" class="block text-sm font-semibold text-gray-700 mb-2">
+      <label for="company-search" class="block text-sm font-semibold text-gray-700 mb-2">
         Select Company *
       </label>
-      <select 
-        id="company" 
-        bind:value={selectedCompanyId}
-        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-      >
-        <option value="">-- Select a company --</option>
-        {#each companies as company}
-          <option value={company.id}>{company.name}</option>
-        {/each}
-      </select>
-      <p class="mt-1 text-xs text-gray-500">Note: New companies can be added from the <strong>Companies</strong> page.</p>
+      <div class="space-y-2">
+        <input 
+          id="company-search"
+          type="text" 
+          placeholder="🔍 Type to search company by name, CTC, or text..."
+          bind:value={companySearchTerm}
+          class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+        />
+        <select 
+          id="company" 
+          bind:value={selectedCompanyId}
+          class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+        >
+          <option value="">-- Select a company ({filteredCompanies.length} available) --</option>
+          {#each filteredCompanies as company}
+            <option value={company.id}>{company.name} {company.ctc ? `(${company.ctc})` : ''}</option>
+          {/each}
+        </select>
+        <p class="text-xs text-gray-500">
+          Showing {filteredCompanies.length} of {companies.length} companies. New companies can be added from the <strong>Companies</strong> page.
+        </p>
+      </div>
     </div>
     <!-- Shortlist Round / Stage Selection -->
     <div class="mb-6 bg-purple-50/70 p-4 rounded-xl border border-purple-200">
-      <label class="block text-sm font-bold text-purple-900 mb-2">
+      <span class="block text-sm font-bold text-purple-900 mb-2">
         Shortlist Round / Stage *
-      </label>
+      </span>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
         <button
           type="button"

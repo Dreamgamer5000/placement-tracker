@@ -137,13 +137,22 @@
     }
   }
 
-  $: filteredCompanies = Array.isArray(companies) ? companies.filter(c =>
-    c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.ctc?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.round_details?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.experience_required?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  $: filteredCompanies = Array.isArray(companies) ? companies.filter(c => {
+    if (!searchTerm || !searchTerm.trim()) return true;
+    
+    const tokens = searchTerm.toLowerCase().trim().split(/\s+/);
+    const combinedText = [
+      c.name,
+      c.ctc,
+      c.notes,
+      c.round_details,
+      c.experience_required,
+      c.rounds ? `${c.rounds} rounds` : '',
+      c.total_rounds ? `${c.total_rounds} rounds` : ''
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    return tokens.every(token => combinedText.includes(token));
+  }) : [];
 </script>
 
 <div class="p-8 max-w-[1600px] mx-auto">
@@ -365,34 +374,34 @@
           <div class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Company Name *</label>
-                <input type="text" bind:value={editingCompany.name} class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" required />
+                <label for="edit-company-name" class="block text-xs font-bold text-gray-700 uppercase mb-1">Company Name *</label>
+                <input id="edit-company-name" type="text" bind:value={editingCompany.name} class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" required />
               </div>
               <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">CTC Package</label>
-                <input type="text" bind:value={editingCompany.ctc} placeholder="e.g. 16 LPA" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+                <label for="edit-company-ctc" class="block text-xs font-bold text-gray-700 uppercase mb-1">CTC Package</label>
+                <input id="edit-company-ctc" type="text" bind:value={editingCompany.ctc} placeholder="e.g. 16 LPA" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
               </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Total Rounds</label>
-                <input type="number" bind:value={editingCompany.total_rounds} placeholder="e.g. 4" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+                <label for="edit-company-rounds" class="block text-xs font-bold text-gray-700 uppercase mb-1">Total Rounds</label>
+                <input id="edit-company-rounds" type="number" bind:value={editingCompany.total_rounds} placeholder="e.g. 4" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
               </div>
               <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Experience Required</label>
-                <input type="text" bind:value={editingCompany.experience_required} placeholder="e.g. Freshers" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+                <label for="edit-company-exp" class="block text-xs font-bold text-gray-700 uppercase mb-1">Experience Required</label>
+                <input id="edit-company-exp" type="text" bind:value={editingCompany.experience_required} placeholder="e.g. Freshers" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
               </div>
             </div>
 
             <div>
-              <label class="block text-xs font-bold text-gray-700 uppercase mb-1">General Notes</label>
-              <textarea bind:value={editingCompany.notes} rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+              <label for="edit-company-notes" class="block text-xs font-bold text-gray-700 uppercase mb-1">General Notes</label>
+              <textarea id="edit-company-notes" bind:value={editingCompany.notes} rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
             </div>
 
             <div>
-              <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Round-by-Round Details / Instructions</label>
-              <textarea bind:value={editingCompany.round_details} rows="4" placeholder="Describe each round, questions asked, cutoffs, etc." class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+              <label for="edit-company-details" class="block text-xs font-bold text-gray-700 uppercase mb-1">Round-by-Round Details / Instructions</label>
+              <textarea id="edit-company-details" bind:value={editingCompany.round_details} rows="4" placeholder="Describe each round, questions asked, cutoffs, etc." class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
             </div>
 
             <div class="flex justify-end gap-3 pt-2">
@@ -545,20 +554,31 @@
         <div class="mb-8 space-y-6">
           {#each selectedCompany.shortlist_rounds as round}
             <div class="border border-purple-200 rounded-2xl bg-purple-50/30 overflow-hidden shadow-sm">
-              <div class="bg-purple-100/70 px-6 py-4 flex justify-between items-center border-b border-purple-200">
+              <div class="bg-purple-100/70 px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-purple-200">
                 <h4 class="text-xl font-bold text-purple-950 flex items-center gap-2">
                   📋 {round.round_name || `Shortlist ${round.round_number}`}
                 </h4>
-                <span class="px-3 py-1 bg-purple-600 text-white text-xs font-bold rounded-full">
-                  {round.students.length} Student{round.students.length === 1 ? '' : 's'}
-                </span>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="px-3 py-1 bg-purple-700 text-white text-xs font-bold rounded-full">
+                    Total: {round.students.length}
+                  </span>
+                  <span class="px-3 py-1 bg-indigo-700 text-white text-xs font-bold rounded-full">
+                    Chennai: {round.students.filter(s => s.campus === 'Chennai').length}
+                  </span>
+                  {#if round.students.filter(s => s.campus === 'Unknown' || !s.campus).length > 0}
+                    <span class="px-3 py-1 bg-amber-600 text-white text-xs font-bold rounded-full">
+                      Unknown: {round.students.filter(s => s.campus === 'Unknown' || !s.campus).length}
+                    </span>
+                  {/if}
+                </div>
               </div>
               <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-purple-100">
                   <thead class="bg-white/80">
                     <tr>
-                      <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Reg No</th>
+                      <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Reg No / Neo ID</th>
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Name</th>
+                      <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Campus</th>
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">CGPA</th>
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">10th</th>
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">12th</th>
@@ -569,8 +589,18 @@
                   <tbody class="bg-white divide-y divide-purple-50">
                     {#each round.students as student}
                       <tr class="hover:bg-purple-50/50">
-                        <td class="px-6 py-3.5 whitespace-nowrap text-sm font-bold text-gray-900">{student.regno}</td>
+                        <td class="px-6 py-3.5 whitespace-nowrap text-sm font-bold text-gray-900">
+                          {student.regno}
+                          {#if student.neo_id}
+                            <span class="ml-1 px-1.5 py-0.5 text-xs font-mono bg-purple-100 text-purple-800 rounded">{student.neo_id}</span>
+                          {/if}
+                        </td>
                         <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
+                        <td class="px-6 py-3.5 whitespace-nowrap text-sm">
+                          <span class="px-2 py-0.5 rounded-full text-xs font-bold {student.campus === 'Unknown' || !student.campus ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'}">
+                            {student.campus || 'Unknown'}
+                          </span>
+                        </td>
                         <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.cgpa?.toFixed(2) || 'N/A'}</td>
                         <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.tenth_marks?.toFixed(2) || 'N/A'}</td>
                         <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.twelfth_marks?.toFixed(2) || 'N/A'}</td>

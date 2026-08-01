@@ -223,12 +223,71 @@ async function importMapping2Data() {
   console.log(`Mapped NeoID for ${count} students from mapping2.csv`);
 }
 
+interface Mapping3Row {
+  "S.No"?: string;
+  "Candidate's Name"?: string;
+  "Reg. No."?: string;
+  "NEO ID"?: string;
+}
+
+async function importMapping3Data() {
+  console.log('Importing mapping3.csv...');
+  
+  const csvPath = path.join(process.cwd(), 'mapping3.csv');
+  if (!fs.existsSync(csvPath)) {
+    console.log('mapping3.csv not found, skipping');
+    return;
+  }
+  
+  const csvContent = fs.readFileSync(csvPath, 'utf-8');
+  const results = Papa.parse<Mapping3Row>(csvContent, {
+    header: true,
+    skipEmptyLines: true
+  });
+  
+  const insertNeoStmt = db.prepare(`
+    INSERT INTO neo_ids (neo_id, campus, student_id, regno)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(neo_id) DO UPDATE SET
+      campus = COALESCE(excluded.campus, neo_ids.campus),
+      student_id = COALESCE(excluded.student_id, neo_ids.student_id),
+      regno = COALESCE(excluded.regno, neo_ids.regno)
+  `);
+
+  const updateStudentStmt = db.prepare(`
+    UPDATE students
+    SET neo_id = ?
+    WHERE regno = ?
+  `);
+
+  let count = 0;
+  for (const row of results.data) {
+    const rawRegno = row['Reg. No.'];
+    const neoId = row['NEO ID']?.trim();
+    if (!rawRegno || !neoId || neoId === '#N/A' || neoId === 'N/A') continue;
+
+    const regno = normalizeRegNo(rawRegno);
+    const campus = 'Chennai';
+    const student = db.prepare('SELECT id FROM students WHERE regno = ?').get(regno) as { id: number } | undefined;
+    const studentId = student ? student.id : null;
+
+    insertNeoStmt.run(neoId, campus, studentId, regno);
+    const res = updateStudentStmt.run(neoId, regno);
+    if (res.changes > 0) {
+      count++;
+    }
+  }
+
+  console.log(`Mapped NeoID for ${count} students from mapping3.csv`);
+}
+
 async function main() {
   try {
     await importIOEData();
     await importFidelityData();
     await importMapping1Data();
     await importMapping2Data();
+    await importMapping3Data();
     console.log('Data import complete!');
   } catch (error) {
     console.error('Error importing data:', error);

@@ -261,20 +261,26 @@ app.get('/api/companies/:id', (c) => {
     FROM students s
     JOIN shortlists sl ON s.id = sl.student_id
     WHERE sl.company_id = ?
-    ORDER BY sl.round_number ASC, s.cgpa DESC
+    ORDER BY sl.round_number DESC, s.cgpa DESC
   `).all(id);
 
   // Group shortlists by round number / round name
-  const roundMap = new Map<number, { round_number: number; round_name: string; students: any[] }>();
+  const roundMap = new Map<number, { round_number: number; round_name: string; students: any[]; chennai_count: number; unknown_count: number }>();
   for (const s of shortlisted as any[]) {
     const rNum = s.round_number || 1;
     const rName = s.round_name || `Shortlist ${rNum}`;
     if (!roundMap.has(rNum)) {
-      roundMap.set(rNum, { round_number: rNum, round_name: rName, students: [] });
+      roundMap.set(rNum, { round_number: rNum, round_name: rName, students: [], chennai_count: 0, unknown_count: 0 });
     }
-    roundMap.get(rNum)!.students.push(s);
+    const roundObj = roundMap.get(rNum)!;
+    roundObj.students.push(s);
+    if (s.campus === 'Unknown' || !s.campus) {
+      roundObj.unknown_count++;
+    } else if (s.campus === 'Chennai') {
+      roundObj.chennai_count++;
+    }
   }
-  const shortlist_rounds = Array.from(roundMap.values()).sort((a, b) => a.round_number - b.round_number);
+  const shortlist_rounds = Array.from(roundMap.values()).sort((a, b) => b.round_number - a.round_number);
   
   // Get selected students
   const selected = db.prepare(`

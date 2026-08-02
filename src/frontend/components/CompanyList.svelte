@@ -21,6 +21,33 @@
   let analyticsMessage = '';
   let analyticsMessageType: 'success' | 'error' = 'success';
 
+  let editingRoundNumber: number | null = null;
+  let editingRoundNameInput = '';
+
+  function startRenamingRound(round: any) {
+    editingRoundNumber = round.round_number;
+    editingRoundNameInput = round.round_name || `Shortlist ${round.round_number}`;
+  }
+
+  async function saveRoundName(companyId: number, roundNumber: number) {
+    if (!editingRoundNameInput.trim()) return;
+    try {
+      const response = await fetch(`/api/companies/${companyId}/shortlist-round/${roundNumber}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ round_name: editingRoundNameInput.trim() })
+      });
+      if (response.ok) {
+        editingRoundNumber = null;
+        if (selectedCompany) {
+          await viewCompany(companyId);
+        }
+      }
+    } catch (error) {
+      console.error('Error renaming round:', error);
+    }
+  }
+
   onMount(async () => {
     await loadCompanies();
   });
@@ -584,9 +611,41 @@
           {#each selectedCompany.shortlist_rounds as round}
             <div class="border border-purple-200 rounded-2xl bg-purple-50/30 overflow-hidden shadow-sm">
               <div class="bg-purple-100/70 px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-purple-200">
-                <h4 class="text-xl font-bold text-purple-950 flex items-center gap-2">
-                  📋 {round.round_name || `Shortlist ${round.round_number}`}
-                </h4>
+                {#if editingRoundNumber === round.round_number}
+                  <div class="flex items-center gap-2 flex-1">
+                    <input
+                      type="text"
+                      bind:value={editingRoundNameInput}
+                      class="px-3 py-1.5 border-2 border-purple-400 rounded-lg text-sm font-bold text-gray-900 bg-white flex-1 max-w-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Custom shortlist round name"
+                    />
+                    <button
+                      on:click={() => saveRoundName(selectedCompany.id, round.round_number)}
+                      class="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold rounded-lg shadow-sm"
+                    >
+                      Save
+                    </button>
+                    <button
+                      on:click={() => editingRoundNumber = null}
+                      class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold rounded-lg"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                {:else}
+                  <div class="flex items-center gap-3">
+                    <h4 class="text-xl font-bold text-purple-950 flex items-center gap-2">
+                      📋 {round.round_name || `Shortlist ${round.round_number}`}
+                    </h4>
+                    <button
+                      on:click={() => startRenamingRound(round)}
+                      class="px-2.5 py-1 text-xs bg-purple-200/80 hover:bg-purple-300 text-purple-900 font-semibold rounded-md transition-colors"
+                      title="Rename this shortlist round"
+                    >
+                      ✏️ Rename
+                    </button>
+                  </div>
+                {/if}
                 <div class="flex flex-wrap items-center gap-2">
                   <span class="px-3 py-1 bg-purple-700 text-white text-xs font-bold rounded-full">
                     Total: {round.students.length}

@@ -154,51 +154,57 @@
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
         <button
           type="button"
-          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber === 1 && !customRoundName ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'}"
-          on:click={() => { roundNumber = 1; customRoundName = ''; }}
+          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber === 1 ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'}"
+          on:click={() => { roundNumber = 1; if (!customRoundName || customRoundName.startsWith('Shortlist ')) customRoundName = 'Shortlist 1'; }}
         >
-          Shortlist 1 (Round 1)
+          Shortlist 1
         </button>
         <button
           type="button"
-          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber === 2 && !customRoundName ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'}"
-          on:click={() => { roundNumber = 2; customRoundName = ''; }}
+          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber === 2 ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'}"
+          on:click={() => { roundNumber = 2; if (!customRoundName || customRoundName.startsWith('Shortlist ')) customRoundName = 'Shortlist 2'; }}
         >
-          Shortlist 2 (Round 2)
+          Shortlist 2
         </button>
         <button
           type="button"
-          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber === 3 && !customRoundName ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'}"
-          on:click={() => { roundNumber = 3; customRoundName = ''; }}
+          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber === 3 ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'}"
+          on:click={() => { roundNumber = 3; if (!customRoundName || customRoundName.startsWith('Shortlist ')) customRoundName = 'Shortlist 3'; }}
         >
-          Shortlist 3 (Round 3)
+          Shortlist 3
         </button>
         <button
           type="button"
-          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber >= 4 || customRoundName ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'}"
-          on:click={() => { if (roundNumber < 4) roundNumber = 4; }}
+          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber >= 4 ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'}"
+          on:click={() => { if (roundNumber < 4) roundNumber = 4; if (!customRoundName || customRoundName.startsWith('Shortlist ')) customRoundName = `Shortlist ${roundNumber}`; }}
         >
           Custom / Next Round
         </button>
       </div>
 
-      {#if roundNumber >= 4 || customRoundName}
-        <div class="flex gap-3 items-center">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-center pt-3 border-t border-purple-200/60">
+        <div>
+          <label for="round-num" class="block text-xs font-bold text-purple-900 uppercase mb-1">Round Index (#)</label>
           <input
+            id="round-num"
             type="number"
             min="1"
             bind:value={roundNumber}
-            class="w-24 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-bold"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-bold"
             placeholder="Round #"
           />
+        </div>
+        <div class="md:col-span-2">
+          <label for="custom-round-name" class="block text-xs font-bold text-purple-900 uppercase mb-1">Custom Shortlist / Round Name *</label>
           <input
+            id="custom-round-name"
             type="text"
             bind:value={customRoundName}
-            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm"
-            placeholder="Custom name (e.g. Technical Round 2, Shortlist 4)"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+            placeholder="e.g. Shortlist 1, Technical OA, Coding Assessment, Interview Round 2"
           />
         </div>
-      {/if}
+      </div>
     </div>
 
     <div class="mb-6">

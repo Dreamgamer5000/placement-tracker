@@ -496,6 +496,31 @@ app.post('/api/companies/:id/shortlist', async (c) => {
   }
 });
 
+// Update shortlist round name for a company
+app.put('/api/companies/:id/shortlist-round/:roundNumber', async (c) => {
+  try {
+    const companyId = c.req.param('id');
+    const roundNumber = parseInt(c.req.param('roundNumber'));
+    const body = await c.req.json();
+    const roundName = body.round_name ? String(body.round_name).trim() : '';
+
+    if (!roundName) {
+      return c.json({ error: 'Custom shortlist round name is required' }, 400);
+    }
+
+    const result = db.prepare(`
+      UPDATE shortlists
+      SET round_name = ?
+      WHERE company_id = ? AND round_number = ?
+    `).run(roundName, companyId, roundNumber);
+
+    return c.json({ success: true, updatedCount: result.changes, round_number: roundNumber, round_name: roundName });
+  } catch (error: any) {
+    console.error('Error renaming shortlist round:', error);
+    return c.json({ error: 'Internal server error', details: error.message }, 500);
+  }
+});
+
 // Add students to company selections (final selection, accepts RegNo or NeoID)
 app.post('/api/companies/:id/selections', async (c) => {
   try {

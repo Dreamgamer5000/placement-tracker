@@ -319,7 +319,7 @@
         <h4>Shortlisted Companies ({selectedStudent.shortlists.length})</h4>
         <ul class="company-list">
           {#each selectedStudent.shortlists as company}
-            <li>{company.name}</li>
+            <li>{company.name} <span class="text-xs text-purple-600 font-semibold">({company.round_name || `Round ${company.round_number}`})</span></li>
           {/each}
         </ul>
       {/if}

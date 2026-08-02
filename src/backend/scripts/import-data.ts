@@ -281,6 +281,48 @@ async function importMapping3Data() {
   console.log(`Mapped NeoID for ${count} students from mapping3.csv`);
 }
 
+async function importTopcoderData() {
+  console.log('Importing topcoder.csv...');
+  
+  const csvPath = path.join(process.cwd(), 'topcoder.csv');
+  if (!fs.existsSync(csvPath)) {
+    console.log('topcoder.csv not found, skipping');
+    return;
+  }
+  
+  const csvContent = fs.readFileSync(csvPath, 'utf-8');
+  const lines = csvContent.split(/\r?\n/);
+  
+  const insertNeoStmt = db.prepare(`
+    INSERT INTO neo_ids (neo_id, campus, topcoder)
+    VALUES (?, 'Unknown', 1)
+    ON CONFLICT(neo_id) DO UPDATE SET topcoder = 1
+  `);
+
+  let neoCount = 0;
+  for (let i = 1; i < lines.length; i++) {
+    const neoId = lines[i].trim();
+    if (!neoId || neoId.toUpperCase() === 'NEO ID') continue;
+
+    insertNeoStmt.run(neoId.toUpperCase());
+    neoCount++;
+  }
+
+  // Update students table for all matched topcoder Neo IDs
+  const updateStudentsStmt = db.prepare(`
+    UPDATE students
+    SET topcoder = 1
+    WHERE UPPER(neo_id) IN (SELECT UPPER(neo_id) FROM neo_ids WHERE topcoder = 1)
+       OR id IN (SELECT student_id FROM neo_ids WHERE topcoder = 1 AND student_id IS NOT NULL)
+       OR UPPER(regno) IN (SELECT UPPER(regno) FROM neo_ids WHERE topcoder = 1 AND regno IS NOT NULL)
+  `);
+
+  const studentResult = updateStudentsStmt.run();
+
+  console.log(`Marked ${neoCount} Neo IDs as Topcoder in neo_ids table`);
+  console.log(`Marked ${studentResult.changes} students as Topcoder in students table`);
+}
+
 async function main() {
   try {
     await importIOEData();
@@ -288,6 +330,7 @@ async function main() {
     await importMapping1Data();
     await importMapping2Data();
     await importMapping3Data();
+    await importTopcoderData();
     console.log('Data import complete!');
   } catch (error) {
     console.error('Error importing data:', error);
@@ -296,3 +339,4 @@ async function main() {
 }
 
 main();
+

@@ -47,6 +47,10 @@ async function importIOEData() {
     const branch = extractBranch(regno);
     const campus = extractCampus(regno);
     
+    if (branch === 'MIS' || branch === 'MIA' || regno.includes('MIS') || regno.includes('MIA')) {
+      continue;
+    }
+    
     insertStmt.run(regno, row.name, row.email, row.phone || null, branch, campus);
     count++;
   }

@@ -17,6 +17,8 @@
   let saveMessage = '';
   let filterUnmappedChennai = false;
   let unmappedChennaiCount = 0;
+  let filterMasters = false;
+  let mastersCount = 0;
   let sortBy: 'default' | 'shortlists' = 'default';
 
   onMount(async () => {
@@ -40,6 +42,12 @@
     await loadStudents();
   }
 
+  async function toggleMastersFilter() {
+    filterMasters = !filterMasters;
+    page = 1;
+    await loadStudents();
+  }
+
   async function loadStudents() {
     loading = true;
     try {
@@ -48,7 +56,8 @@
         limit: limit.toString(),
         search: debouncedSearch,
         sortByShortlists: (sortBy === 'shortlists').toString(),
-        unmappedChennai: filterUnmappedChennai.toString()
+        unmappedChennai: filterUnmappedChennai.toString(),
+        masters: filterMasters.toString()
       });
       const response = await fetch(`/api/students?${params.toString()}`);
       const data = await response.json();
@@ -57,6 +66,7 @@
         students = data.students;
         totalCount = data.totalCount || data.students.length;
         unmappedChennaiCount = data.unmappedChennaiCount || 0;
+        mastersCount = data.mastersCount || 0;
         totalPages = data.totalPages || 1;
       } else if (Array.isArray(data)) {
         students = data;
@@ -79,10 +89,16 @@
     await loadStudents();
   }
 
-  function viewStudent(id: number) {
+  async function viewStudent(id: number) {
     const s = students.find(item => item.id === id);
-    if (s) {
-      selectedStudent = s;
+    selectedStudent = s ? { ...s, loadingDetails: true } : null;
+    try {
+      const response = await fetch(`/api/students/${id}`);
+      if (response.ok) {
+        selectedStudent = await response.json();
+      }
+    } catch (error) {
+      console.error('Error fetching full student details:', error);
     }
   }
 
@@ -156,6 +172,13 @@
         on:click={toggleUnmappedChennaiFilter}
       >
         ⚠️ Unmapped Chennai NeoIDs ({unmappedChennaiCount})
+      </button>
+      <button 
+        type="button"
+        class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 {filterMasters ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-indigo-50 text-indigo-900 border-indigo-300 hover:bg-indigo-100'}"
+        on:click={toggleMastersFilter}
+      >
+        🎓 Masters ({mastersCount})
       </button>
     </div>
   </div>
@@ -315,28 +338,93 @@
         </div>
       {/if}
 
-      {#if selectedStudent.shortlists && selectedStudent.shortlists.length > 0}
-        <h4>Shortlisted Companies ({selectedStudent.shortlists.length})</h4>
-        <ul class="company-list">
-          {#each selectedStudent.shortlists as company}
-            <li>{company.name} <span class="text-xs text-purple-600 font-semibold">({company.round_name || `Round ${company.round_number}`})</span></li>
-          {/each}
-        </ul>
-      {/if}
-
-      {#if selectedStudent.selections && selectedStudent.selections.length > 0}
-        <h4>✅ Final Selections ({selectedStudent.selections.length})</h4>
-        <ul class="company-list selection-list">
-          {#each selectedStudent.selections as selection}
-            <li>{selection.name}</li>
-          {/each}
-        </ul>
-      {/if}
-
-      {#if selectedStudent.finalCompany}
-        <div class="placed-info">
-          <h4>✓ Placed at {selectedStudent.finalCompany.name}</h4>
+      {#if selectedStudent.loadingDetails}
+        <div class="py-8 text-center text-gray-500 font-medium">
+          <div class="spinner mx-auto mb-2"></div>
+          Loading full placement records...
         </div>
+      {:else}
+        <!-- Shortlisted Companies Section -->
+        <div class="mt-6 pt-6 border-t border-gray-100">
+          <h4 class="text-sm font-bold uppercase tracking-wider text-purple-900 mb-3 flex items-center gap-2">
+            <span>📋</span> Shortlisted Companies ({selectedStudent.shortlists ? selectedStudent.shortlists.length : 0})
+          </h4>
+          {#if selectedStudent.shortlists && selectedStudent.shortlists.length > 0}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              {#each selectedStudent.shortlists as company}
+                <div class="flex items-center justify-between p-3 rounded-xl bg-purple-50/70 border border-purple-100 hover:border-purple-200 transition-all">
+                  <div class="font-semibold text-gray-800 text-sm">{company.name}</div>
+                  {#if company.round_name || company.round_number}
+                    <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-purple-200 text-purple-800">
+                      {company.round_name || `Round ${company.round_number}`}
+                    </span>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <p class="text-xs text-gray-400 italic">No shortlists recorded for this student.</p>
+          {/if}
+        </div>
+
+        <!-- Selections & Internships Section -->
+        <div class="mt-6 pt-6 border-t border-gray-100">
+          <h4 class="text-sm font-bold uppercase tracking-wider text-emerald-900 mb-3 flex items-center gap-2">
+            <span>✅</span> Selections & Offers ({selectedStudent.selections ? selectedStudent.selections.length : 0})
+          </h4>
+          {#if selectedStudent.selections && selectedStudent.selections.length > 0}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              {#each selectedStudent.selections as selection}
+                <div class="flex items-center justify-between p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 hover:border-emerald-300 transition-all">
+                  <div>
+                    <div class="font-bold text-emerald-950 text-sm">{selection.name}</div>
+                    {#if selection.ctc_lpa || selection.package_lpa}
+                      <div class="text-xs text-emerald-700 font-medium">Package: {selection.ctc_lpa || selection.package_lpa} LPA</div>
+                    {/if}
+                  </div>
+                  <span class="text-xs font-bold px-2.5 py-1 rounded-lg {selectedStudent.status === 'intern' ? 'bg-indigo-600 text-white' : 'bg-emerald-600 text-white'} shadow-xs">
+                    {selectedStudent.status === 'intern' ? 'Interned' : 'Selected'}
+                  </span>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <p class="text-xs text-gray-400 italic">No selections recorded for this student.</p>
+          {/if}
+        </div>
+
+        <!-- Final Placed / Interned Company Banner -->
+        {#if selectedStudent.finalCompany}
+          {#if selectedStudent.status === 'intern' || selectedStudent.status?.toLowerCase().includes('intern')}
+            <div class="mt-6 p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-md flex items-center justify-between">
+              <div>
+                <span class="text-xs uppercase font-bold tracking-wider opacity-90">Internship Record</span>
+                <h4 class="text-lg font-extrabold m-0 text-white">
+                  Interned at {selectedStudent.finalCompany.name}
+                </h4>
+              </div>
+              {#if selectedStudent.finalCompany.ctc_lpa}
+                <span class="text-sm font-extrabold bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/30">
+                  {selectedStudent.finalCompany.ctc_lpa} LPA
+                </span>
+              {/if}
+            </div>
+          {:else}
+            <div class="mt-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md flex items-center justify-between">
+              <div>
+                <span class="text-xs uppercase font-bold tracking-wider opacity-90">Official Placement</span>
+                <h4 class="text-lg font-extrabold m-0 text-white">
+                  Placed at {selectedStudent.finalCompany.name}
+                </h4>
+              </div>
+              {#if selectedStudent.finalCompany.ctc_lpa}
+                <span class="text-sm font-extrabold bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/30">
+                  {selectedStudent.finalCompany.ctc_lpa} LPA
+                </span>
+              {/if}
+            </div>
+          {/if}
+        {/if}
       {/if}
     </div>
   </button>

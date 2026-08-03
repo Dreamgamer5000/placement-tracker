@@ -20,6 +20,7 @@ app.get('/api/students', (c) => {
   const limit = Math.min(100, Math.max(1, parseInt(c.req.query('limit') || '50')));
   const sortByShortlists = c.req.query('sortByShortlists') === 'true' || c.req.query('sort') === 'shortlists';
   const unmappedChennai = c.req.query('unmappedChennai') === 'true';
+  const mastersFilter = c.req.query('masters') === 'true';
 
   const offset = (page - 1) * limit;
 
@@ -28,6 +29,10 @@ app.get('/api/students', (c) => {
 
   if (unmappedChennai) {
     conditions.push(`(s.campus = 'Chennai' OR s.campus LIKE '%Chennai%') AND (s.neo_id IS NULL OR s.neo_id = '' OR s.neo_id = 'Unknown')`);
+  }
+
+  if (mastersFilter) {
+    conditions.push(`s.masters = 1`);
   }
 
   if (search) {
@@ -50,6 +55,12 @@ app.get('/api/students', (c) => {
   ).get() as { count: number } | undefined;
   const unmappedChennaiCount = unmappedChennaiRow ? unmappedChennaiRow.count : 0;
 
+  // Global count of masters students
+  const mastersRow = db.prepare(
+    `SELECT COUNT(*) as count FROM students WHERE masters = 1`
+  ).get() as { count: number } | undefined;
+  const mastersCount = mastersRow ? mastersRow.count : 0;
+
   let orderClause = 'ORDER BY s.name ASC';
   if (sortByShortlists) {
     orderClause = 'ORDER BY shortlist_count DESC, s.name ASC';
@@ -71,6 +82,7 @@ app.get('/api/students', (c) => {
     students,
     totalCount,
     unmappedChennaiCount,
+    mastersCount,
     page,
     limit,
     totalPages
@@ -691,47 +703,78 @@ function updateCompanyAnalytics(companyId: number) {
   const totalSelected = selectionStats?.total_selected || 0;
   const selectionRatio = totalShortlisted > 0 ? (totalSelected / totalShortlisted) * 100 : 0;
   
-  if (totalShortlisted > 0 || totalSelected > 0) {
-    const genderRatioShortlist = totalShortlisted > 0 
-      ? `${shortlistStats.male_count}:${shortlistStats.female_count}` 
-      : null;
-    const genderRatioSelected = totalSelected > 0 
-      ? `${selectionStats.male_count}:${selectionStats.female_count}` 
-      : null;
-    
-    db.prepare(`
-      UPDATE company_analytics
-      SET min_cgpa_shortlist = ?, avg_cgpa_shortlist = ?, 
-          min_tenth_shortlist = ?, avg_tenth_shortlist = ?,
-          min_twelfth_shortlist = ?, avg_twelfth_shortlist = ?, 
-          total_shortlisted = ?,
-          male_count_shortlist = ?, female_count_shortlist = ?, 
-          gender_ratio_shortlist = ?,
-          min_cgpa_selected = ?, avg_cgpa_selected = ?,
-          min_tenth_selected = ?, avg_tenth_selected = ?,
-          min_twelfth_selected = ?, avg_twelfth_selected = ?,
-          total_selected = ?,
-          male_count_selected = ?, female_count_selected = ?,
-          gender_ratio_selected = ?,
-          selection_ratio = ?
-      WHERE company_id = ?
-    `).run(
-      shortlistStats?.min_cgpa || null, shortlistStats?.avg_cgpa || null,
-      shortlistStats?.min_tenth || null, shortlistStats?.avg_tenth || null,
-      shortlistStats?.min_twelfth || null, shortlistStats?.avg_twelfth || null,
-      totalShortlisted,
-      shortlistStats?.male_count || 0, shortlistStats?.female_count || 0,
-      genderRatioShortlist,
-      selectionStats?.min_cgpa || null, selectionStats?.avg_cgpa || null,
-      selectionStats?.min_tenth || null, selectionStats?.avg_tenth || null,
-      selectionStats?.min_twelfth || null, selectionStats?.avg_twelfth || null,
-      totalSelected,
-      selectionStats?.male_count || 0, selectionStats?.female_count || 0,
-      genderRatioSelected,
-      selectionRatio,
-      companyId
-    );
-  }
+  const genderRatioShortlist = totalShortlisted > 0 
+    ? `${shortlistStats.male_count || 0}:${shortlistStats.female_count || 0}` 
+    : null;
+  const genderRatioSelected = totalSelected > 0 
+    ? `${selectionStats.male_count || 0}:${selectionStats.female_count || 0}` 
+    : null;
+  
+  db.prepare(`
+    INSERT INTO company_analytics (
+      company_id,
+      min_cgpa_shortlist, avg_cgpa_shortlist, 
+      min_tenth_shortlist, avg_tenth_shortlist,
+      min_twelfth_shortlist, avg_twelfth_shortlist, 
+      total_shortlisted,
+      male_count_shortlist, female_count_shortlist, 
+      gender_ratio_shortlist,
+      min_cgpa_selected, avg_cgpa_selected,
+      min_tenth_selected, avg_tenth_selected,
+      min_twelfth_selected, avg_twelfth_selected,
+      total_selected,
+      male_count_selected, female_count_selected,
+      gender_ratio_selected,
+      selection_ratio
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    )
+    ON CONFLICT(company_id) DO UPDATE SET
+      min_cgpa_shortlist = excluded.min_cgpa_shortlist,
+      avg_cgpa_shortlist = excluded.avg_cgpa_shortlist,
+      min_tenth_shortlist = excluded.min_tenth_shortlist,
+      avg_tenth_shortlist = excluded.avg_tenth_shortlist,
+      min_twelfth_shortlist = excluded.min_twelfth_shortlist,
+      avg_twelfth_shortlist = excluded.avg_twelfth_shortlist,
+      total_shortlisted = excluded.total_shortlisted,
+      male_count_shortlist = excluded.male_count_shortlist,
+      female_count_shortlist = excluded.female_count_shortlist,
+      gender_ratio_shortlist = excluded.gender_ratio_shortlist,
+      min_cgpa_selected = excluded.min_cgpa_selected,
+      avg_cgpa_selected = excluded.avg_cgpa_selected,
+      min_tenth_selected = excluded.min_tenth_selected,
+      avg_tenth_selected = excluded.avg_tenth_selected,
+      min_twelfth_selected = excluded.min_twelfth_selected,
+      avg_twelfth_selected = excluded.avg_twelfth_selected,
+      total_selected = excluded.total_selected,
+      male_count_selected = excluded.male_count_selected,
+      female_count_selected = excluded.female_count_selected,
+      gender_ratio_selected = excluded.gender_ratio_selected,
+      selection_ratio = excluded.selection_ratio
+  `).run(
+    companyId,
+    totalShortlisted > 0 ? shortlistStats?.min_cgpa : null,
+    totalShortlisted > 0 ? shortlistStats?.avg_cgpa : null,
+    totalShortlisted > 0 ? shortlistStats?.min_tenth : null,
+    totalShortlisted > 0 ? shortlistStats?.avg_tenth : null,
+    totalShortlisted > 0 ? shortlistStats?.min_twelfth : null,
+    totalShortlisted > 0 ? shortlistStats?.avg_twelfth : null,
+    totalShortlisted,
+    totalShortlisted > 0 ? (shortlistStats?.male_count || 0) : 0,
+    totalShortlisted > 0 ? (shortlistStats?.female_count || 0) : 0,
+    genderRatioShortlist,
+    totalSelected > 0 ? selectionStats?.min_cgpa : null,
+    totalSelected > 0 ? selectionStats?.avg_cgpa : null,
+    totalSelected > 0 ? selectionStats?.min_tenth : null,
+    totalSelected > 0 ? selectionStats?.avg_tenth : null,
+    totalSelected > 0 ? selectionStats?.min_twelfth : null,
+    totalSelected > 0 ? selectionStats?.avg_twelfth : null,
+    totalSelected,
+    totalSelected > 0 ? (selectionStats?.male_count || 0) : 0,
+    totalSelected > 0 ? (selectionStats?.female_count || 0) : 0,
+    genderRatioSelected,
+    selectionRatio
+  );
 }
 
 app.use('/*', serveStatic({ root: './dist' }));

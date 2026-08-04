@@ -7,7 +7,8 @@
  *   temp_selections     (joins by regno TEXT OR neo_id TEXT)
  *   temp_neoid_table    (PK: neoid TEXT)
  *
- * Run with:  npm run dev:temp
+ * All shortlist & selection additions include Chennai campus candidates
+ * whether fully mapped in temp_students or tracked via temp_neoid_table.
  * -----------------------------------------------------------------------
  */
 
@@ -30,7 +31,6 @@ app.get('/api/health', (c) => {
 
 // ---------------------------------------------------------------------------
 // Helper join conditions for temp_shortlists / temp_selections
-// A row can be linked either by regno OR neo_id — not all students have neo_ids
 // ---------------------------------------------------------------------------
 const STUDENT_SHORTLIST_JOIN =
   `(s.regno = sl.regno OR (sl.neo_id IS NOT NULL AND sl.neo_id != '' AND s.neo_id = sl.neo_id))`;
@@ -97,7 +97,6 @@ app.get('/api/students', (c) => {
     orderClause = 'ORDER BY shortlist_count DESC, s.name ASC';
   }
 
-  // Shortlist count sub-query accounts for both regno and neo_id linkage
   const dataSql = `
     SELECT
       s.*,
@@ -146,7 +145,6 @@ app.get('/api/students/search/:regno', (c) => {
 
 // ---------------------------------------------------------------------------
 // GET /api/students/:regno  — full detail with shortlists & selections
-// NOTE: identifier is now regno (TEXT) not an integer id
 // ---------------------------------------------------------------------------
 app.get('/api/students/:regno', (c) => {
   const regno = c.req.param('regno').toUpperCase();
@@ -156,12 +154,12 @@ app.get('/api/students/:regno', (c) => {
 
   const s = student as any;
 
-  // Shortlisted companies — match by regno OR by neo_id stored in shortlist row
+  // Shortlisted companies for this student
   const shortlists = db.prepare(`
     SELECT co.*, sl.shortlisted_at, sl.round_number, sl.round_name
     FROM companies co
     JOIN temp_shortlists sl ON co.id = sl.company_id
-    WHERE sl.regno = ?
+    WHERE (sl.regno IS NOT NULL AND UPPER(sl.regno) = ?)
        OR (sl.neo_id IS NOT NULL AND sl.neo_id != ''
            AND sl.neo_id = (SELECT neo_id FROM temp_students WHERE UPPER(regno) = ? LIMIT 1))
     ORDER BY sl.round_number ASC, sl.shortlisted_at DESC
@@ -172,7 +170,7 @@ app.get('/api/students/:regno', (c) => {
     SELECT co.*, sel.selected_at
     FROM companies co
     JOIN temp_selections sel ON co.id = sel.company_id
-    WHERE sel.regno = ?
+    WHERE (sel.regno IS NOT NULL AND UPPER(sel.regno) = ?)
        OR (sel.neo_id IS NOT NULL AND sel.neo_id != ''
            AND sel.neo_id = (SELECT neo_id FROM temp_students WHERE UPPER(regno) = ? LIMIT 1))
     ORDER BY sel.selected_at DESC
@@ -287,7 +285,7 @@ app.get('/api/companies', (c) => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /api/companies/:id  — company detail with shortlist rounds & selections
+// GET /api/companies/:id  — company detail with ALL shortlists (known + unknown)
 // ---------------------------------------------------------------------------
 app.get('/api/companies/:id', (c) => {
   const id = c.req.param('id');
@@ -296,13 +294,40 @@ app.get('/api/companies/:id', (c) => {
 
   const analytics = db.prepare('SELECT * FROM company_analytics WHERE company_id = ?').get(id);
 
-  // Shortlisted students — join via regno OR neo_id
+  // Shortlisted students — LEFT JOIN temp_students & temp_neoid_table to preserve all candidates
   const shortlisted = db.prepare(`
-    SELECT s.*, sl.shortlisted_at, sl.round_number, sl.round_name
-    FROM temp_students s
-    JOIN temp_shortlists sl ON ${STUDENT_SHORTLIST_JOIN}
+    SELECT
+      sl.id as shortlist_entry_id,
+      sl.shortlisted_at,
+      sl.round_number,
+      sl.round_name,
+      COALESCE(s.regno, sl.regno, n.regno) as regno,
+      COALESCE(s.name, CASE WHEN COALESCE(sl.neo_id, s.neo_id, n.neoid) IS NOT NULL THEN 'Student (' || COALESCE(sl.neo_id, s.neo_id, n.neoid) || ')' ELSE 'Student (' || COALESCE(sl.regno, 'Unmapped') || ')' END) as name,
+      COALESCE(s.email, '') as email,
+      s.phone,
+      s.personal_email,
+      s.gender,
+      s.cgpa,
+      s.tenth_marks,
+      s.twelfth_marks,
+      s.resume_link,
+      COALESCE(s.branch, 'Unknown') as branch,
+      COALESCE(s.campus, n.campus, 'Chennai') as campus,
+      COALESCE(s.placed, 0) as placed,
+      s.final_company_id,
+      COALESCE(s.neo_id, sl.neo_id, n.neoid) as neo_id,
+      COALESCE(s.masters, 0) as masters,
+      COALESCE(s.status, 'not_placed') as status,
+      COALESCE(s.topcoder, n.topcoder, 0) as topcoder
+    FROM temp_shortlists sl
+    LEFT JOIN temp_neoid_table n ON (sl.neo_id IS NOT NULL AND UPPER(n.neoid) = UPPER(sl.neo_id))
+    LEFT JOIN temp_students s ON (
+      (sl.regno IS NOT NULL AND UPPER(s.regno) = UPPER(sl.regno))
+      OR (sl.neo_id IS NOT NULL AND sl.neo_id != '' AND s.neo_id = sl.neo_id)
+      OR (n.regno IS NOT NULL AND UPPER(s.regno) = UPPER(n.regno))
+    )
     WHERE sl.company_id = ?
-    ORDER BY sl.round_number DESC, s.cgpa DESC
+    ORDER BY sl.round_number DESC, COALESCE(s.cgpa, 0) DESC
   `).all(id);
 
   // Group by round
@@ -319,17 +344,42 @@ app.get('/api/companies/:id', (c) => {
     const rObj = roundMap.get(rNum)!;
     rObj.students.push(st);
     if (!st.campus || st.campus === 'Unknown') rObj.unknown_count++;
-    else if (st.campus === 'Chennai') rObj.chennai_count++;
+    else if (st.campus === 'Chennai' || st.campus.includes('Chennai')) rObj.chennai_count++;
   }
   const shortlist_rounds = Array.from(roundMap.values()).sort((a, b) => b.round_number - a.round_number);
 
-  // Selected students
+  // Selected students — LEFT JOIN to preserve all selections
   const selected = db.prepare(`
-    SELECT s.*, sel.selected_at
-    FROM temp_students s
-    JOIN temp_selections sel ON ${STUDENT_SELECTION_JOIN}
+    SELECT
+      sel.id as selection_entry_id,
+      sel.selected_at,
+      COALESCE(s.regno, sel.regno, n.regno) as regno,
+      COALESCE(s.name, CASE WHEN COALESCE(sel.neo_id, s.neo_id, n.neoid) IS NOT NULL THEN 'Student (' || COALESCE(sel.neo_id, s.neo_id, n.neoid) || ')' ELSE 'Student (' || COALESCE(sel.regno, 'Unmapped') || ')' END) as name,
+      COALESCE(s.email, '') as email,
+      s.phone,
+      s.personal_email,
+      s.gender,
+      s.cgpa,
+      s.tenth_marks,
+      s.twelfth_marks,
+      s.resume_link,
+      COALESCE(s.branch, 'Unknown') as branch,
+      COALESCE(s.campus, n.campus, 'Chennai') as campus,
+      COALESCE(s.placed, 0) as placed,
+      s.final_company_id,
+      COALESCE(s.neo_id, sel.neo_id, n.neoid) as neo_id,
+      COALESCE(s.masters, 0) as masters,
+      COALESCE(s.status, 'not_placed') as status,
+      COALESCE(s.topcoder, n.topcoder, 0) as topcoder
+    FROM temp_selections sel
+    LEFT JOIN temp_neoid_table n ON (sel.neo_id IS NOT NULL AND UPPER(n.neoid) = UPPER(sel.neo_id))
+    LEFT JOIN temp_students s ON (
+      (sel.regno IS NOT NULL AND UPPER(s.regno) = UPPER(sel.regno))
+      OR (sel.neo_id IS NOT NULL AND sel.neo_id != '' AND s.neo_id = sel.neo_id)
+      OR (n.regno IS NOT NULL AND UPPER(s.regno) = UPPER(n.regno))
+    )
     WHERE sel.company_id = ?
-    ORDER BY s.cgpa DESC
+    ORDER BY COALESCE(s.cgpa, 0) DESC
   `).all(id);
 
   // Placed students (via final_company_id on temp_students)
@@ -419,49 +469,124 @@ app.post('/api/companies/recalculate-analytics', async (c) => {
 });
 
 // ---------------------------------------------------------------------------
-// Helper: resolve a token (regno OR neo_id) → temp_students row
+// Format Validation Helpers
 // ---------------------------------------------------------------------------
-function resolveStudentToken(token: string) {
-  const clean = token.trim();
-  if (!clean) return null;
-  const upper = clean.toUpperCase();
+function isValidNeoId(str: any): boolean {
+  if (!str || typeof str !== 'string') return false;
+  const clean = str.trim();
+  if (!clean || clean.toLowerCase() === 'null' || clean.toLowerCase() === 'undefined' || clean.includes('@')) return false;
+  // Must be exactly 8 uppercase/lowercase alphanumeric characters (e.g. O3W3I4P1)
+  return /^[A-Za-z0-9]{8}$/.test(clean);
+}
 
-  // 1. Direct regno match
-  let student = db.prepare(
-    'SELECT regno, neo_id FROM temp_students WHERE UPPER(regno) = ?'
-  ).get(upper) as { regno: string; neo_id: string | null } | null;
-  if (student) return { student, token: upper, resolvedAs: 'regno' };
-
-  // 2. Direct neo_id match on temp_students
-  student = db.prepare(
-    'SELECT regno, neo_id FROM temp_students WHERE neo_id = ?'
-  ).get(upper) as { regno: string; neo_id: string | null } | null;
-  if (student) return { student, token: upper, resolvedAs: 'neo_id' };
-
-  // 3. Check temp_neoid_table for a mapped regno
-  const neoRec = db.prepare(
-    'SELECT * FROM temp_neoid_table WHERE UPPER(neoid) = ?'
-  ).get(upper) as { neoid: string; campus: string; regno: string | null } | null;
-
-  if (neoRec?.regno) {
-    student = db.prepare(
-      'SELECT regno, neo_id FROM temp_students WHERE UPPER(regno) = ?'
-    ).get(neoRec.regno.toUpperCase()) as { regno: string; neo_id: string | null } | null;
-    if (student) return { student, token: upper, resolvedAs: 'neoid_table' };
-  }
-
-  // 4. Not found — track in temp_neoid_table for future mapping
-  db.prepare(`
-    INSERT INTO temp_neoid_table (neoid, campus)
-    VALUES (?, 'Unknown')
-    ON CONFLICT(neoid) DO NOTHING
-  `).run(upper);
-
-  return { student: null, token: upper, resolvedAs: null, trackedInNeoIdTable: true };
+function isValidRegNo(str: any): boolean {
+  if (!str || typeof str !== 'string') return false;
+  const clean = str.trim();
+  if (!clean || clean.toLowerCase() === 'null' || clean.toLowerCase() === 'undefined' || clean.includes('@')) return false;
+  // Standard RegNo format: e.g. 23BAI1008 (9 alphanumeric characters)
+  return /^[0-9]{2}[A-Za-z]{3}[0-9]{4}$/.test(clean);
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/companies/:id/shortlist
+// Helper: resolve a token (regno OR neo_id) → student / neoid mapping info
+// Discards emails, null values, and invalid formats
+// ---------------------------------------------------------------------------
+function resolveStudentToken(token: any) {
+  if (token === null || token === undefined) return null;
+  const strVal = String(token).trim();
+  if (!strVal || strVal.toLowerCase() === 'null' || strVal.toLowerCase() === 'undefined' || strVal.includes('@')) {
+    return null; // DISCARD emails, nulls, empty strings
+  }
+
+  const upper = strVal.toUpperCase();
+  const isRegNo = isValidRegNo(upper);
+  const isNeoId = isValidNeoId(upper);
+
+  if (!isRegNo && !isNeoId) {
+    return null; // DISCARD invalid format tokens
+  }
+
+  // 1. Direct match in temp_students
+  let student = db.prepare(
+    'SELECT regno, neo_id, campus FROM temp_students WHERE UPPER(regno) = ? OR UPPER(neo_id) = ?'
+  ).get(upper, upper) as { regno: string; neo_id: string | null; campus: string } | null;
+
+  if (student) {
+    const validNeo = isValidNeoId(student.neo_id) ? student.neo_id : (isNeoId ? upper : null);
+    return {
+      student,
+      regno: student.regno,
+      neoid: validNeo,
+      campus: student.campus,
+      token: upper,
+      resolvedAs: 'temp_students'
+    };
+  }
+
+  // 2. Check temp_neoid_table for neoid or regno match
+  const neoRec = db.prepare(
+    'SELECT * FROM temp_neoid_table WHERE UPPER(neoid) = ? OR UPPER(regno) = ?'
+  ).get(upper, upper) as { neoid: string; campus: string; regno: string | null } | null;
+
+  if (neoRec) {
+    let mappedStudent: any = null;
+    if (neoRec.regno && isValidRegNo(neoRec.regno)) {
+      mappedStudent = db.prepare(
+        'SELECT regno, neo_id, campus FROM temp_students WHERE UPPER(regno) = ?'
+      ).get(neoRec.regno.toUpperCase());
+    }
+
+    const campus = neoRec.campus && neoRec.campus !== 'Unknown' ? neoRec.campus : 'Chennai';
+    const validNeo = isValidNeoId(neoRec.neoid) ? neoRec.neoid : (isNeoId ? upper : null);
+
+    return {
+      student: mappedStudent || null,
+      regno: mappedStudent?.regno || (isValidRegNo(neoRec.regno) ? neoRec.regno : (isRegNo ? upper : null)),
+      neoid: validNeo,
+      campus,
+      token: upper,
+      resolvedAs: 'temp_neoid_table'
+    };
+  }
+
+  // 3. New valid candidate
+  if (isNeoId) {
+    try {
+      db.prepare(`
+        INSERT INTO temp_neoid_table (neoid, campus)
+        VALUES (?, 'Chennai')
+        ON CONFLICT(neoid) DO UPDATE SET campus = 'Chennai'
+      `).run(upper);
+    } catch (e) {
+      // Ignore constraint errors
+    }
+    return {
+      student: null,
+      regno: null,
+      neoid: upper,
+      campus: 'Chennai',
+      token: upper,
+      resolvedAs: 'new_chennai_neoid'
+    };
+  }
+
+  if (isRegNo) {
+    return {
+      student: null,
+      regno: upper,
+      neoid: null,
+      campus: 'Chennai',
+      token: upper,
+      resolvedAs: 'new_regno'
+    };
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/companies/:id/shortlist — add Chennai campus students/neoids to shortlist
+// Discards emails, nulls, and invalid formats
 // ---------------------------------------------------------------------------
 app.post('/api/companies/:id/shortlist', async (c) => {
   try {
@@ -480,37 +605,38 @@ app.post('/api/companies/:id/shortlist', async (c) => {
 
     for (const item of inputList) {
       try {
-        const resolved = resolveStudentToken(String(item));
-        if (!resolved) continue;
-
-        if (!resolved.student) {
-          // Record by neo_id only so it can be matched later when student registers
-          const upper = resolved.token;
-          try {
-            db.prepare(`
-              INSERT OR IGNORE INTO temp_shortlists (regno, neo_id, company_id, round_number, round_name)
-              VALUES (NULL, ?, ?, ?, ?)
-            `).run(upper, companyId, roundNumber, roundName);
-            errors.push({
-              identifier: upper,
-              error: 'Not in temp_students. Shortlist row recorded by neo_id for future matching.'
-            });
-          } catch (e: any) {
-            errors.push({ identifier: upper, error: e.message });
-          }
+        const resolved = resolveStudentToken(item);
+        if (!resolved || (!resolved.regno && !resolved.neoid)) {
+          errors.push({
+            identifier: item,
+            error: 'Discarded: Invalid NeoID/RegNo format, email address, or null value'
+          });
           continue;
         }
 
-        const { regno, neo_id } = resolved.student;
+        const regnoToInsert = resolved.regno;
+        const neoidToInsert = resolved.neoid;
+
         const insertResult = db.prepare(`
-          INSERT OR REPLACE INTO temp_shortlists (regno, neo_id, company_id, round_number, round_name)
+          INSERT INTO temp_shortlists (regno, neo_id, company_id, round_number, round_name)
           VALUES (?, ?, ?, ?, ?)
-        `).run(regno, neo_id ?? null, companyId, roundNumber, roundName);
+          ON CONFLICT(regno, company_id, round_number) DO UPDATE SET
+            neo_id = COALESCE(excluded.neo_id, temp_shortlists.neo_id),
+            round_name = excluded.round_name
+          ON CONFLICT(neo_id, company_id, round_number) DO UPDATE SET
+            regno = COALESCE(excluded.regno, temp_shortlists.regno),
+            round_name = excluded.round_name
+        `).run(regnoToInsert, neoidToInsert, companyId, roundNumber, roundName);
 
         results.push({
-          identifier: resolved.token, regno, round: roundName,
+          identifier: resolved.token,
+          regno: regnoToInsert,
+          neo_id: neoidToInsert,
+          campus: resolved.campus,
+          round: roundName,
           success: true,
-          note: insertResult.changes === 0 ? 'Already shortlisted for this round' : undefined
+          isMapped: !!resolved.student,
+          note: insertResult.changes === 0 ? 'Already shortlisted for this round' : (!resolved.student ? 'Added Chennai NeoID candidate (Profile pending mapping)' : undefined)
         });
       } catch (error: any) {
         errors.push({ identifier: item, error: error.message });
@@ -566,38 +692,41 @@ app.post('/api/companies/:id/selections', async (c) => {
 
     for (const item of inputList) {
       try {
-        const resolved = resolveStudentToken(String(item));
-        if (!resolved) continue;
-
-        if (!resolved.student) {
-          const upper = resolved.token;
-          try {
-            db.prepare(`
-              INSERT OR IGNORE INTO temp_selections (regno, neo_id, company_id)
-              VALUES (NULL, ?, ?)
-            `).run(upper, companyId);
-            errors.push({
-              identifier: upper,
-              error: 'Not in temp_students. Selection recorded by neo_id for future matching.'
-            });
-          } catch (e: any) {
-            errors.push({ identifier: upper, error: e.message });
-          }
+        const resolved = resolveStudentToken(item);
+        if (!resolved || (!resolved.regno && !resolved.neoid)) {
+          errors.push({
+            identifier: item,
+            error: 'Discarded: Invalid NeoID/RegNo format, email address, or null value'
+          });
           continue;
         }
 
-        const { regno, neo_id } = resolved.student;
-        const insertResult = db.prepare(
-          'INSERT OR IGNORE INTO temp_selections (regno, neo_id, company_id) VALUES (?, ?, ?)'
-        ).run(regno, neo_id ?? null, companyId);
+        const regnoToInsert = resolved.regno;
+        const neoidToInsert = resolved.neoid;
 
-        // Mark student placed
-        db.prepare(
-          'UPDATE temp_students SET placed = 1, status = ?, final_company_id = ? WHERE UPPER(regno) = ?'
-        ).run(selectionStatus, companyId, regno);
+        const insertResult = db.prepare(`
+          INSERT INTO temp_selections (regno, neo_id, company_id)
+          VALUES (?, ?, ?)
+          ON CONFLICT(regno, company_id) DO UPDATE SET
+            neo_id = COALESCE(excluded.neo_id, temp_selections.neo_id)
+          ON CONFLICT(neo_id, company_id) DO UPDATE SET
+            regno = COALESCE(excluded.regno, temp_selections.regno)
+        `).run(regnoToInsert, neoidToInsert, companyId);
+
+        // Mark student placed if mapped
+        if (regnoToInsert) {
+          db.prepare(
+            'UPDATE temp_students SET placed = 1, status = ?, final_company_id = ? WHERE UPPER(regno) = ?'
+          ).run(selectionStatus, companyId, regnoToInsert.toUpperCase());
+        }
 
         results.push({
-          identifier: resolved.token, regno, success: true,
+          identifier: resolved.token,
+          regno: regnoToInsert,
+          neo_id: neoidToInsert,
+          campus: resolved.campus,
+          success: true,
+          isMapped: !!resolved.student,
           note: insertResult.changes === 0 ? 'Already selected' : undefined
         });
       } catch (error: any) {
@@ -704,13 +833,17 @@ function updateCompanyAnalytics(companyId: number) {
       AVG(s.tenth_marks) as avg_tenth,
       MIN(s.twelfth_marks) as min_twelfth,
       AVG(s.twelfth_marks) as avg_twelfth,
-      COUNT(*) as total_shortlisted,
       SUM(CASE WHEN s.gender IN ('Male','M') THEN 1 ELSE 0 END) as male_count,
       SUM(CASE WHEN s.gender IN ('Female','F') THEN 1 ELSE 0 END) as female_count
     FROM temp_students s
     JOIN temp_shortlists sl ON ${STUDENT_SHORTLIST_JOIN}
     WHERE sl.company_id = ?
   `).get(companyId) as any;
+
+  const totalShortlistedRow = db.prepare(
+    `SELECT COUNT(*) as count FROM temp_shortlists WHERE company_id = ?`
+  ).get(companyId) as any;
+  const totalShortlisted = totalShortlistedRow?.count || 0;
 
   const selectionStats = db.prepare(`
     SELECT
@@ -720,7 +853,6 @@ function updateCompanyAnalytics(companyId: number) {
       AVG(s.tenth_marks) as avg_tenth,
       MIN(s.twelfth_marks) as min_twelfth,
       AVG(s.twelfth_marks) as avg_twelfth,
-      COUNT(*) as total_selected,
       SUM(CASE WHEN s.gender IN ('Male','M') THEN 1 ELSE 0 END) as male_count,
       SUM(CASE WHEN s.gender IN ('Female','F') THEN 1 ELSE 0 END) as female_count
     FROM temp_students s
@@ -728,14 +860,17 @@ function updateCompanyAnalytics(companyId: number) {
     WHERE sel.company_id = ?
   `).get(companyId) as any;
 
-  const totalShortlisted = shortlistStats?.total_shortlisted || 0;
-  const totalSelected = selectionStats?.total_selected || 0;
+  const totalSelectedRow = db.prepare(
+    `SELECT COUNT(*) as count FROM temp_selections WHERE company_id = ?`
+  ).get(companyId) as any;
+  const totalSelected = totalSelectedRow?.count || 0;
+
   const selectionRatio = totalShortlisted > 0 ? (totalSelected / totalShortlisted) * 100 : 0;
 
   const genderRatioShortlist = totalShortlisted > 0
-    ? `${shortlistStats.male_count || 0}:${shortlistStats.female_count || 0}` : null;
+    ? `${shortlistStats?.male_count || 0}:${shortlistStats?.female_count || 0}` : null;
   const genderRatioSelected = totalSelected > 0
-    ? `${selectionStats.male_count || 0}:${selectionStats.female_count || 0}` : null;
+    ? `${selectionStats?.male_count || 0}:${selectionStats?.female_count || 0}` : null;
 
   db.prepare(`
     INSERT INTO company_analytics (

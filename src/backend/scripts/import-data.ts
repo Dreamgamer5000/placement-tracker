@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import Papa from 'papaparse';
 import db from '../db/index.js';
-import { extractBranch, extractCampus, normalizeRegNo, parseMarks } from '../utils.js';
+import { extractBranch, normalizeRegNo, parseMarks } from '../utils.js';
 
 interface IOERow {
   regno: string;
@@ -23,92 +23,6 @@ interface FidelityRow {
   'Resume link': string;
 }
 
-async function importIOEData() {
-  console.log('Importing IOE.csv...');
-  
-  const csvPath = path.join(process.cwd(), 'IOE.csv');
-  const csvContent = fs.readFileSync(csvPath, 'utf-8');
-  
-  const results = Papa.parse<IOERow>(csvContent, {
-    header: true,
-    skipEmptyLines: true
-  });
-  
-  const insertStmt = db.prepare(`
-    INSERT OR IGNORE INTO students (regno, name, email, phone, branch, campus)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-  
-  let count = 0;
-  for (const row of results.data) {
-    if (!row.regno || !row.name) continue;
-    
-    const regno = normalizeRegNo(row.regno);
-    const branch = extractBranch(regno);
-    const campus = extractCampus(regno);
-    
-    if (branch === 'MIS' || branch === 'MIA' || regno.includes('MIS') || regno.includes('MIA')) {
-      continue;
-    }
-    
-    insertStmt.run(regno, row.name, row.email, row.phone || null, branch, campus);
-    count++;
-  }
-  
-  console.log(`Imported ${count} students from IOE.csv`);
-}
-
-async function importFidelityData() {
-  console.log('Importing fidelity.csv...');
-  
-  const csvPath = path.join(process.cwd(), 'fidelity.csv');
-  const csvContent = fs.readFileSync(csvPath, 'utf-8');
-  
-  const results = Papa.parse<FidelityRow>(csvContent, {
-    header: true,
-    skipEmptyLines: true
-  });
-  
-  const updateStmt = db.prepare(`
-    UPDATE students
-    SET personal_email = ?, gender = ?, cgpa = ?, tenth_marks = ?, twelfth_marks = ?, resume_link = ?
-    WHERE regno = ?
-  `);
-  
-  let count = 0;
-  let notFound = 0;
-  
-  for (const row of results.data) {
-    if (!row['Reg..no']) continue;
-    
-    const regno = normalizeRegNo(row['Reg..no']);
-    const student = db.prepare('SELECT id FROM students WHERE regno = ?').get(regno);
-    
-    if (!student) {
-      notFound++;
-      continue;
-    }
-    
-    const cgpa = parseMarks(row['CGPA']);
-    const tenth = parseMarks(row['10th']);
-    const twelfth = parseMarks(row['12th']);
-    
-    updateStmt.run(
-      row['Email id (personal id)'] || null,
-      row['Gender'] || null,
-      cgpa || null,
-      tenth || null,
-      twelfth || null,
-      row['Resume link'] || null,
-      regno
-    );
-    count++;
-  }
-  
-  console.log(`Updated ${count} students from fidelity.csv`);
-  console.log(`${notFound} students not found in IOE data`);
-}
-
 interface Mapping1Row {
   'Register number': string;
   'Name': string;
@@ -123,110 +37,6 @@ interface Mapping2Row {
   'Campus': string;
 }
 
-async function importMapping1Data() {
-  console.log('Importing mapping1.csv...');
-  
-  const csvPath = path.join(process.cwd(), 'mapping1.csv');
-  if (!fs.existsSync(csvPath)) {
-    console.log('mapping1.csv not found, skipping');
-    return;
-  }
-  
-  const csvContent = fs.readFileSync(csvPath, 'utf-8');
-  const results = Papa.parse<Mapping1Row>(csvContent, {
-    header: true,
-    skipEmptyLines: true
-  });
-  
-  const insertNeoStmt = db.prepare(`
-    INSERT INTO neo_ids (neo_id, campus, student_id, regno)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(neo_id) DO UPDATE SET
-      campus = COALESCE(excluded.campus, neo_ids.campus),
-      student_id = COALESCE(excluded.student_id, neo_ids.student_id),
-      regno = COALESCE(excluded.regno, neo_ids.regno)
-  `);
-
-  const updateStudentStmt = db.prepare(`
-    UPDATE students
-    SET neo_id = ?,
-        gender = COALESCE(gender, ?),
-        phone = COALESCE(phone, ?)
-    WHERE regno = ?
-  `);
-
-  let count = 0;
-  for (const row of results.data) {
-    const rawRegno = row['Register number'];
-    const neoId = row['NeoID']?.trim();
-    if (!rawRegno || !neoId) continue;
-
-    const regno = normalizeRegNo(rawRegno);
-    const campus = 'Chennai';
-    const student = db.prepare('SELECT id FROM students WHERE regno = ?').get(regno) as { id: number } | undefined;
-    const studentId = student ? student.id : null;
-
-    insertNeoStmt.run(neoId, campus, studentId, regno);
-    const res = updateStudentStmt.run(neoId, row['Gender'] || null, row['Phone number'] || null, regno);
-    if (res.changes > 0) {
-      count++;
-    }
-  }
-
-  console.log(`Mapped NeoID for ${count} students from mapping1.csv`);
-}
-
-async function importMapping2Data() {
-  console.log('Importing mapping2.csv...');
-  
-  const csvPath = path.join(process.cwd(), 'mapping2.csv');
-  if (!fs.existsSync(csvPath)) {
-    console.log('mapping2.csv not found, skipping');
-    return;
-  }
-  
-  const csvContent = fs.readFileSync(csvPath, 'utf-8');
-  const results = Papa.parse<Mapping2Row>(csvContent, {
-    header: true,
-    skipEmptyLines: true
-  });
-  
-  const insertNeoStmt = db.prepare(`
-    INSERT INTO neo_ids (neo_id, campus, student_id, regno)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(neo_id) DO UPDATE SET
-      campus = COALESCE(excluded.campus, neo_ids.campus),
-      student_id = COALESCE(excluded.student_id, neo_ids.student_id),
-      regno = COALESCE(excluded.regno, neo_ids.regno)
-  `);
-
-  const updateStudentStmt = db.prepare(`
-    UPDATE students
-    SET neo_id = ?
-    WHERE regno = ?
-  `);
-
-  let count = 0;
-  for (const row of results.data) {
-    const rawRegno = row['Reg No'];
-    const neoId = row['Neo id']?.trim();
-    if (!rawRegno || !neoId) continue;
-
-    const regno = normalizeRegNo(rawRegno);
-    const campus = row['Campus']?.trim() || 'Chennai';
-    const student = db.prepare('SELECT id FROM students WHERE regno = ?').get(regno) as { id: number } | undefined;
-    const studentId = student ? student.id : null;
-
-    insertNeoStmt.run(neoId, campus, studentId, regno);
-    const res = updateStudentStmt.run(neoId, regno);
-    if (res.changes > 0) {
-      count++;
-    }
-  }
-
-  console.log(`Mapped NeoID for ${count} students from mapping2.csv`);
-}
-
 interface Mapping3Row {
   "S.No"?: string;
   "Candidate's Name"?: string;
@@ -234,113 +44,370 @@ interface Mapping3Row {
   "NEO ID"?: string;
 }
 
-async function importMapping3Data() {
-  console.log('Importing mapping3.csv...');
-  
-  const csvPath = path.join(process.cwd(), 'mapping3.csv');
+function isValidNeoId(str: any): boolean {
+  if (!str || typeof str !== 'string') return false;
+  const clean = str.trim();
+  if (!clean || clean.toLowerCase() === 'null' || clean.toLowerCase() === 'undefined' || clean.includes('@')) return false;
+  return /^[A-Za-z0-9]{8}$/.test(clean);
+}
+
+function getCsvPath(filename: string): string {
+  const inCsvs = path.join(process.cwd(), 'csvs', filename);
+  if (fs.existsSync(inCsvs)) return inCsvs;
+  return path.join(process.cwd(), filename);
+}
+
+// ---------------------------------------------------------------------------
+// 1. IOE.csv -> temp_students (all students belong to Chennai campus)
+// ---------------------------------------------------------------------------
+async function importIOEData() {
+  console.log('Importing IOE.csv into temp_students...');
+  const csvPath = getCsvPath('IOE.csv');
   if (!fs.existsSync(csvPath)) {
-    console.log('mapping3.csv not found, skipping');
+    console.log('IOE.csv not found, skipping');
     return;
   }
-  
   const csvContent = fs.readFileSync(csvPath, 'utf-8');
-  const results = Papa.parse<Mapping3Row>(csvContent, {
-    header: true,
-    skipEmptyLines: true
-  });
+  const results = Papa.parse<IOERow>(csvContent, { header: true, skipEmptyLines: true });
   
-  const insertNeoStmt = db.prepare(`
-    INSERT INTO neo_ids (neo_id, campus, student_id, regno)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(neo_id) DO UPDATE SET
-      campus = COALESCE(excluded.campus, neo_ids.campus),
-      student_id = COALESCE(excluded.student_id, neo_ids.student_id),
-      regno = COALESCE(excluded.regno, neo_ids.regno)
+  const insertTempStmt = db.prepare(`
+    INSERT INTO temp_students (regno, name, email, phone, branch, campus)
+    VALUES (?, ?, ?, ?, ?, 'Chennai')
+    ON CONFLICT(regno) DO UPDATE SET
+      name = excluded.name,
+      email = excluded.email,
+      phone = COALESCE(excluded.phone, temp_students.phone),
+      branch = excluded.branch,
+      campus = 'Chennai'
+  `);
+  
+  let count = 0;
+  for (const row of results.data) {
+    if (!row.regno || !row.name) continue;
+    const regno = normalizeRegNo(row.regno);
+    const branch = extractBranch(regno);
+    
+    if (branch === 'MIS' || branch === 'MIA' || regno.includes('MIS') || regno.includes('MIA')) {
+      continue;
+    }
+    
+    insertTempStmt.run(regno, row.name, row.email, row.phone || null, branch);
+    count++;
+  }
+  
+  console.log(`Imported ${count} students into temp_students (campus = Chennai)`);
+}
+
+// ---------------------------------------------------------------------------
+// 2. fidelity.csv -> update temp_students details
+// ---------------------------------------------------------------------------
+async function importFidelityData() {
+  console.log('Importing fidelity.csv into temp_students...');
+  const csvPath = getCsvPath('fidelity.csv');
+  if (!fs.existsSync(csvPath)) {
+    console.log('fidelity.csv not found, skipping');
+    return;
+  }
+  const csvContent = fs.readFileSync(csvPath, 'utf-8');
+  const results = Papa.parse<FidelityRow>(csvContent, { header: true, skipEmptyLines: true });
+  
+  const updateTempStmt = db.prepare(`
+    UPDATE temp_students
+    SET personal_email = ?, gender = ?, cgpa = ?, tenth_marks = ?, twelfth_marks = ?, resume_link = ?
+    WHERE regno = ?
+  `);
+  
+  let count = 0;
+  for (const row of results.data) {
+    if (!row['Reg..no']) continue;
+    const regno = normalizeRegNo(row['Reg..no']);
+    const cgpa = parseMarks(row['CGPA']);
+    const tenth = parseMarks(row['10th']);
+    const twelfth = parseMarks(row['12th']);
+
+    const res = updateTempStmt.run(
+      row['Email id (personal id)'] || null,
+      row['Gender'] || null,
+      cgpa || null,
+      tenth || null,
+      twelfth || null,
+      row['Resume link'] || null,
+      regno
+    );
+    if (res.changes > 0) count++;
+  }
+  
+  console.log(`Updated academic details for ${count} students in temp_students`);
+}
+
+// ---------------------------------------------------------------------------
+// 3. all_neoids.csv -> temp_neoid_table (default campus = 'Unknown')
+// ---------------------------------------------------------------------------
+async function importAllNeoIdsData() {
+  console.log('Importing all_neoids.csv into temp_neoid_table...');
+  const csvPath = getCsvPath('all_neoids.csv');
+  if (!fs.existsSync(csvPath)) {
+    console.log('all_neoids.csv not found, skipping');
+    return;
+  }
+  const csvContent = fs.readFileSync(csvPath, 'utf-8');
+  const results = Papa.parse<{ 'Neo ID': string }>(csvContent, { header: true, skipEmptyLines: true });
+
+  // Reset existing campus values in temp_neoid_table to 'Unknown'
+  db.prepare(`UPDATE temp_neoid_table SET campus = 'Unknown'`).run();
+
+  const insertTempStmt = db.prepare(`
+    INSERT INTO temp_neoid_table (neoid, campus)
+    VALUES (?, 'Unknown')
+    ON CONFLICT(neoid) DO UPDATE SET campus = 'Unknown'
   `);
 
-  const updateStudentStmt = db.prepare(`
-    UPDATE students
-    SET neo_id = ?
-    WHERE regno = ?
+  let count = 0;
+  for (const row of results.data) {
+    const rawNeo = row['Neo ID'] || Object.values(row)[0];
+    if (!rawNeo) continue;
+    const neoid = String(rawNeo).trim().toUpperCase();
+    if (!isValidNeoId(neoid)) continue;
+
+    insertTempStmt.run(neoid);
+    count++;
+  }
+
+  console.log(`Processed ${count} NeoIDs from all_neoids.csv into temp_neoid_table`);
+}
+
+// ---------------------------------------------------------------------------
+// 4. Chennai_neoids.csv -> set campus = 'Chennai' in temp_neoid_table
+// ---------------------------------------------------------------------------
+async function importChennaiNeoIdsData() {
+  console.log('Importing Chennai_neoids.csv into temp_neoid_table...');
+  const csvPath = getCsvPath('Chennai_neoids.csv');
+  if (!fs.existsSync(csvPath)) {
+    console.log('Chennai_neoids.csv not found, skipping');
+    return;
+  }
+  const csvContent = fs.readFileSync(csvPath, 'utf-8');
+  const results = Papa.parse<{ 'neoids': string }>(csvContent, { header: true, skipEmptyLines: true });
+
+  const updateTempNeoStmt = db.prepare(`
+    INSERT INTO temp_neoid_table (neoid, campus)
+    VALUES (?, 'Chennai')
+    ON CONFLICT(neoid) DO UPDATE SET campus = 'Chennai'
+  `);
+
+  let count = 0;
+  for (const row of results.data) {
+    const rawNeo = row['neoids'] || Object.values(row)[0];
+    if (!rawNeo) continue;
+    const neoid = String(rawNeo).trim().toUpperCase();
+    if (!isValidNeoId(neoid)) continue;
+
+    updateTempNeoStmt.run(neoid);
+    count++;
+  }
+
+  console.log(`Marked ${count} NeoIDs as campus Chennai in temp_neoid_table`);
+}
+
+// ---------------------------------------------------------------------------
+// 5. Vellore_Neoids.csv -> set campus = 'Vellore' in temp_neoid_table
+// ---------------------------------------------------------------------------
+async function importVelloreNeoIdsData() {
+  console.log('Importing Vellore_Neoids.csv into temp_neoid_table...');
+  const csvPath = getCsvPath('Vellore_Neoids.csv');
+  if (!fs.existsSync(csvPath)) {
+    console.log('Vellore_Neoids.csv not found, skipping');
+    return;
+  }
+  const csvContent = fs.readFileSync(csvPath, 'utf-8');
+  const results = Papa.parse<{ 'vellore_neoids': string }>(csvContent, { header: true, skipEmptyLines: true });
+
+  const updateTempNeoStmt = db.prepare(`
+    INSERT INTO temp_neoid_table (neoid, campus)
+    VALUES (?, 'Vellore')
+    ON CONFLICT(neoid) DO UPDATE SET campus = 'Vellore'
+  `);
+
+  let count = 0;
+  for (const row of results.data) {
+    const rawNeo = row['vellore_neoids'] || Object.values(row)[0];
+    if (!rawNeo) continue;
+    const neoid = String(rawNeo).trim().toUpperCase();
+    if (!isValidNeoId(neoid)) continue;
+
+    updateTempNeoStmt.run(neoid);
+    count++;
+  }
+
+  console.log(`Marked ${count} NeoIDs as campus Vellore in temp_neoid_table`);
+}
+
+// ---------------------------------------------------------------------------
+// 6. Mappings -> map regno <-> neoid in temp_neoid_table & temp_students
+// ---------------------------------------------------------------------------
+async function importMapping1Data() {
+  console.log('Importing mapping1.csv...');
+  const csvPath = getCsvPath('mapping1.csv');
+  if (!fs.existsSync(csvPath)) return;
+  
+  const csvContent = fs.readFileSync(csvPath, 'utf-8');
+  const results = Papa.parse<Mapping1Row>(csvContent, { header: true, skipEmptyLines: true });
+
+  const insertTempNeoStmt = db.prepare(`
+    INSERT INTO temp_neoid_table (neoid, campus, regno)
+    VALUES (?, 'Unknown', ?)
+    ON CONFLICT(neoid) DO UPDATE SET regno = COALESCE(excluded.regno, temp_neoid_table.regno)
+  `);
+
+  const updateTempStudentStmt = db.prepare(`
+    UPDATE temp_students
+    SET neo_id = ?, gender = COALESCE(gender, ?), phone = COALESCE(phone, ?)
+    WHERE UPPER(regno) = ?
+  `);
+
+  let count = 0;
+  for (const row of results.data) {
+    const rawRegno = row['Register number'];
+    const neoId = row['NeoID']?.trim().toUpperCase();
+    if (!rawRegno || !neoId || !isValidNeoId(neoId)) continue;
+
+    const regno = normalizeRegNo(rawRegno);
+    insertTempNeoStmt.run(neoId, regno);
+    const res = updateTempStudentStmt.run(neoId, row['Gender'] || null, row['Phone number'] || null, regno.toUpperCase());
+    if (res.changes > 0) count++;
+  }
+
+  console.log(`Mapped NeoID for ${count} students from mapping1.csv`);
+}
+
+async function importMapping2Data() {
+  console.log('Importing mapping2.csv...');
+  const csvPath = getCsvPath('mapping2.csv');
+  if (!fs.existsSync(csvPath)) return;
+  
+  const csvContent = fs.readFileSync(csvPath, 'utf-8');
+  const results = Papa.parse<Mapping2Row>(csvContent, { header: true, skipEmptyLines: true });
+
+  const insertTempNeoStmt = db.prepare(`
+    INSERT INTO temp_neoid_table (neoid, campus, regno)
+    VALUES (?, 'Unknown', ?)
+    ON CONFLICT(neoid) DO UPDATE SET regno = COALESCE(excluded.regno, temp_neoid_table.regno)
+  `);
+
+  const updateTempStudentStmt = db.prepare(`
+    UPDATE temp_students SET neo_id = ? WHERE UPPER(regno) = ?
+  `);
+
+  let count = 0;
+  for (const row of results.data) {
+    const rawRegno = row['Reg No'];
+    const neoId = row['Neo id']?.trim().toUpperCase();
+    if (!rawRegno || !neoId || !isValidNeoId(neoId)) continue;
+
+    const regno = normalizeRegNo(rawRegno);
+    insertTempNeoStmt.run(neoId, regno);
+    const res = updateTempStudentStmt.run(neoId, regno.toUpperCase());
+    if (res.changes > 0) count++;
+  }
+
+  console.log(`Mapped NeoID for ${count} students from mapping2.csv`);
+}
+
+async function importMapping3Data() {
+  console.log('Importing mapping3.csv...');
+  const csvPath = getCsvPath('mapping3.csv');
+  if (!fs.existsSync(csvPath)) return;
+  
+  const csvContent = fs.readFileSync(csvPath, 'utf-8');
+  const results = Papa.parse<Mapping3Row>(csvContent, { header: true, skipEmptyLines: true });
+
+  const insertTempNeoStmt = db.prepare(`
+    INSERT INTO temp_neoid_table (neoid, campus, regno)
+    VALUES (?, 'Unknown', ?)
+    ON CONFLICT(neoid) DO UPDATE SET regno = COALESCE(excluded.regno, temp_neoid_table.regno)
+  `);
+
+  const updateTempStudentStmt = db.prepare(`
+    UPDATE temp_students SET neo_id = ? WHERE UPPER(regno) = ?
   `);
 
   let count = 0;
   for (const row of results.data) {
     const rawRegno = row['Reg. No.'];
-    const neoId = row['NEO ID']?.trim();
-    if (!rawRegno || !neoId || neoId === '#N/A' || neoId === 'N/A') continue;
+    const neoId = row['NEO ID']?.trim().toUpperCase();
+    if (!rawRegno || !neoId || !isValidNeoId(neoId)) continue;
 
     const regno = normalizeRegNo(rawRegno);
-    const campus = 'Chennai';
-    const student = db.prepare('SELECT id FROM students WHERE regno = ?').get(regno) as { id: number } | undefined;
-    const studentId = student ? student.id : null;
-
-    insertNeoStmt.run(neoId, campus, studentId, regno);
-    const res = updateStudentStmt.run(neoId, regno);
-    if (res.changes > 0) {
-      count++;
-    }
+    insertTempNeoStmt.run(neoId, regno);
+    const res = updateTempStudentStmt.run(neoId, regno.toUpperCase());
+    if (res.changes > 0) count++;
   }
 
   console.log(`Mapped NeoID for ${count} students from mapping3.csv`);
 }
 
+// ---------------------------------------------------------------------------
+// 7. topcoder.csv -> mark topcoder = 1 in temp_neoid_table & temp_students
+// ---------------------------------------------------------------------------
 async function importTopcoderData() {
-  console.log('Importing topcoder.csv...');
-  
-  const csvPath = path.join(process.cwd(), 'topcoder.csv');
-  if (!fs.existsSync(csvPath)) {
-    console.log('topcoder.csv not found, skipping');
-    return;
-  }
+  console.log('Importing topcoder.csv into temp tables...');
+  const csvPath = getCsvPath('topcoder.csv');
+  if (!fs.existsSync(csvPath)) return;
   
   const csvContent = fs.readFileSync(csvPath, 'utf-8');
   const lines = csvContent.split(/\r?\n/);
-  
-  const insertNeoStmt = db.prepare(`
-    INSERT INTO neo_ids (neo_id, campus, topcoder)
-    VALUES (?, 'Unknown', 1)
-    ON CONFLICT(neo_id) DO UPDATE SET topcoder = 1
+
+  const updateTempNeoStmt = db.prepare(`
+    INSERT INTO temp_neoid_table (neoid, topcoder)
+    VALUES (?, 1)
+    ON CONFLICT(neoid) DO UPDATE SET topcoder = 1
   `);
 
   let neoCount = 0;
-  for (let i = 1; i < lines.length; i++) {
-    const neoId = lines[i].trim();
-    if (!neoId || neoId.toUpperCase() === 'NEO ID') continue;
+  for (let i = 0; i < lines.length; i++) {
+    const neoId = lines[i].trim().toUpperCase();
+    if (!neoId || neoId === 'NEO ID' || !isValidNeoId(neoId)) continue;
 
-    insertNeoStmt.run(neoId.toUpperCase());
+    updateTempNeoStmt.run(neoId);
     neoCount++;
   }
 
-  // Update students table for all matched topcoder Neo IDs
-  const updateStudentsStmt = db.prepare(`
-    UPDATE students
+  const updateTempStudentsStmt = db.prepare(`
+    UPDATE temp_students
     SET topcoder = 1
-    WHERE UPPER(neo_id) IN (SELECT UPPER(neo_id) FROM neo_ids WHERE topcoder = 1)
-       OR id IN (SELECT student_id FROM neo_ids WHERE topcoder = 1 AND student_id IS NOT NULL)
-       OR UPPER(regno) IN (SELECT UPPER(regno) FROM neo_ids WHERE topcoder = 1 AND regno IS NOT NULL)
+    WHERE UPPER(neo_id) IN (SELECT UPPER(neoid) FROM temp_neoid_table WHERE topcoder = 1)
+       OR UPPER(regno) IN (SELECT UPPER(regno) FROM temp_neoid_table WHERE topcoder = 1 AND regno IS NOT NULL)
   `);
 
-  const studentResult = updateStudentsStmt.run();
+  const tempResult = updateTempStudentsStmt.run();
 
-  console.log(`Marked ${neoCount} Neo IDs as Topcoder in neo_ids table`);
-  console.log(`Marked ${studentResult.changes} students as Topcoder in students table`);
+  console.log(`Marked ${neoCount} Neo IDs as Topcoder in temp_neoid_table`);
+  console.log(`Marked ${tempResult.changes} students as Topcoder in temp_students table`);
 }
 
 async function main() {
   try {
     await importIOEData();
     await importFidelityData();
+    await importAllNeoIdsData();
+    await importChennaiNeoIdsData();
+    await importVelloreNeoIdsData();
     await importMapping1Data();
     await importMapping2Data();
     await importMapping3Data();
     await importTopcoderData();
-    console.log('Data import complete!');
+
+    // Ensure all temp_students are set directly to Chennai campus
+    db.prepare(`UPDATE temp_students SET campus = 'Chennai'`).run();
+
+    // Ensure empty/null campus values in temp_neoid_table default to Unknown
+    db.prepare(`UPDATE temp_neoid_table SET campus = 'Unknown' WHERE campus IS NULL OR campus = ''`).run();
+
+    console.log('Temp tables imported and synced successfully!');
   } catch (error) {
-    console.error('Error importing data:', error);
+    console.error('Error importing CSV data into temp tables:', error);
     process.exit(1);
   }
 }
 
 main();
-

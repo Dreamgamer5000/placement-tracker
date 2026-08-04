@@ -3,7 +3,7 @@
 export function extractBranch(regno: string): string {
   // Extract branch code from registration number
   // Format: XX**BCE**XXXX(X), XX**BPS**XXXX(X), etc.
-  const match = regno.match(/\d{2}([A-Z]{3})\d{4}/i);
+  const match = regno.match(/\d{2}([A-Z]{3})\d+/i);
   if (match) {
     const branchCode = match[1].toUpperCase();
     return branchCode;

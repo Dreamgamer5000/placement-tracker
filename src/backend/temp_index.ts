@@ -2,13 +2,14 @@
  * temp_index.ts
  * -----------------------------------------------------------------------
  * TESTING VERSION: All queries use the temp_ tables:
- *   temp_students       (PK: regno TEXT)
- *   temp_shortlists     (joins by regno TEXT OR neo_id TEXT)
- *   temp_selections     (joins by regno TEXT OR neo_id TEXT)
- *   temp_neoid_table    (PK: neoid TEXT)
+ *   temp_students            (PK: regno TEXT)
+ *   temp_shortlists          (joins by regno TEXT OR neo_id TEXT)
+ *   temp_interns_selected    (intern offers — joins by regno TEXT OR neo_id TEXT)
+ *   temp_final_selection     (full-time placed — joins by regno TEXT OR neo_id TEXT)
+ *   temp_neoid_table         (PK: neoid TEXT)
  *
- * All shortlist & selection additions include Chennai campus candidates
- * whether fully mapped in temp_students or tracked via temp_neoid_table.
+ * Intern selections go into temp_interns_selected.
+ * Full-time / finally placed go into temp_final_selection.
  * -----------------------------------------------------------------------
  */
 
@@ -30,13 +31,17 @@ app.get('/api/health', (c) => {
 });
 
 // ---------------------------------------------------------------------------
-// Helper join conditions for temp_shortlists / temp_selections
+// Helper join conditions for temp_shortlists / temp_interns_selected / temp_final_selection
 // ---------------------------------------------------------------------------
 const STUDENT_SHORTLIST_JOIN =
   `(s.regno = sl.regno OR (sl.neo_id IS NOT NULL AND sl.neo_id != '' AND s.neo_id = sl.neo_id))`;
 
-const STUDENT_SELECTION_JOIN =
+// Used in analytics joins — alias must match the table alias used in the query (sel or fin)
+const STUDENT_INTERN_JOIN =
   `(s.regno = sel.regno OR (sel.neo_id IS NOT NULL AND sel.neo_id != '' AND s.neo_id = sel.neo_id))`;
+
+const STUDENT_FINAL_JOIN =
+  `(s.regno = fin.regno OR (fin.neo_id IS NOT NULL AND fin.neo_id != '' AND s.neo_id = fin.neo_id))`;
 
 // ---------------------------------------------------------------------------
 // GET /api/students  — paginated, searchable
@@ -165,16 +170,29 @@ app.get('/api/students/:regno', (c) => {
     ORDER BY sl.round_number ASC, sl.shortlisted_at DESC
   `).all(regno, regno);
 
-  // Selected companies
-  const selections = db.prepare(`
-    SELECT co.*, sel.selected_at
+  // Intern selections (temp_interns_selected)
+  const internSelections = db.prepare(`
+    SELECT co.*, sel.selected_at, 'intern' as offer_type
     FROM companies co
-    JOIN temp_selections sel ON co.id = sel.company_id
+    JOIN temp_interns_selected sel ON co.id = sel.company_id
     WHERE (sel.regno IS NOT NULL AND UPPER(sel.regno) = ?)
        OR (sel.neo_id IS NOT NULL AND sel.neo_id != ''
            AND sel.neo_id = (SELECT neo_id FROM temp_students WHERE UPPER(regno) = ? LIMIT 1))
     ORDER BY sel.selected_at DESC
   `).all(regno, regno);
+
+  // Final placed selections (temp_final_selection)
+  const finalSelections = db.prepare(`
+    SELECT co.*, fin.selected_at, 'placed' as offer_type
+    FROM companies co
+    JOIN temp_final_selection fin ON co.id = fin.company_id
+    WHERE (fin.regno IS NOT NULL AND UPPER(fin.regno) = ?)
+       OR (fin.neo_id IS NOT NULL AND fin.neo_id != ''
+           AND fin.neo_id = (SELECT neo_id FROM temp_students WHERE UPPER(regno) = ? LIMIT 1))
+    ORDER BY fin.selected_at DESC
+  `).all(regno, regno);
+
+  const selections = [...internSelections, ...finalSelections];
 
   // Final company
   let finalCompany = null;
@@ -288,6 +306,7 @@ app.get('/api/companies', (c) => {
 // GET /api/companies/:id  — company detail with ALL shortlists (known + unknown)
 // ---------------------------------------------------------------------------
 app.get('/api/companies/:id', (c) => {
+  try {
   const id = c.req.param('id');
   const company = db.prepare('SELECT * FROM companies WHERE id = ?').get(id);
   if (!company) return c.json({ error: 'Company not found' }, 404);
@@ -348,11 +367,12 @@ app.get('/api/companies/:id', (c) => {
   }
   const shortlist_rounds = Array.from(roundMap.values()).sort((a, b) => b.round_number - a.round_number);
 
-  // Selected students — LEFT JOIN to preserve all selections
-  const selected = db.prepare(`
+  // Intern students (temp_interns_selected)
+  const interns = db.prepare(`
     SELECT
       sel.id as selection_entry_id,
       sel.selected_at,
+      'intern' as offer_type,
       COALESCE(s.regno, sel.regno, n.regno) as regno,
       COALESCE(s.name, CASE WHEN COALESCE(sel.neo_id, s.neo_id, n.neoid) IS NOT NULL THEN 'Student (' || COALESCE(sel.neo_id, s.neo_id, n.neoid) || ')' ELSE 'Student (' || COALESCE(sel.regno, 'Unmapped') || ')' END) as name,
       COALESCE(s.email, '') as email,
@@ -371,7 +391,7 @@ app.get('/api/companies/:id', (c) => {
       COALESCE(s.masters, 0) as masters,
       COALESCE(s.status, 'not_placed') as status,
       COALESCE(s.topcoder, n.topcoder, 0) as topcoder
-    FROM temp_selections sel
+    FROM temp_interns_selected sel
     LEFT JOIN temp_neoid_table n ON (sel.neo_id IS NOT NULL AND UPPER(n.neoid) = UPPER(sel.neo_id))
     LEFT JOIN temp_students s ON (
       (sel.regno IS NOT NULL AND UPPER(s.regno) = UPPER(sel.regno))
@@ -382,12 +402,46 @@ app.get('/api/companies/:id', (c) => {
     ORDER BY COALESCE(s.cgpa, 0) DESC
   `).all(id);
 
-  // Placed students (via final_company_id on temp_students)
-  const placed = db.prepare(
-    `SELECT * FROM temp_students WHERE final_company_id = ?`
-  ).all(id);
+  // Finally placed students (temp_final_selection)
+  const finals = db.prepare(`
+    SELECT
+      fin.id as selection_entry_id,
+      fin.selected_at,
+      'placed' as offer_type,
+      COALESCE(s.regno, fin.regno, n.regno) as regno,
+      COALESCE(s.name, CASE WHEN COALESCE(fin.neo_id, s.neo_id, n.neoid) IS NOT NULL THEN 'Student (' || COALESCE(fin.neo_id, s.neo_id, n.neoid) || ')' ELSE 'Student (' || COALESCE(fin.regno, 'Unmapped') || ')' END) as name,
+      COALESCE(s.email, '') as email,
+      s.phone,
+      s.personal_email,
+      s.gender,
+      s.cgpa,
+      s.tenth_marks,
+      s.twelfth_marks,
+      s.resume_link,
+      COALESCE(s.branch, 'Unknown') as branch,
+      COALESCE(s.campus, n.campus, 'Chennai') as campus,
+      COALESCE(s.placed, 0) as placed,
+      s.final_company_id,
+      COALESCE(s.neo_id, fin.neo_id, n.neoid) as neo_id,
+      COALESCE(s.masters, 0) as masters,
+      COALESCE(s.status, 'not_placed') as status,
+      COALESCE(s.topcoder, n.topcoder, 0) as topcoder
+    FROM temp_final_selection fin
+    LEFT JOIN temp_neoid_table n ON (fin.neo_id IS NOT NULL AND UPPER(n.neoid) = UPPER(fin.neo_id))
+    LEFT JOIN temp_students s ON (
+      (fin.regno IS NOT NULL AND UPPER(s.regno) = UPPER(fin.regno))
+      OR (fin.neo_id IS NOT NULL AND fin.neo_id != '' AND s.neo_id = fin.neo_id)
+      OR (n.regno IS NOT NULL AND UPPER(s.regno) = UPPER(n.regno))
+    )
+    WHERE fin.company_id = ?
+    ORDER BY COALESCE(s.cgpa, 0) DESC
+  `).all(id);
 
-  return c.json({ ...company, analytics, shortlisted, shortlist_rounds, selected, placed });
+  return c.json({ ...company, analytics, shortlisted, shortlist_rounds, interns, finals });
+  } catch (err: any) {
+    console.error('[GET /api/companies/:id] Error:', err);
+    return c.json({ error: 'Internal server error', details: err?.message }, 500);
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -674,7 +728,7 @@ app.put('/api/companies/:id/shortlist-round/:roundNumber', async (c) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/companies/:id/selections  — add final selections
+// POST /api/companies/:id/selections  — add intern or final selections
 // ---------------------------------------------------------------------------
 app.post('/api/companies/:id/selections', async (c) => {
   try {
@@ -682,6 +736,8 @@ app.post('/api/companies/:id/selections', async (c) => {
     const body = await c.req.json();
     const inputList = body.regnos || body.identifiers || [];
     const selectionStatus = body.status === 'intern' ? 'intern' : 'placed';
+    // Route to the appropriate table based on offer type
+    const targetTable = selectionStatus === 'intern' ? 'temp_interns_selected' : 'temp_final_selection';
 
     if (!Array.isArray(inputList)) {
       return c.json({ error: 'Input list must be an array of regnos or neo_ids' }, 400);
@@ -705,15 +761,15 @@ app.post('/api/companies/:id/selections', async (c) => {
         const neoidToInsert = resolved.neoid;
 
         const insertResult = db.prepare(`
-          INSERT INTO temp_selections (regno, neo_id, company_id)
+          INSERT INTO ${targetTable} (regno, neo_id, company_id)
           VALUES (?, ?, ?)
           ON CONFLICT(regno, company_id) DO UPDATE SET
-            neo_id = COALESCE(excluded.neo_id, temp_selections.neo_id)
+            neo_id = COALESCE(excluded.neo_id, ${targetTable}.neo_id)
           ON CONFLICT(neo_id, company_id) DO UPDATE SET
-            regno = COALESCE(excluded.regno, temp_selections.regno)
+            regno = COALESCE(excluded.regno, ${targetTable}.regno)
         `).run(regnoToInsert, neoidToInsert, companyId);
 
-        // Mark student placed if mapped
+        // Mark student placed/interned in temp_students if mapped
         if (regnoToInsert) {
           db.prepare(
             'UPDATE temp_students SET placed = 1, status = ?, final_company_id = ? WHERE UPPER(regno) = ?'
@@ -845,6 +901,7 @@ function updateCompanyAnalytics(companyId: number) {
   ).get(companyId) as any;
   const totalShortlisted = totalShortlistedRow?.count || 0;
 
+  // Analytics counts both intern + final_selection combined
   const selectionStats = db.prepare(`
     SELECT
       MIN(s.cgpa) as min_cgpa,
@@ -856,13 +913,28 @@ function updateCompanyAnalytics(companyId: number) {
       SUM(CASE WHEN s.gender IN ('Male','M') THEN 1 ELSE 0 END) as male_count,
       SUM(CASE WHEN s.gender IN ('Female','F') THEN 1 ELSE 0 END) as female_count
     FROM temp_students s
-    JOIN temp_selections sel ON ${STUDENT_SELECTION_JOIN}
+    JOIN temp_interns_selected sel ON ${STUDENT_INTERN_JOIN}
     WHERE sel.company_id = ?
-  `).get(companyId) as any;
+    UNION ALL
+    SELECT
+      MIN(s.cgpa) as min_cgpa,
+      AVG(s.cgpa) as avg_cgpa,
+      MIN(s.tenth_marks) as min_tenth,
+      AVG(s.tenth_marks) as avg_tenth,
+      MIN(s.twelfth_marks) as min_twelfth,
+      AVG(s.twelfth_marks) as avg_twelfth,
+      SUM(CASE WHEN s.gender IN ('Male','M') THEN 1 ELSE 0 END) as male_count,
+      SUM(CASE WHEN s.gender IN ('Female','F') THEN 1 ELSE 0 END) as female_count
+    FROM temp_students s
+    JOIN temp_final_selection fin ON ${STUDENT_FINAL_JOIN}
+    WHERE fin.company_id = ?
+  `).get(companyId, companyId) as any;
 
   const totalSelectedRow = db.prepare(
-    `SELECT COUNT(*) as count FROM temp_selections WHERE company_id = ?`
-  ).get(companyId) as any;
+    `SELECT
+       (SELECT COUNT(*) FROM temp_interns_selected WHERE company_id = ?) +
+       (SELECT COUNT(*) FROM temp_final_selection WHERE company_id = ?) as count`
+  ).get(companyId, companyId) as any;
   const totalSelected = totalSelectedRow?.count || 0;
 
   const selectionRatio = totalShortlisted > 0 ? (totalSelected / totalShortlisted) * 100 : 0;

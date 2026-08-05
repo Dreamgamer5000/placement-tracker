@@ -504,38 +504,37 @@
         </div>
       {/if}
 
-      {#if (selectedCompany.selected && selectedCompany.selected.length > 0) || (selectedCompany.placed && selectedCompany.placed.length > 0)}
-        {@const candidates = selectedCompany.selected && selectedCompany.selected.length > 0 ? selectedCompany.selected : selectedCompany.placed}
-        <div class="mb-8 border border-blue-200 rounded-2xl bg-blue-50/30 overflow-hidden shadow-sm">
-          <div class="bg-blue-100/70 px-6 py-4 flex justify-between items-center border-b border-blue-200">
-            <h4 class="text-2xl font-bold text-blue-950 flex items-center gap-2">
-              💼 Finally Interned / Placed Students
+      <!-- Intern Selections (from temp_interns_selected) -->
+      {#if selectedCompany.interns && selectedCompany.interns.length > 0}
+        <div class="mb-8 border border-cyan-200 rounded-2xl bg-cyan-50/30 overflow-hidden shadow-sm">
+          <div class="bg-cyan-100/70 px-6 py-4 flex justify-between items-center border-b border-cyan-200">
+            <h4 class="text-2xl font-bold text-cyan-950 flex items-center gap-2">
+              💼 Intern Selections
             </h4>
-            <span class="px-3 py-1 bg-blue-700 text-white text-xs font-bold rounded-full">
-              {candidates.length} Candidate{candidates.length === 1 ? '' : 's'}
+            <span class="px-3 py-1 bg-cyan-700 text-white text-xs font-bold rounded-full">
+              {selectedCompany.interns.length} Intern{selectedCompany.interns.length === 1 ? '' : 's'}
             </span>
           </div>
           <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-blue-100">
+            <table class="min-w-full divide-y divide-cyan-100">
               <thead class="bg-white/80">
                 <tr>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">Reg No / Neo ID</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">Name</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">Campus</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">TopCoder</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">CGPA</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">Offer Status</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">Gender</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">Resume</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Reg No / Neo ID</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Name</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Campus</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">TopCoder</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">CGPA</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Gender</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Resume</th>
                 </tr>
               </thead>
-              <tbody class="bg-white divide-y divide-blue-50">
-                {#each candidates as student}
-                  <tr class="hover:bg-blue-50/50">
+              <tbody class="bg-white divide-y divide-cyan-50">
+                {#each selectedCompany.interns as student}
+                  <tr class="hover:bg-cyan-50/50">
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                       {student.regno}
                       {#if student.neo_id}
-                        <span class="ml-1.5 px-1.5 py-0.5 text-xs font-mono bg-blue-100 text-blue-800 rounded font-semibold">{student.neo_id}</span>
+                        <span class="ml-1.5 px-1.5 py-0.5 text-xs font-mono bg-cyan-100 text-cyan-800 rounded font-semibold">{student.neo_id}</span>
                       {/if}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
@@ -552,15 +551,73 @@
                       {/if}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.cgpa?.toFixed(2) || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      <span class="px-2.5 py-0.5 rounded-full text-xs font-bold {student.status === 'placed' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-300'}">
-                        {student.status === 'placed' ? '✓ Full-Time' : '💼 Intern'}
-                      </span>
-                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.gender || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">
                       {#if student.resume_link}
-                        <a href={student.resume_link} target="_blank" class="text-blue-600 hover:text-blue-800 font-semibold">📄 View</a>
+                        <a href={student.resume_link} target="_blank" class="text-cyan-600 hover:text-cyan-800 font-semibold">📄 View</a>
+                      {:else}
+                        <span class="text-gray-400">N/A</span>
+                      {/if}
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Final Placements (from temp_final_selection) -->
+      {#if selectedCompany.finals && selectedCompany.finals.length > 0}
+        <div class="mb-8 border border-emerald-200 rounded-2xl bg-emerald-50/30 overflow-hidden shadow-sm">
+          <div class="bg-emerald-100/70 px-6 py-4 flex justify-between items-center border-b border-emerald-200">
+            <h4 class="text-2xl font-bold text-emerald-950 flex items-center gap-2">
+              ✅ Final Placements (Full-Time)
+            </h4>
+            <span class="px-3 py-1 bg-emerald-700 text-white text-xs font-bold rounded-full">
+              {selectedCompany.finals.length} Placed{selectedCompany.finals.length === 1 ? '' : ''}
+            </span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-emerald-100">
+              <thead class="bg-white/80">
+                <tr>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-emerald-900 uppercase tracking-wider">Reg No / Neo ID</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-emerald-900 uppercase tracking-wider">Name</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-emerald-900 uppercase tracking-wider">Campus</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-emerald-900 uppercase tracking-wider">TopCoder</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-emerald-900 uppercase tracking-wider">CGPA</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-emerald-900 uppercase tracking-wider">Gender</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-emerald-900 uppercase tracking-wider">Resume</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-emerald-50">
+                {#each selectedCompany.finals as student}
+                  <tr class="hover:bg-emerald-50/50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                      {student.regno}
+                      {#if student.neo_id}
+                        <span class="ml-1.5 px-1.5 py-0.5 text-xs font-mono bg-emerald-100 text-emerald-800 rounded font-semibold">{student.neo_id}</span>
+                      {/if}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <span class="px-2 py-0.5 rounded-full text-xs font-bold {student.campus === 'Unknown' || !student.campus ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'}">
+                        {student.campus || 'Unknown'}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      {#if student.topcoder}
+                        <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">⚡ TopCoder</span>
+                      {:else}
+                        <span class="text-gray-400 text-xs">No</span>
+                      {/if}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.cgpa?.toFixed(2) || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.gender || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      {#if student.resume_link}
+                        <a href={student.resume_link} target="_blank" class="text-emerald-600 hover:text-emerald-800 font-semibold">📄 View</a>
                       {:else}
                         <span class="text-gray-400">N/A</span>
                       {/if}

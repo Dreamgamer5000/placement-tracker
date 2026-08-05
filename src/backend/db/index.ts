@@ -207,6 +207,34 @@ export function initDatabase() {
     )
   `);
 
+  // Temp interns selected table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS temp_interns_selected (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      regno TEXT,
+      neo_id TEXT,
+      company_id INTEGER NOT NULL,
+      selected_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(regno, company_id),
+      UNIQUE(neo_id, company_id),
+      FOREIGN KEY (company_id) REFERENCES companies(id)
+    )
+  `);
+
+  // Temp final selection table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS temp_final_selection (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      regno TEXT,
+      neo_id TEXT,
+      company_id INTEGER NOT NULL,
+      selected_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(regno, company_id),
+      UNIQUE(neo_id, company_id),
+      FOREIGN KEY (company_id) REFERENCES companies(id)
+    )
+  `);
+
   console.log('Database initialized successfully');
 }
 

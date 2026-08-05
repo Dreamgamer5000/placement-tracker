@@ -1,27 +1,10 @@
 // Utility functions for parsing student data
 
 export function extractBranch(regno: string): string {
-  // Extract branch code from registration number
-  // Format: XX**BCE**XXXX(X), XX**BPS**XXXX(X), etc.
+  // Extract branch code from registration number (e.g. 23BCE1234 -> BCE)
   const match = regno.match(/\d{2}([A-Z]{3})\d+/i);
   if (match) {
-    const branchCode = match[1].toUpperCase();
-    return branchCode;
-    // const branchMap: { [key: string]: string } = {
-    //   'BCE': 'Computer Engineering',
-    //   'BAI': 'Artificial Intelligence',
-    //   'BPS': 'Cyber Physical Systems',
-    //   'BDS': 'Data Science',
-    //   'BCS': 'Computer Science',
-    //   'BIT': 'Information Technology',
-    //   'BEC': 'Electronics and Communication',
-    //   'BEE': 'Electrical and Electronics',
-    //   'BME': 'Mechanical Engineering',
-    //   'BCV': 'Civil Engineering',
-    //   'BCB': 'Chemical Engineering',
-    //   'BBI': 'Biotechnology',
-    // };
-    // return branchMap[branchCode] || branchCode;
+    return match[1].toUpperCase();
   }
   return 'Unknown';
 }

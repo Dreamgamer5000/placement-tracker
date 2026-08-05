@@ -383,59 +383,65 @@
 
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1.25rem;
     margin-bottom: 2rem;
   }
 
   .stat-card {
     background: white;
-    padding: 1.25rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
     border: 1px solid #e2e8f0;
     text-align: left;
-    transition: transform 0.2s;
+    transition: all 0.2s ease;
   }
 
   .stat-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
   }
 
   .stat-card.primary {
-    border-left: 4px solid #4f46e5;
+    border-left: 5px solid #6366f1;
+    background: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);
   }
   .stat-card.success {
-    border-left: 4px solid #10b981;
+    border-left: 5px solid #10b981;
+    background: linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%);
   }
   .stat-card.chennai-highlight {
-    border-left: 4px solid #6366f1;
-    background: #f5f3ff;
+    border-left: 5px solid #8b5cf6;
+    background: linear-gradient(135deg, #ffffff 0%, #f3e8ff 100%);
   }
   .stat-card.warning {
-    border-left: 4px solid #f59e0b;
+    border-left: 5px solid #f59e0b;
+    background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
   }
   .stat-card.dark {
-    border-left: 4px solid #64748b;
+    border-left: 5px solid #3b82f6;
+    background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
   }
 
   .stat-value {
-    font-size: 2.25rem;
+    font-size: 2.5rem;
     font-weight: 800;
     color: #0f172a;
     line-height: 1.1;
+    letter-spacing: -0.02em;
   }
 
   .stat-label {
-    color: #475569;
-    font-size: 0.875rem;
-    font-weight: 600;
-    margin-top: 0.35rem;
+    color: #334155;
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-top: 0.4rem;
   }
 
   .stat-sub {
     color: #64748b;
-    font-size: 0.775rem;
+    font-size: 0.8rem;
     margin-top: 0.25rem;
   }
 

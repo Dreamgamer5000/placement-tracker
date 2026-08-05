@@ -450,8 +450,9 @@
       <div class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Company Name *</label>
+            <label for="new-company-name" class="block text-xs font-bold text-gray-700 uppercase mb-1">Company Name *</label>
             <input 
+              id="new-company-name"
               type="text" 
               placeholder="e.g. Saviynt" 
               bind:value={newCompany.name}
@@ -460,8 +461,9 @@
             />
           </div>
           <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Category / Tier</label>
+            <label for="new-company-category" class="block text-xs font-bold text-gray-700 uppercase mb-1">Category / Tier</label>
             <input 
+              id="new-company-category"
               type="text" 
               placeholder="e.g. Super Dream Internship/ Placement" 
               bind:value={newCompany.category}
@@ -469,8 +471,9 @@
             />
           </div>
           <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Job Profile / Role</label>
+            <label for="new-company-role" class="block text-xs font-bold text-gray-700 uppercase mb-1">Job Profile / Role</label>
             <input 
+              id="new-company-role"
               type="text" 
               placeholder="e.g. Associate Engineer / SRE" 
               bind:value={newCompany.role}
@@ -481,8 +484,9 @@
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">CTC Package</label>
+            <label for="new-company-ctc" class="block text-xs font-bold text-gray-700 uppercase mb-1">CTC Package</label>
             <input 
+              id="new-company-ctc"
               type="text" 
               placeholder="e.g. 21,00,000 (21 LPA)" 
               bind:value={newCompany.ctc}
@@ -490,8 +494,9 @@
             />
           </div>
           <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Stipend</label>
+            <label for="new-company-stipend" class="block text-xs font-bold text-gray-700 uppercase mb-1">Stipend</label>
             <input 
+              id="new-company-stipend"
               type="text" 
               placeholder="e.g. 50,000 per month" 
               bind:value={newCompany.stipend}
@@ -499,8 +504,9 @@
             />
           </div>
           <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Job Location</label>
+            <label for="new-company-location" class="block text-xs font-bold text-gray-700 uppercase mb-1">Job Location</label>
             <input 
+              id="new-company-location"
               type="text" 
               placeholder="e.g. Bengaluru / Remote" 
               bind:value={newCompany.job_location}
@@ -508,8 +514,9 @@
             />
           </div>
           <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Company Website</label>
+            <label for="new-company-website" class="block text-xs font-bold text-gray-700 uppercase mb-1">Company Website</label>
             <input 
+              id="new-company-website"
               type="text" 
               placeholder="e.g. saviynt.com" 
               bind:value={newCompany.website}
@@ -520,8 +527,9 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Eligible Branches</label>
+            <label for="new-company-branches" class="block text-xs font-bold text-gray-700 uppercase mb-1">Eligible Branches</label>
             <input 
+              id="new-company-branches"
               type="text" 
               placeholder="e.g. B.Tech (CSE, IT & ECE related courses)" 
               bind:value={newCompany.eligible_branches}
@@ -529,8 +537,9 @@
             />
           </div>
           <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Eligibility Criteria</label>
+            <label for="new-company-criteria" class="block text-xs font-bold text-gray-700 uppercase mb-1">Eligibility Criteria</label>
             <input 
+              id="new-company-criteria"
               type="text" 
               placeholder="e.g. 90% in X & XII, 9.0 CGPA, No Standing Arrears" 
               bind:value={newCompany.eligibility_criteria}
@@ -541,8 +550,9 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Total Rounds</label>
+            <label for="new-company-rounds" class="block text-xs font-bold text-gray-700 uppercase mb-1">Total Rounds</label>
             <input 
+              id="new-company-rounds"
               type="number" 
               placeholder="e.g. 4" 
               bind:value={newCompany.total_rounds}
@@ -550,10 +560,11 @@
             />
           </div>
           <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Experience Required</label>
+            <label for="new-company-exp" class="block text-xs font-bold text-gray-700 uppercase mb-1">Experience Required</label>
             <input 
+              id="new-company-exp"
               type="text" 
-              placeholder="e.g. Freshers (2026 batch)" 
+              placeholder="e.g. Freshers (2027 batch)" 
               bind:value={newCompany.experience_required}
               class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
@@ -561,8 +572,9 @@
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-gray-700 uppercase mb-1">General Notes</label>
+          <label for="new-company-notes" class="block text-xs font-bold text-gray-700 uppercase mb-1">General Notes</label>
           <textarea 
+            id="new-company-notes"
             placeholder="General Notes (optional)" 
             bind:value={newCompany.notes}
             rows="2"
@@ -571,8 +583,9 @@
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Round-by-Round Details / Instructions</label>
+          <label for="new-company-details" class="block text-xs font-bold text-gray-700 uppercase mb-1">Round-by-Round Details / Instructions</label>
           <textarea 
+            id="new-company-details"
             placeholder="Describe each round, questions asked, cutoffs, etc." 
             bind:value={newCompany.round_details}
             rows="3"

@@ -8,7 +8,7 @@
 
   async function predictCompanies() {
     if (!cgpa || !tenth || !twelfth) {
-      alert('Please fill in all fields');
+      alert('Please fill in all fields (CGPA, 10th %, 12th %)');
       return;
     }
 
@@ -34,123 +34,152 @@
   }
 </script>
 
-<div class="predict-companies">
-  <h2>🔮 Predict Eligible Companies</h2>
-
-  <div class="form-container">
-    <p class="description">
-      Enter a student's academic details to see which companies they might be eligible for based on historical data.
+<div class="p-8 max-w-[1600px] mx-auto space-y-8">
+  <!-- Header -->
+  <div>
+    <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-2">
+      🔮 Predict Eligible Companies
+    </h2>
+    <p class="text-gray-500 text-sm mt-1">
+      Analyze candidate academic profiles against historical cutoff thresholds to predict placement eligibility.
     </p>
+  </div>
 
-    <div class="input-grid">
-      <div class="form-group">
-        <label for="cgpa">CGPA *</label>
+  <!-- Form Card -->
+  <div class="bg-white rounded-2xl shadow-md p-6 border border-purple-100 space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div>
+        <label for="cgpa" class="block text-xs font-bold text-gray-700 uppercase mb-1">Cumulative CGPA (0 - 10) *</label>
         <input 
           id="cgpa"
           type="number" 
           step="0.01" 
           min="0" 
           max="10"
-          placeholder="e.g., 8.5" 
+          placeholder="e.g. 8.75" 
           bind:value={cgpa}
+          class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base font-semibold"
         />
       </div>
 
-      <div class="form-group">
-        <label for="tenth">10th Marks (%) *</label>
+      <div>
+        <label for="tenth" class="block text-xs font-bold text-gray-700 uppercase mb-1">10th Marks (%) *</label>
         <input 
           id="tenth"
           type="number" 
           step="0.1" 
           min="0" 
           max="100"
-          placeholder="e.g., 90" 
+          placeholder="e.g. 92.5" 
           bind:value={tenth}
+          class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base font-semibold"
         />
       </div>
 
-      <div class="form-group">
-        <label for="twelfth">12th Marks (%) *</label>
+      <div>
+        <label for="twelfth" class="block text-xs font-bold text-gray-700 uppercase mb-1">12th Marks (%) *</label>
         <input 
           id="twelfth"
           type="number" 
           step="0.1" 
           min="0" 
           max="100"
-          placeholder="e.g., 85" 
+          placeholder="e.g. 89.0" 
           bind:value={twelfth}
+          class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base font-semibold"
         />
       </div>
     </div>
 
-    <button class="btn-primary" on:click={predictCompanies}>
-      Find Eligible Companies
+    <button 
+      class="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+      on:click={predictCompanies}
+      disabled={loading}
+    >
+      {#if loading}
+        <span class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
+        Analyzing Cutoffs...
+      {:else}
+        ⚡ Calculate Eligible Companies
+      {/if}
     </button>
   </div>
 
   {#if loading}
-    <div class="loading">Analyzing eligibility...</div>
+    <div class="text-center py-16 text-gray-600 bg-white rounded-2xl shadow-sm border border-gray-100">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <p class="mt-4 text-base font-medium">Analyzing historical eligibility thresholds...</p>
+    </div>
   {:else if searched}
-    <div class="results-container">
-      <h3>Eligible Companies ({eligibleCompanies.length})</h3>
-      
+    <div class="bg-white rounded-2xl shadow-md p-6 border border-gray-100 space-y-6">
+      <div class="flex justify-between items-center border-b border-gray-100 pb-4">
+        <h3 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          🎯 Matching Companies
+        </h3>
+        <span class="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-bold rounded-full">
+          {eligibleCompanies.length} Companies Match
+        </span>
+      </div>
+
       {#if eligibleCompanies.length === 0}
-        <div class="no-results">
-          <p>No companies found matching these criteria.</p>
-          <p>This might mean:</p>
-          <ul>
-            <li>No companies have been added to the system yet</li>
-            <li>No historical data available for cutoff analysis</li>
-            <li>The entered marks are below all known cutoffs</li>
-          </ul>
+        <div class="py-12 text-center text-gray-500 space-y-2">
+          <p class="text-lg font-semibold">No companies found matching these academic cutoffs.</p>
+          <p class="text-sm">Try adjusting the CGPA or percentage parameters to expand candidate eligibility.</p>
         </div>
       {:else}
-        <div class="companies-list">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           {#each eligibleCompanies as company}
-            <div class="company-card">
-              <h4>{company.name}</h4>
-              
+            <div class="bg-slate-50/70 rounded-2xl border border-slate-200 p-6 space-y-3 hover:border-purple-300 transition-all hover:shadow-md">
+              <div class="flex justify-between items-start">
+                <h4 class="text-xl font-bold text-gray-900">{company.name}</h4>
+                {#if company.ctc}
+                  <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full">
+                    💰 {company.ctc}
+                  </span>
+                {/if}
+              </div>
+
               {#if company.notes}
-                <p class="notes">{company.notes}</p>
+                <p class="text-xs text-gray-600 line-clamp-2">{company.notes}</p>
               {/if}
 
-              <div class="cutoffs">
-                <h5>Cutoffs (based on shortlisted students)</h5>
-                <div class="cutoff-grid">
+              <div class="pt-3 border-t border-slate-200 space-y-2">
+                <span class="text-xs font-bold text-purple-700 uppercase tracking-wider block">Historical Cutoffs</span>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
                   {#if company.min_cgpa}
-                    <div class="cutoff-item">
-                      <span class="label">Min CGPA:</span>
-                      <span class="value">{company.min_cgpa.toFixed(2)}</span>
+                    <div class="bg-white p-2 rounded-lg border border-slate-200">
+                      <span class="text-gray-500 block text-[10px]">Min CGPA</span>
+                      <span class="font-bold text-gray-900">{company.min_cgpa.toFixed(2)}</span>
                     </div>
                   {/if}
                   {#if company.avg_cgpa}
-                    <div class="cutoff-item">
-                      <span class="label">Avg CGPA:</span>
-                      <span class="value">{company.avg_cgpa.toFixed(2)}</span>
+                    <div class="bg-white p-2 rounded-lg border border-slate-200">
+                      <span class="text-gray-500 block text-[10px]">Avg CGPA</span>
+                      <span class="font-bold text-gray-900">{company.avg_cgpa.toFixed(2)}</span>
                     </div>
                   {/if}
                   {#if company.min_tenth}
-                    <div class="cutoff-item">
-                      <span class="label">Min 10th:</span>
-                      <span class="value">{company.min_tenth.toFixed(1)}%</span>
+                    <div class="bg-white p-2 rounded-lg border border-slate-200">
+                      <span class="text-gray-500 block text-[10px]">Min 10th</span>
+                      <span class="font-bold text-gray-900">{company.min_tenth.toFixed(1)}%</span>
                     </div>
                   {/if}
                   {#if company.min_twelfth}
-                    <div class="cutoff-item">
-                      <span class="label">Min 12th:</span>
-                      <span class="value">{company.min_twelfth.toFixed(1)}%</span>
+                    <div class="bg-white p-2 rounded-lg border border-slate-200">
+                      <span class="text-gray-500 block text-[10px]">Min 12th</span>
+                      <span class="font-bold text-gray-900">{company.min_twelfth.toFixed(1)}%</span>
                     </div>
                   {/if}
                   {#if company.total_shortlisted}
-                    <div class="cutoff-item">
-                      <span class="label">Total Shortlisted:</span>
-                      <span class="value">{company.total_shortlisted}</span>
+                    <div class="bg-white p-2 rounded-lg border border-slate-200">
+                      <span class="text-gray-500 block text-[10px]">Shortlisted</span>
+                      <span class="font-bold text-purple-700">{company.total_shortlisted}</span>
                     </div>
                   {/if}
                   {#if company.gender_ratio}
-                    <div class="cutoff-item">
-                      <span class="label">Gender Ratio (M:F):</span>
-                      <span class="value">{company.gender_ratio}</span>
+                    <div class="bg-white p-2 rounded-lg border border-slate-200">
+                      <span class="text-gray-500 block text-[10px]">Gender (M:F)</span>
+                      <span class="font-bold text-gray-900">{company.gender_ratio}</span>
                     </div>
                   {/if}
                 </div>
@@ -162,170 +191,3 @@
     </div>
   {/if}
 </div>
-
-<style>
-  .predict-companies {
-    padding: 2rem;
-  }
-
-  h2 {
-    color: #333;
-    margin-bottom: 2rem;
-  }
-
-  .form-container {
-    background: white;
-    padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    margin-bottom: 2rem;
-  }
-
-  .description {
-    color: #666;
-    margin-bottom: 1.5rem;
-  }
-
-  .input-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-  }
-
-  label {
-    margin-bottom: 0.5rem;
-    font-weight: 600;
-    color: #333;
-  }
-
-  input {
-    padding: 0.75rem;
-    border: 2px solid #ddd;
-    border-radius: 8px;
-    font-size: 1rem;
-  }
-
-  input:focus {
-    outline: none;
-    border-color: #667eea;
-  }
-
-  .btn-primary {
-    padding: 1rem 2rem;
-    background: #667eea;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: 600;
-    width: 100%;
-  }
-
-  .btn-primary:hover {
-    background: #5568d3;
-  }
-
-  .loading {
-    text-align: center;
-    padding: 3rem;
-    color: #666;
-    background: white;
-    border-radius: 10px;
-  }
-
-  .results-container {
-    background: white;
-    padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  }
-
-  .results-container h3 {
-    color: #333;
-    margin-top: 0;
-    margin-bottom: 1.5rem;
-  }
-
-  .no-results {
-    padding: 2rem;
-    text-align: center;
-    color: #666;
-  }
-
-  .no-results ul {
-    text-align: left;
-    margin: 1rem auto;
-    max-width: 500px;
-  }
-
-  .companies-list {
-    display: grid;
-    gap: 1.5rem;
-  }
-
-  .company-card {
-    border: 2px solid #eee;
-    border-radius: 10px;
-    padding: 1.5rem;
-    transition: border-color 0.2s;
-  }
-
-  .company-card:hover {
-    border-color: #667eea;
-  }
-
-  .company-card h4 {
-    margin: 0 0 0.5rem 0;
-    color: #333;
-    font-size: 1.3rem;
-  }
-
-  .notes {
-    color: #666;
-    font-size: 0.9rem;
-    margin: 0.5rem 0 1rem 0;
-  }
-
-  .cutoffs {
-    margin-top: 1rem;
-  }
-
-  .cutoffs h5 {
-    color: #667eea;
-    margin: 0 0 1rem 0;
-    font-size: 1rem;
-  }
-
-  .cutoff-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
-  }
-
-  .cutoff-item {
-    background: #f8f9fa;
-    padding: 0.75rem;
-    border-radius: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .cutoff-item .label {
-    color: #666;
-    font-size: 0.9rem;
-  }
-
-  .cutoff-item .value {
-    color: #333;
-    font-weight: 600;
-    font-size: 1.1rem;
-  }
-</style>

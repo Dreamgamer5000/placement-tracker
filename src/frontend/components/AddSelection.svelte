@@ -142,8 +142,8 @@
   }
 </script>
 
-<div>
-  <h2 class="text-3xl font-bold text-gray-800 mb-6">✅ Add Final Selections</h2>
+<div class="p-8 max-w-[1600px] mx-auto space-y-8">
+  <h2 class="text-3xl font-bold text-gray-800">✅ Add Final Selections</h2>
   
   <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
     <div class="flex">

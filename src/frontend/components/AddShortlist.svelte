@@ -145,8 +145,8 @@
   }
 </script>
 
-<div>
-  <h2 class="text-3xl font-bold text-gray-800 mb-6">📝 Add Students to Company Shortlist</h2>
+<div class="p-8 max-w-[1600px] mx-auto space-y-8">
+  <h2 class="text-3xl font-bold text-gray-800">📝 Add Students to Company Shortlist</h2>
   
   <div class="bg-white rounded-lg shadow-md p-6 mb-6">
     <div class="mb-6">

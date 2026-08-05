@@ -52,6 +52,84 @@
     await loadCompanies();
   });
 
+  // Windowed rendering & search state for company detail modal
+  let modalSearchTerm = '';
+  let pageSize = 50;
+  let roundPages: Record<number, number> = {};
+  let finalStudentsPage = 1;
+  let internStudentsPage = 1;
+
+  function resetModalState() {
+    modalSearchTerm = '';
+    pageSize = 50;
+    roundPages = {};
+    finalStudentsPage = 1;
+    internStudentsPage = 1;
+  }
+
+  function getRoundPage(roundNum: number): number {
+    return roundPages[roundNum] || 1;
+  }
+
+  function setRoundPage(roundNum: number, page: number) {
+    roundPages = { ...roundPages, [roundNum]: page };
+  }
+
+  function getCampusRank(campus: string | undefined | null): number {
+    if (!campus) return 3;
+    const c = campus.trim().toLowerCase();
+    if (c === 'chennai' || c.includes('chennai')) return 1;
+    if (c === 'vellore' || c.includes('vellore')) return 2;
+    return 3;
+  }
+
+  function sortStudents(students: any[]): any[] {
+    if (!students || !Array.isArray(students)) return [];
+    return [...students].sort((a, b) => {
+      // 1. Campus priority: Chennai (1) -> Vellore (2) -> Unknown / Others (3)
+      const rankA = getCampusRank(a.campus);
+      const rankB = getCampusRank(b.campus);
+      if (rankA !== rankB) return rankA - rankB;
+
+      // 2. TopCoder priority: TopCoder=1 first
+      const tcA = a.topcoder ? 1 : 0;
+      const tcB = b.topcoder ? 1 : 0;
+      if (tcA !== tcB) return tcB - tcA;
+
+      // 3. CGPA priority: Highest CGPA first
+      const cgpaA = typeof a.cgpa === 'number' ? a.cgpa : 0;
+      const cgpaB = typeof b.cgpa === 'number' ? b.cgpa : 0;
+      return cgpaB - cgpaA;
+    });
+  }
+
+  function getFilteredStudents(students: any[], search: string) {
+    if (!students || !Array.isArray(students)) return [];
+    let list = students;
+    if (search && search.trim()) {
+      const term = search.toLowerCase().trim();
+      list = students.filter(s => {
+        return (s.regno && s.regno.toLowerCase().includes(term)) ||
+               (s.name && s.name.toLowerCase().includes(term)) ||
+               (s.neo_id && s.neo_id.toLowerCase().includes(term)) ||
+               (s.campus && s.campus.toLowerCase().includes(term)) ||
+               (s.branch && s.branch.toLowerCase().includes(term));
+      });
+    }
+    return sortStudents(list);
+  }
+
+  function getPaginatedSlice(students: any[], page: number, size: number) {
+    if (size <= 0) return students; // Show all
+    const start = (page - 1) * size;
+    return students.slice(start, start + size);
+  }
+
+  function getTotalPages(totalItems: number, size: number) {
+    if (size <= 0 || totalItems <= 0) return 1;
+    return Math.ceil(totalItems / size);
+  }
+
   async function loadCompanies() {
     loading = true;
     try {
@@ -66,6 +144,7 @@
 
   async function viewCompany(id: number) {
     try {
+      resetModalState();
       const response = await fetch(`/api/companies/${id}`);
       selectedCompany = await response.json();
     } catch (error) {
@@ -504,78 +583,21 @@
         </div>
       {/if}
 
-      <!-- Intern Selections (from temp_interns_selected) -->
-      {#if selectedCompany.interns && selectedCompany.interns.length > 0}
-        <div class="mb-8 border border-cyan-200 rounded-2xl bg-cyan-50/30 overflow-hidden shadow-sm">
-          <div class="bg-cyan-100/70 px-6 py-4 flex justify-between items-center border-b border-cyan-200">
-            <h4 class="text-2xl font-bold text-cyan-950 flex items-center gap-2">
-              💼 Intern Selections
-            </h4>
-            <span class="px-3 py-1 bg-cyan-700 text-white text-xs font-bold rounded-full">
-              {selectedCompany.interns.length} Intern{selectedCompany.interns.length === 1 ? '' : 's'}
-            </span>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-cyan-100">
-              <thead class="bg-white/80">
-                <tr>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Reg No / Neo ID</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Name</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Campus</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">TopCoder</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">CGPA</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Gender</th>
-                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Resume</th>
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-cyan-50">
-                {#each selectedCompany.interns as student}
-                  <tr class="hover:bg-cyan-50/50">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                      {student.regno}
-                      {#if student.neo_id}
-                        <span class="ml-1.5 px-1.5 py-0.5 text-xs font-mono bg-cyan-100 text-cyan-800 rounded font-semibold">{student.neo_id}</span>
-                      {/if}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      <span class="px-2 py-0.5 rounded-full text-xs font-bold {student.campus === 'Unknown' || !student.campus ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'}">
-                        {student.campus || 'Unknown'}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      {#if student.topcoder}
-                        <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">⚡ TopCoder</span>
-                      {:else}
-                        <span class="text-gray-400 text-xs">No</span>
-                      {/if}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.cgpa?.toFixed(2) || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.gender || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      {#if student.resume_link}
-                        <a href={student.resume_link} target="_blank" class="text-cyan-600 hover:text-cyan-800 font-semibold">📄 View</a>
-                      {:else}
-                        <span class="text-gray-400">N/A</span>
-                      {/if}
-                    </td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      {/if}
-
       <!-- Final Placements (from temp_final_selection) -->
       {#if selectedCompany.finals && selectedCompany.finals.length > 0}
+        {@const filteredFinals = getFilteredStudents(selectedCompany.finals, modalSearchTerm)}
+        {@const totalPages = getTotalPages(filteredFinals.length, pageSize)}
+        {@const paginatedFinals = getPaginatedSlice(filteredFinals, finalStudentsPage, pageSize)}
+        {@const startIdx = pageSize > 0 ? (finalStudentsPage - 1) * pageSize + 1 : 1}
+        {@const endIdx = pageSize > 0 ? Math.min(finalStudentsPage * pageSize, filteredFinals.length) : filteredFinals.length}
+
         <div class="mb-8 border border-emerald-200 rounded-2xl bg-emerald-50/30 overflow-hidden shadow-sm">
           <div class="bg-emerald-100/70 px-6 py-4 flex justify-between items-center border-b border-emerald-200">
             <h4 class="text-2xl font-bold text-emerald-950 flex items-center gap-2">
               ✅ Final Placements (Full-Time)
             </h4>
             <span class="px-3 py-1 bg-emerald-700 text-white text-xs font-bold rounded-full">
-              {selectedCompany.finals.length} Placed{selectedCompany.finals.length === 1 ? '' : ''}
+              {filteredFinals.length} Placed
             </span>
           </div>
           <div class="overflow-x-auto">
@@ -592,41 +614,190 @@
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-emerald-50">
-                {#each selectedCompany.finals as student}
-                  <tr class="hover:bg-emerald-50/50">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                      {student.regno}
-                      {#if student.neo_id}
-                        <span class="ml-1.5 px-1.5 py-0.5 text-xs font-mono bg-emerald-100 text-emerald-800 rounded font-semibold">{student.neo_id}</span>
-                      {/if}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      <span class="px-2 py-0.5 rounded-full text-xs font-bold {student.campus === 'Unknown' || !student.campus ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'}">
-                        {student.campus || 'Unknown'}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      {#if student.topcoder}
-                        <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">⚡ TopCoder</span>
-                      {:else}
-                        <span class="text-gray-400 text-xs">No</span>
-                      {/if}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.cgpa?.toFixed(2) || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.gender || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      {#if student.resume_link}
-                        <a href={student.resume_link} target="_blank" class="text-emerald-600 hover:text-emerald-800 font-semibold">📄 View</a>
-                      {:else}
-                        <span class="text-gray-400">N/A</span>
-                      {/if}
+                {#if paginatedFinals.length === 0}
+                  <tr>
+                    <td colspan="7" class="px-6 py-6 text-center text-gray-500 italic">
+                      No placed students matching "{modalSearchTerm}".
                     </td>
                   </tr>
-                {/each}
+                {:else}
+                  {#each paginatedFinals as student}
+                    <tr class="hover:bg-emerald-50/50">
+                      <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                        {student.regno}
+                        {#if student.neo_id}
+                          <span class="ml-1.5 px-1.5 py-0.5 text-xs font-mono bg-emerald-100 text-emerald-800 rounded font-semibold">{student.neo_id}</span>
+                        {/if}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-bold {student.campus === 'Unknown' || !student.campus ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'}">
+                          {student.campus || 'Unknown'}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        {#if student.topcoder}
+                          <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">⚡ TopCoder</span>
+                        {:else}
+                          <span class="text-gray-400 text-xs">No</span>
+                        {/if}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.cgpa?.toFixed(2) || 'N/A'}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.gender || 'N/A'}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        {#if student.resume_link}
+                          <a href={student.resume_link} target="_blank" class="text-emerald-600 hover:text-emerald-800 font-semibold">📄 View</a>
+                        {:else}
+                          <span class="text-gray-400">N/A</span>
+                        {/if}
+                      </td>
+                    </tr>
+                  {/each}
+                {/if}
               </tbody>
             </table>
           </div>
+
+          {#if pageSize > 0 && filteredFinals.length > 0}
+            <div class="px-6 py-3 bg-white border-t border-emerald-100 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-gray-600">
+              <div>
+                Showing <span class="font-bold text-emerald-900">{startIdx}</span>–<span class="font-bold text-emerald-900">{endIdx}</span> of <span class="font-bold text-emerald-900">{filteredFinals.length}</span> placed students
+              </div>
+
+              {#if totalPages > 1}
+                <div class="flex items-center gap-2">
+                  <button
+                    on:click={() => finalStudentsPage = Math.max(1, finalStudentsPage - 1)}
+                    disabled={finalStudentsPage === 1}
+                    class="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ◀ Previous
+                  </button>
+
+                  <span class="font-semibold px-2">
+                    Page {finalStudentsPage} of {totalPages}
+                  </span>
+
+                  <button
+                    on:click={() => finalStudentsPage = Math.min(totalPages, finalStudentsPage + 1)}
+                    disabled={finalStudentsPage >= totalPages}
+                    class="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next ▶
+                  </button>
+                </div>
+              {/if}
+            </div>
+          {/if}
+        </div>
+      {/if}
+
+      <!-- Intern Selections (from temp_interns_selected) -->
+      {#if selectedCompany.interns && selectedCompany.interns.length > 0}
+        {@const filteredInterns = getFilteredStudents(selectedCompany.interns, modalSearchTerm)}
+        {@const totalPages = getTotalPages(filteredInterns.length, pageSize)}
+        {@const paginatedInterns = getPaginatedSlice(filteredInterns, internStudentsPage, pageSize)}
+        {@const startIdx = pageSize > 0 ? (internStudentsPage - 1) * pageSize + 1 : 1}
+        {@const endIdx = pageSize > 0 ? Math.min(internStudentsPage * pageSize, filteredInterns.length) : filteredInterns.length}
+
+        <div class="mb-8 border border-cyan-200 rounded-2xl bg-cyan-50/30 overflow-hidden shadow-sm">
+          <div class="bg-cyan-100/70 px-6 py-4 flex justify-between items-center border-b border-cyan-200">
+            <h4 class="text-2xl font-bold text-cyan-950 flex items-center gap-2">
+              💼 Intern Selections
+            </h4>
+            <span class="px-3 py-1 bg-cyan-700 text-white text-xs font-bold rounded-full">
+              {filteredInterns.length} Intern{filteredInterns.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-cyan-100">
+              <thead class="bg-white/80">
+                <tr>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Reg No / Neo ID</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Name</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Campus</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">TopCoder</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">CGPA</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Gender</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Resume</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-cyan-50">
+                {#if paginatedInterns.length === 0}
+                  <tr>
+                    <td colspan="7" class="px-6 py-6 text-center text-gray-500 italic">
+                      No interns matching "{modalSearchTerm}".
+                    </td>
+                  </tr>
+                {:else}
+                  {#each paginatedInterns as student}
+                    <tr class="hover:bg-cyan-50/50">
+                      <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                        {student.regno}
+                        {#if student.neo_id}
+                          <span class="ml-1.5 px-1.5 py-0.5 text-xs font-mono bg-cyan-100 text-cyan-800 rounded font-semibold">{student.neo_id}</span>
+                        {/if}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-bold {student.campus === 'Unknown' || !student.campus ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'}">
+                          {student.campus || 'Unknown'}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        {#if student.topcoder}
+                          <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">⚡ TopCoder</span>
+                        {:else}
+                          <span class="text-gray-400 text-xs">No</span>
+                        {/if}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.cgpa?.toFixed(2) || 'N/A'}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.gender || 'N/A'}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        {#if student.resume_link}
+                          <a href={student.resume_link} target="_blank" class="text-cyan-600 hover:text-cyan-800 font-semibold">📄 View</a>
+                        {:else}
+                          <span class="text-gray-400">N/A</span>
+                        {/if}
+                      </td>
+                    </tr>
+                  {/each}
+                {/if}
+              </tbody>
+            </table>
+          </div>
+
+          {#if pageSize > 0 && filteredInterns.length > 0}
+            <div class="px-6 py-3 bg-white border-t border-cyan-100 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-gray-600">
+              <div>
+                Showing <span class="font-bold text-cyan-900">{startIdx}</span>–<span class="font-bold text-cyan-900">{endIdx}</span> of <span class="font-bold text-cyan-900">{filteredInterns.length}</span> intern selections
+              </div>
+
+              {#if totalPages > 1}
+                <div class="flex items-center gap-2">
+                  <button
+                    on:click={() => internStudentsPage = Math.max(1, internStudentsPage - 1)}
+                    disabled={internStudentsPage === 1}
+                    class="px-3 py-1 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ◀ Previous
+                  </button>
+
+                  <span class="font-semibold px-2">
+                    Page {internStudentsPage} of {totalPages}
+                  </span>
+
+                  <button
+                    on:click={() => internStudentsPage = Math.min(totalPages, internStudentsPage + 1)}
+                    disabled={internStudentsPage >= totalPages}
+                    class="px-3 py-1 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next ▶
+                  </button>
+                </div>
+              {/if}
+            </div>
+          {/if}
         </div>
       {/if}
 
@@ -664,8 +835,51 @@
       {/if}
 
       {#if selectedCompany.shortlist_rounds && selectedCompany.shortlist_rounds.length > 0}
+        <!-- Search & Windowed View Controls Bar -->
+        <div class="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm">
+          <div class="relative w-full md:w-96">
+            <input
+              type="text"
+              placeholder="🔍 Search shortlist (Name, RegNo, NeoID, Branch)..."
+              bind:value={modalSearchTerm}
+              on:input={() => { roundPages = {}; finalStudentsPage = 1; internStudentsPage = 1; }}
+              class="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+            {#if modalSearchTerm}
+              <button
+                on:click={() => modalSearchTerm = ''}
+                class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 font-bold text-xs"
+              >
+                ✕
+              </button>
+            {/if}
+          </div>
+
+          <div class="flex items-center gap-2 text-xs font-semibold text-gray-700 w-full md:w-auto justify-end">
+            <span>Rows per page:</span>
+            <select
+              bind:value={pageSize}
+              on:change={() => roundPages = {}}
+              class="px-3 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 font-bold"
+            >
+              <option value={25}>25 rows</option>
+              <option value={50}>50 rows (Fast)</option>
+              <option value={100}>100 rows</option>
+              <option value={250}>250 rows</option>
+              <option value={0}>All (No Windowing)</option>
+            </select>
+          </div>
+        </div>
+
         <div class="mb-8 space-y-6">
           {#each selectedCompany.shortlist_rounds as round}
+            {@const filteredStudents = getFilteredStudents(round.students, modalSearchTerm)}
+            {@const curPage = roundPages[round.round_number] || 1}
+            {@const totalPages = getTotalPages(filteredStudents.length, pageSize)}
+            {@const paginatedStudents = getPaginatedSlice(filteredStudents, curPage, pageSize)}
+            {@const startIdx = pageSize > 0 ? (curPage - 1) * pageSize + 1 : 1}
+            {@const endIdx = pageSize > 0 ? Math.min(curPage * pageSize, filteredStudents.length) : filteredStudents.length}
+
             <div class="border border-purple-200 rounded-2xl bg-purple-50/30 overflow-hidden shadow-sm">
               <div class="bg-purple-100/70 px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-purple-200">
                 {#if editingRoundNumber === round.round_number}
@@ -708,11 +922,11 @@
                     Total: {round.students.length}
                   </span>
                   <span class="px-3 py-1 bg-indigo-700 text-white text-xs font-bold rounded-full">
-                    Chennai: {round.students.filter(s => s.campus === 'Chennai').length}
+                    Chennai: {round.chennai_count ?? round.students.filter(s => s.campus === 'Chennai').length}
                   </span>
-                  {#if round.students.filter(s => s.campus === 'Unknown' || !s.campus).length > 0}
+                  {#if (round.unknown_count ?? round.students.filter(s => s.campus === 'Unknown' || !s.campus).length) > 0}
                     <span class="px-3 py-1 bg-amber-600 text-white text-xs font-bold rounded-full">
-                      Unknown: {round.students.filter(s => s.campus === 'Unknown' || !s.campus).length}
+                      Unknown: {round.unknown_count ?? round.students.filter(s => s.campus === 'Unknown' || !s.campus).length}
                     </span>
                   {/if}
                 </div>
@@ -733,50 +947,100 @@
                     </tr>
                   </thead>
                   <tbody class="bg-white divide-y divide-purple-50">
-                    {#each round.students as student}
-                      <tr class="hover:bg-purple-50/50">
-                        <td class="px-6 py-3.5 whitespace-nowrap text-sm font-bold text-gray-900">
-                          {student.regno}
-                          {#if student.neo_id}
-                            <span class="ml-1 px-1.5 py-0.5 text-xs font-mono bg-purple-100 text-purple-800 rounded">{student.neo_id}</span>
-                          {/if}
-                        </td>
-                        <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
-                        <td class="px-6 py-3.5 whitespace-nowrap text-sm">
-                          <span class="px-2 py-0.5 rounded-full text-xs font-bold {student.campus === 'Unknown' || !student.campus ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'}">
-                            {student.campus || 'Unknown'}
-                          </span>
-                        </td>
-                        <td class="px-6 py-3.5 whitespace-nowrap text-sm">
-                          {#if student.topcoder}
-                            <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">⚡ TopCoder</span>
-                          {:else}
-                            <span class="text-gray-400 text-xs">No</span>
-                          {/if}
-                        </td>
-                        <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.cgpa?.toFixed(2) || 'N/A'}</td>
-                        <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.tenth_marks?.toFixed(2) || 'N/A'}</td>
-                        <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.twelfth_marks?.toFixed(2) || 'N/A'}</td>
-                        <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.gender || 'N/A'}</td>
-                        <td class="px-6 py-3.5 whitespace-nowrap text-sm">
-                          {#if student.resume_link}
-                            <a href={student.resume_link} target="_blank" class="text-purple-600 hover:text-purple-800 font-semibold">📄 View</a>
-                          {:else}
-                            <span class="text-gray-400">N/A</span>
-                          {/if}
+                    {#if paginatedStudents.length === 0}
+                      <tr>
+                        <td colspan="9" class="px-6 py-8 text-center text-gray-500 italic">
+                          No students matching "{modalSearchTerm}" in this shortlist.
                         </td>
                       </tr>
-                    {/each}
+                    {:else}
+                      {#each paginatedStudents as student}
+                        <tr class="hover:bg-purple-50/50">
+                          <td class="px-6 py-3.5 whitespace-nowrap text-sm font-bold text-gray-900">
+                            {student.regno}
+                            {#if student.neo_id}
+                              <span class="ml-1 px-1.5 py-0.5 text-xs font-mono bg-purple-100 text-purple-800 rounded">{student.neo_id}</span>
+                            {/if}
+                          </td>
+                          <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
+                          <td class="px-6 py-3.5 whitespace-nowrap text-sm">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-bold {student.campus === 'Unknown' || !student.campus ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'}">
+                              {student.campus || 'Unknown'}
+                            </span>
+                          </td>
+                          <td class="px-6 py-3.5 whitespace-nowrap text-sm">
+                            {#if student.topcoder}
+                              <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">⚡ TopCoder</span>
+                            {:else}
+                              <span class="text-gray-400 text-xs">No</span>
+                            {/if}
+                          </td>
+                          <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.cgpa?.toFixed(2) || 'N/A'}</td>
+                          <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.tenth_marks?.toFixed(2) || 'N/A'}</td>
+                          <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.twelfth_marks?.toFixed(2) || 'N/A'}</td>
+                          <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900">{student.gender || 'N/A'}</td>
+                          <td class="px-6 py-3.5 whitespace-nowrap text-sm">
+                            {#if student.resume_link}
+                              <a href={student.resume_link} target="_blank" class="text-purple-600 hover:text-purple-800 font-semibold">📄 View</a>
+                            {:else}
+                              <span class="text-gray-400">N/A</span>
+                            {/if}
+                          </td>
+                        </tr>
+                      {/each}
+                    {/if}
                   </tbody>
                 </table>
               </div>
+
+              <!-- Pagination Controls for Windowed Rendering -->
+              {#if pageSize > 0 && filteredStudents.length > 0}
+                <div class="px-6 py-3 bg-white border-t border-purple-100 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-gray-600">
+                  <div>
+                    Showing <span class="font-bold text-purple-900">{startIdx}</span>–<span class="font-bold text-purple-900">{endIdx}</span> of <span class="font-bold text-purple-900">{filteredStudents.length}</span> students
+                  </div>
+
+                  {#if totalPages > 1}
+                    <div class="flex items-center gap-2">
+                      <button
+                        on:click={() => setRoundPage(round.round_number, Math.max(1, curPage - 1))}
+                        disabled={curPage === 1}
+                        class="px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        ◀ Previous
+                      </button>
+
+                      <span class="font-semibold px-2">
+                        Page {curPage} of {totalPages}
+                      </span>
+
+                      <button
+                        on:click={() => setRoundPage(round.round_number, Math.min(totalPages, curPage + 1))}
+                        disabled={curPage >= totalPages}
+                        class="px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Next ▶
+                      </button>
+                    </div>
+                  {/if}
+                </div>
+              {/if}
             </div>
           {/each}
         </div>
       {:else if selectedCompany.shortlisted && selectedCompany.shortlisted.length > 0}
-        <div class="mb-8">
-          <h4 class="text-2xl font-bold text-gray-900 mb-4">📋 Shortlisted Students ({selectedCompany.shortlisted.length})</h4>
-          <div class="overflow-x-auto rounded-xl border border-gray-200">
+        {@const filteredShortlist = getFilteredStudents(selectedCompany.shortlisted, modalSearchTerm)}
+        {@const curPage = roundPages[0] || 1}
+        {@const totalPages = getTotalPages(filteredShortlist.length, pageSize)}
+        {@const paginatedShortlist = getPaginatedSlice(filteredShortlist, curPage, pageSize)}
+        {@const startIdx = pageSize > 0 ? (curPage - 1) * pageSize + 1 : 1}
+        {@const endIdx = pageSize > 0 ? Math.min(curPage * pageSize, filteredShortlist.length) : filteredShortlist.length}
+
+        <div class="mb-8 border border-gray-200 rounded-2xl bg-white overflow-hidden shadow-sm">
+          <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+            <h4 class="text-2xl font-bold text-gray-900">📋 Shortlisted Students ({filteredShortlist.length})</h4>
+          </div>
+          <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
@@ -790,7 +1054,7 @@
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                {#each selectedCompany.shortlisted as student}
+                {#each paginatedShortlist as student}
                   <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{student.regno}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
@@ -810,6 +1074,38 @@
               </tbody>
             </table>
           </div>
+
+          {#if pageSize > 0 && filteredShortlist.length > 0}
+            <div class="px-6 py-3 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-gray-600">
+              <div>
+                Showing <span class="font-bold text-gray-900">{startIdx}</span>–<span class="font-bold text-gray-900">{endIdx}</span> of <span class="font-bold text-gray-900">{filteredShortlist.length}</span> students
+              </div>
+
+              {#if totalPages > 1}
+                <div class="flex items-center gap-2">
+                  <button
+                    on:click={() => setRoundPage(0, Math.max(1, curPage - 1))}
+                    disabled={curPage === 1}
+                    class="px-3 py-1 bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 rounded-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ◀ Previous
+                  </button>
+
+                  <span class="font-semibold px-2">
+                    Page {curPage} of {totalPages}
+                  </span>
+
+                  <button
+                    on:click={() => setRoundPage(0, Math.min(totalPages, curPage + 1))}
+                    disabled={curPage >= totalPages}
+                    class="px-3 py-1 bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 rounded-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next ▶
+                  </button>
+                </div>
+              {/if}
+            </div>
+          {/if}
         </div>
       {/if}
     </div>

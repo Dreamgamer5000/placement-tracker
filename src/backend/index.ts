@@ -335,6 +335,27 @@ app.get('/api/neo-ids', (c) => {
 // ---------------------------------------------------------------------------
 app.post('/api/students/recalculate-analytics', (c) => {
   try {
+    // 0. Auto-insert any unmatched NeoIDs from shortlists, selections, and students into temp_neoid_table with campus = 'Unknown'
+    const syncUnmatchedNeoIdsResult = db.prepare(`
+      INSERT INTO temp_neoid_table (neoid, campus)
+      SELECT DISTINCT UPPER(TRIM(all_neo.neo_id)), 'Unknown'
+      FROM (
+        SELECT neo_id FROM temp_shortlists WHERE neo_id IS NOT NULL AND TRIM(neo_id) != ''
+        UNION
+        SELECT neo_id FROM temp_interns_selected WHERE neo_id IS NOT NULL AND TRIM(neo_id) != ''
+        UNION
+        SELECT neo_id FROM temp_final_selection WHERE neo_id IS NOT NULL AND TRIM(neo_id) != ''
+        UNION
+        SELECT neo_id FROM temp_students WHERE neo_id IS NOT NULL AND TRIM(neo_id) != ''
+      ) all_neo
+      WHERE UPPER(TRIM(all_neo.neo_id)) NOT IN (
+        SELECT UPPER(TRIM(neoid)) FROM temp_neoid_table WHERE neoid IS NOT NULL
+      )
+      ON CONFLICT(neoid) DO NOTHING;
+    `).run();
+
+    db.prepare(`UPDATE temp_neoid_table SET campus = 'Unknown' WHERE campus IS NULL OR TRIM(campus) = ''`).run();
+
     // 1. Sync NeoIDs from temp_neoid_table to temp_students
     const syncNeoIdsResult = db.prepare(`
       UPDATE temp_students
@@ -433,40 +454,49 @@ app.get('/api/companies/:id', (c) => {
 
     const analytics = db.prepare('SELECT * FROM company_analytics WHERE company_id = ?').get(id);
 
-    // Shortlisted students — LEFT JOIN temp_students & temp_neoid_table
+    // Shortlisted students — Optimized prioritized LEFT JOINs with NOCASE indexes
     const shortlisted = db.prepare(`
+      WITH company_sl AS (
+        SELECT id, company_id, regno, neo_id, round_number, round_name, shortlisted_at
+        FROM temp_shortlists
+        WHERE company_id = ?
+      )
       SELECT
         sl.id as shortlist_entry_id,
         sl.shortlisted_at,
         sl.round_number,
         sl.round_name,
-        COALESCE(s.regno, sl.regno, n.regno) as regno,
-        COALESCE(s.name, CASE WHEN COALESCE(sl.neo_id, s.neo_id, n.neoid) IS NOT NULL THEN 'Student (' || COALESCE(sl.neo_id, s.neo_id, n.neoid) || ')' ELSE 'Student (' || COALESCE(sl.regno, 'Unmapped') || ')' END) as name,
-        COALESCE(s.email, '') as email,
-        s.phone,
-        s.personal_email,
-        s.gender,
-        s.cgpa,
-        s.tenth_marks,
-        s.twelfth_marks,
-        s.resume_link,
-        COALESCE(s.branch, 'Unknown') as branch,
-        COALESCE(s.campus, n.campus, 'Chennai') as campus,
-        COALESCE(s.placed, 0) as placed,
-        s.final_company_id,
-        COALESCE(s.neo_id, sl.neo_id, n.neoid) as neo_id,
-        COALESCE(s.masters, 0) as masters,
-        COALESCE(s.status, 'not_placed') as status,
-        COALESCE(s.topcoder, n.topcoder, 0) as topcoder
-      FROM temp_shortlists sl
-      LEFT JOIN temp_neoid_table n ON (sl.neo_id IS NOT NULL AND UPPER(n.neoid) = UPPER(sl.neo_id))
-      LEFT JOIN temp_students s ON (
-        (sl.regno IS NOT NULL AND UPPER(s.regno) = UPPER(sl.regno))
-        OR (sl.neo_id IS NOT NULL AND sl.neo_id != '' AND s.neo_id = sl.neo_id)
-        OR (n.regno IS NOT NULL AND UPPER(s.regno) = UPPER(n.regno))
-      )
-      WHERE sl.company_id = ?
-      ORDER BY sl.round_number DESC, COALESCE(s.cgpa, 0) DESC
+        COALESCE(s1.regno, s2.regno, s3.regno, sl.regno, n.regno) as regno,
+        COALESCE(s1.name, s2.name, s3.name, CASE WHEN COALESCE(sl.neo_id, s1.neo_id, s2.neo_id, s3.neo_id, n.neoid) IS NOT NULL THEN 'Student (' || COALESCE(sl.neo_id, s1.neo_id, s2.neo_id, s3.neo_id, n.neoid) || ')' ELSE 'Student (' || COALESCE(sl.regno, 'Unmapped') || ')' END) as name,
+        COALESCE(s1.email, s2.email, s3.email, '') as email,
+        COALESCE(s1.phone, s2.phone, s3.phone) as phone,
+        COALESCE(s1.personal_email, s2.personal_email, s3.personal_email) as personal_email,
+        COALESCE(s1.gender, s2.gender, s3.gender) as gender,
+        COALESCE(s1.cgpa, s2.cgpa, s3.cgpa) as cgpa,
+        COALESCE(s1.tenth_marks, s2.tenth_marks, s3.tenth_marks) as tenth_marks,
+        COALESCE(s1.twelfth_marks, s2.twelfth_marks, s3.twelfth_marks) as twelfth_marks,
+        COALESCE(s1.resume_link, s2.resume_link, s3.resume_link) as resume_link,
+        COALESCE(s1.branch, s2.branch, s3.branch, 'Unknown') as branch,
+        COALESCE(s1.campus, s2.campus, s3.campus, n.campus, 'Chennai') as campus,
+        COALESCE(s1.placed, s2.placed, s3.placed, 0) as placed,
+        COALESCE(s1.final_company_id, s2.final_company_id, s3.final_company_id) as final_company_id,
+        COALESCE(s1.neo_id, s2.neo_id, s3.neo_id, sl.neo_id, n.neoid) as neo_id,
+        COALESCE(s1.masters, s2.masters, s3.masters, 0) as masters,
+        COALESCE(s1.status, s2.status, s3.status, 'not_placed') as status,
+        COALESCE(s1.topcoder, s2.topcoder, s3.topcoder, n.topcoder, 0) as topcoder
+      FROM company_sl sl
+      LEFT JOIN temp_neoid_table n ON (sl.neo_id IS NOT NULL AND n.neoid = sl.neo_id COLLATE NOCASE)
+      LEFT JOIN temp_students s1 ON (sl.regno IS NOT NULL AND s1.regno = sl.regno COLLATE NOCASE)
+      LEFT JOIN temp_students s2 ON (s1.regno IS NULL AND sl.neo_id IS NOT NULL AND sl.neo_id != '' AND s2.neo_id = sl.neo_id COLLATE NOCASE)
+      LEFT JOIN temp_students s3 ON (s1.regno IS NULL AND s2.regno IS NULL AND n.regno IS NOT NULL AND s3.regno = n.regno COLLATE NOCASE)
+      ORDER BY sl.round_number DESC,
+        CASE
+          WHEN LOWER(COALESCE(s1.campus, s2.campus, s3.campus, n.campus, 'Unknown')) LIKE '%chennai%' THEN 1
+          WHEN LOWER(COALESCE(s1.campus, s2.campus, s3.campus, n.campus, 'Unknown')) LIKE '%vellore%' THEN 2
+          ELSE 3
+        END ASC,
+        COALESCE(s1.topcoder, s2.topcoder, s3.topcoder, n.topcoder, 0) DESC,
+        COALESCE(COALESCE(s1.cgpa, s2.cgpa, s3.cgpa), 0) DESC
     `).all(id);
 
     // Group by round
@@ -479,6 +509,11 @@ app.get('/api/companies/:id', (c) => {
       const rName = st.round_name || `Shortlist ${rNum}`;
       if (!roundMap.has(rNum)) {
         roundMap.set(rNum, { round_number: rNum, round_name: rName, students: [], chennai_count: 0, unknown_count: 0 });
+      } else {
+        const existing = roundMap.get(rNum)!;
+        if (rName && rName !== `Shortlist ${rNum}` && existing.round_name === `Shortlist ${rNum}`) {
+          existing.round_name = rName;
+        }
       }
       const rObj = roundMap.get(rNum)!;
       rObj.students.push(st);
@@ -489,72 +524,90 @@ app.get('/api/companies/:id', (c) => {
 
     // Intern students (temp_interns_selected)
     const interns = db.prepare(`
+      WITH company_sel AS (
+        SELECT id, company_id, regno, neo_id, selected_at
+        FROM temp_interns_selected
+        WHERE company_id = ?
+      )
       SELECT
         sel.id as selection_entry_id,
         sel.selected_at,
         'intern' as offer_type,
-        COALESCE(s.regno, sel.regno, n.regno) as regno,
-        COALESCE(s.name, CASE WHEN COALESCE(sel.neo_id, s.neo_id, n.neoid) IS NOT NULL THEN 'Student (' || COALESCE(sel.neo_id, s.neo_id, n.neoid) || ')' ELSE 'Student (' || COALESCE(sel.regno, 'Unmapped') || ')' END) as name,
-        COALESCE(s.email, '') as email,
-        s.phone,
-        s.personal_email,
-        s.gender,
-        s.cgpa,
-        s.tenth_marks,
-        s.twelfth_marks,
-        s.resume_link,
-        COALESCE(s.branch, 'Unknown') as branch,
-        COALESCE(s.campus, n.campus, 'Chennai') as campus,
-        COALESCE(s.placed, 0) as placed,
-        s.final_company_id,
-        COALESCE(s.neo_id, sel.neo_id, n.neoid) as neo_id,
-        COALESCE(s.masters, 0) as masters,
-        COALESCE(s.status, 'not_placed') as status,
-        COALESCE(s.topcoder, n.topcoder, 0) as topcoder
-      FROM temp_interns_selected sel
-      LEFT JOIN temp_neoid_table n ON (sel.neo_id IS NOT NULL AND UPPER(n.neoid) = UPPER(sel.neo_id))
-      LEFT JOIN temp_students s ON (
-        (sel.regno IS NOT NULL AND UPPER(s.regno) = UPPER(sel.regno))
-        OR (sel.neo_id IS NOT NULL AND sel.neo_id != '' AND s.neo_id = sel.neo_id)
-        OR (n.regno IS NOT NULL AND UPPER(s.regno) = UPPER(n.regno))
-      )
-      WHERE sel.company_id = ?
-      ORDER BY COALESCE(s.cgpa, 0) DESC
+        COALESCE(s1.regno, s2.regno, s3.regno, sel.regno, n.regno) as regno,
+        COALESCE(s1.name, s2.name, s3.name, CASE WHEN COALESCE(sel.neo_id, s1.neo_id, s2.neo_id, s3.neo_id, n.neoid) IS NOT NULL THEN 'Student (' || COALESCE(sel.neo_id, s1.neo_id, s2.neo_id, s3.neo_id, n.neoid) || ')' ELSE 'Student (' || COALESCE(sel.regno, 'Unmapped') || ')' END) as name,
+        COALESCE(s1.email, s2.email, s3.email, '') as email,
+        COALESCE(s1.phone, s2.phone, s3.phone) as phone,
+        COALESCE(s1.personal_email, s2.personal_email, s3.personal_email) as personal_email,
+        COALESCE(s1.gender, s2.gender, s3.gender) as gender,
+        COALESCE(s1.cgpa, s2.cgpa, s3.cgpa) as cgpa,
+        COALESCE(s1.tenth_marks, s2.tenth_marks, s3.tenth_marks) as tenth_marks,
+        COALESCE(s1.twelfth_marks, s2.twelfth_marks, s3.twelfth_marks) as twelfth_marks,
+        COALESCE(s1.resume_link, s2.resume_link, s3.resume_link) as resume_link,
+        COALESCE(s1.branch, s2.branch, s3.branch, 'Unknown') as branch,
+        COALESCE(s1.campus, s2.campus, s3.campus, n.campus, 'Chennai') as campus,
+        COALESCE(s1.placed, s2.placed, s3.placed, 0) as placed,
+        COALESCE(s1.final_company_id, s2.final_company_id, s3.final_company_id) as final_company_id,
+        COALESCE(s1.neo_id, s2.neo_id, s3.neo_id, sel.neo_id, n.neoid) as neo_id,
+        COALESCE(s1.masters, s2.masters, s3.masters, 0) as masters,
+        COALESCE(s1.status, s2.status, s3.status, 'not_placed') as status,
+        COALESCE(s1.topcoder, s2.topcoder, s3.topcoder, n.topcoder, 0) as topcoder
+      FROM company_sel sel
+      LEFT JOIN temp_neoid_table n ON (sel.neo_id IS NOT NULL AND n.neoid = sel.neo_id COLLATE NOCASE)
+      LEFT JOIN temp_students s1 ON (sel.regno IS NOT NULL AND s1.regno = sel.regno COLLATE NOCASE)
+      LEFT JOIN temp_students s2 ON (s1.regno IS NULL AND sel.neo_id IS NOT NULL AND sel.neo_id != '' AND s2.neo_id = sel.neo_id COLLATE NOCASE)
+      LEFT JOIN temp_students s3 ON (s1.regno IS NULL AND s2.regno IS NULL AND n.regno IS NOT NULL AND s3.regno = n.regno COLLATE NOCASE)
+      ORDER BY
+        CASE
+          WHEN LOWER(COALESCE(s1.campus, s2.campus, s3.campus, n.campus, 'Unknown')) LIKE '%chennai%' THEN 1
+          WHEN LOWER(COALESCE(s1.campus, s2.campus, s3.campus, n.campus, 'Unknown')) LIKE '%vellore%' THEN 2
+          ELSE 3
+        END ASC,
+        COALESCE(s1.topcoder, s2.topcoder, s3.topcoder, n.topcoder, 0) DESC,
+        COALESCE(COALESCE(s1.cgpa, s2.cgpa, s3.cgpa), 0) DESC
     `).all(id);
 
     // Finally placed students (temp_final_selection)
     const finals = db.prepare(`
+      WITH company_fin AS (
+        SELECT id, company_id, regno, neo_id, selected_at
+        FROM temp_final_selection
+        WHERE company_id = ?
+      )
       SELECT
         fin.id as selection_entry_id,
         fin.selected_at,
         'placed' as offer_type,
-        COALESCE(s.regno, fin.regno, n.regno) as regno,
-        COALESCE(s.name, CASE WHEN COALESCE(fin.neo_id, s.neo_id, n.neoid) IS NOT NULL THEN 'Student (' || COALESCE(fin.neo_id, s.neo_id, n.neoid) || ')' ELSE 'Student (' || COALESCE(fin.regno, 'Unmapped') || ')' END) as name,
-        COALESCE(s.email, '') as email,
-        s.phone,
-        s.personal_email,
-        s.gender,
-        s.cgpa,
-        s.tenth_marks,
-        s.twelfth_marks,
-        s.resume_link,
-        COALESCE(s.branch, 'Unknown') as branch,
-        COALESCE(s.campus, n.campus, 'Chennai') as campus,
-        COALESCE(s.placed, 0) as placed,
-        s.final_company_id,
-        COALESCE(s.neo_id, fin.neo_id, n.neoid) as neo_id,
-        COALESCE(s.masters, 0) as masters,
-        COALESCE(s.status, 'not_placed') as status,
-        COALESCE(s.topcoder, n.topcoder, 0) as topcoder
-      FROM temp_final_selection fin
-      LEFT JOIN temp_neoid_table n ON (fin.neo_id IS NOT NULL AND UPPER(n.neoid) = UPPER(fin.neo_id))
-      LEFT JOIN temp_students s ON (
-        (fin.regno IS NOT NULL AND UPPER(s.regno) = UPPER(fin.regno))
-        OR (fin.neo_id IS NOT NULL AND fin.neo_id != '' AND s.neo_id = fin.neo_id)
-        OR (n.regno IS NOT NULL AND UPPER(s.regno) = UPPER(n.regno))
-      )
-      WHERE fin.company_id = ?
-      ORDER BY COALESCE(s.cgpa, 0) DESC
+        COALESCE(s1.regno, s2.regno, s3.regno, fin.regno, n.regno) as regno,
+        COALESCE(s1.name, s2.name, s3.name, CASE WHEN COALESCE(fin.neo_id, s1.neo_id, s2.neo_id, s3.neo_id, n.neoid) IS NOT NULL THEN 'Student (' || COALESCE(fin.neo_id, s1.neo_id, s2.neo_id, s3.neo_id, n.neoid) || ')' ELSE 'Student (' || COALESCE(fin.regno, 'Unmapped') || ')' END) as name,
+        COALESCE(s1.email, s2.email, s3.email, '') as email,
+        COALESCE(s1.phone, s2.phone, s3.phone) as phone,
+        COALESCE(s1.personal_email, s2.personal_email, s3.personal_email) as personal_email,
+        COALESCE(s1.gender, s2.gender, s3.gender) as gender,
+        COALESCE(s1.cgpa, s2.cgpa, s3.cgpa) as cgpa,
+        COALESCE(s1.tenth_marks, s2.tenth_marks, s3.tenth_marks) as tenth_marks,
+        COALESCE(s1.twelfth_marks, s2.twelfth_marks, s3.twelfth_marks) as twelfth_marks,
+        COALESCE(s1.resume_link, s2.resume_link, s3.resume_link) as resume_link,
+        COALESCE(s1.branch, s2.branch, s3.branch, 'Unknown') as branch,
+        COALESCE(s1.campus, s2.campus, s3.campus, n.campus, 'Chennai') as campus,
+        COALESCE(s1.placed, s2.placed, s3.placed, 0) as placed,
+        COALESCE(s1.final_company_id, s2.final_company_id, s3.final_company_id) as final_company_id,
+        COALESCE(s1.neo_id, s2.neo_id, s3.neo_id, fin.neo_id, n.neoid) as neo_id,
+        COALESCE(s1.masters, s2.masters, s3.masters, 0) as masters,
+        COALESCE(s1.status, s2.status, s3.status, 'not_placed') as status,
+        COALESCE(s1.topcoder, s2.topcoder, s3.topcoder, n.topcoder, 0) as topcoder
+      FROM company_fin fin
+      LEFT JOIN temp_neoid_table n ON (fin.neo_id IS NOT NULL AND n.neoid = fin.neo_id COLLATE NOCASE)
+      LEFT JOIN temp_students s1 ON (fin.regno IS NOT NULL AND s1.regno = fin.regno COLLATE NOCASE)
+      LEFT JOIN temp_students s2 ON (s1.regno IS NULL AND fin.neo_id IS NOT NULL AND fin.neo_id != '' AND s2.neo_id = fin.neo_id COLLATE NOCASE)
+      LEFT JOIN temp_students s3 ON (s1.regno IS NULL AND s2.regno IS NULL AND n.regno IS NOT NULL AND s3.regno = n.regno COLLATE NOCASE)
+      ORDER BY
+        CASE
+          WHEN LOWER(COALESCE(s1.campus, s2.campus, s3.campus, n.campus, 'Unknown')) LIKE '%chennai%' THEN 1
+          WHEN LOWER(COALESCE(s1.campus, s2.campus, s3.campus, n.campus, 'Unknown')) LIKE '%vellore%' THEN 2
+          ELSE 3
+        END ASC,
+        COALESCE(s1.topcoder, s2.topcoder, s3.topcoder, n.topcoder, 0) DESC,
+        COALESCE(COALESCE(s1.cgpa, s2.cgpa, s3.cgpa), 0) DESC
     `).all(id);
 
     return c.json({ ...company, analytics, shortlisted, shortlist_rounds, interns, finals });
@@ -695,7 +748,11 @@ function resolveTempToken(token: string) {
 
   if (neoRecord) {
     let regno = neoRecord.regno || null;
-    if (!regno) {
+    if (regno) {
+      // Verify if regno actually exists in temp_students to satisfy FK constraints
+      const validStudent = db.prepare('SELECT regno FROM temp_students WHERE UPPER(regno) = ?').get(regno.toUpperCase());
+      if (!validStudent) regno = null;
+    } else {
       const studentRec = db.prepare('SELECT regno FROM temp_students WHERE UPPER(neo_id) = ?').get(neoRecord.neoid.toUpperCase()) as any;
       if (studentRec) regno = studentRec.regno;
     }
@@ -708,7 +765,28 @@ function resolveTempToken(token: string) {
     };
   }
 
-  // 3. Not found in temp_students or temp_neoid_table -> Error
+  // 3. Auto-insert unmatched NeoID into temp_neoid_table with campus = 'Unknown'
+  if (/^[A-Z0-9_-]{4,25}$/i.test(upper)) {
+    try {
+      db.prepare(`
+        INSERT INTO temp_neoid_table (neoid, campus)
+        VALUES (?, 'Unknown')
+        ON CONFLICT(neoid) DO NOTHING
+      `).run(upper);
+
+      return {
+        success: true,
+        regno: null,
+        neo_id: upper,
+        token: upper,
+        foundIn: 'auto_registered_neoid'
+      };
+    } catch (e) {
+      // Fallthrough to error response below if insert fails
+    }
+  }
+
+  // 4. Not found in temp_students or temp_neoid_table -> Error
   return {
     success: false,
     token: upper,
@@ -723,7 +801,22 @@ app.post('/api/companies/:id/shortlist', async (c) => {
     const body = await c.req.json();
     const rawInput = body.regnos || body.identifiers || [];
     const roundNumber = body.round_number ? parseInt(body.round_number) : 1;
-    const roundName = body.round_name ? String(body.round_name).trim() : `Shortlist ${roundNumber}`;
+
+    // Check if there is an existing custom round_name for this company and round_number
+    let roundName = body.round_name ? String(body.round_name).trim() : '';
+    if (!roundName) {
+      const existingRound = db.prepare(`
+        SELECT round_name FROM temp_shortlists
+        WHERE company_id = ? AND round_number = ? AND round_name IS NOT NULL AND round_name != ''
+        LIMIT 1
+      `).get(companyId, roundNumber) as any;
+
+      if (existingRound && existingRound.round_name) {
+        roundName = existingRound.round_name;
+      } else {
+        roundName = `Shortlist ${roundNumber}`;
+      }
+    }
 
     const tokens = extractCleanTokens(rawInput);
     if (tokens.length === 0) {
@@ -744,8 +837,31 @@ app.post('/api/companies/:id/shortlist', async (c) => {
           continue;
         }
 
+        // Duplicate check: Verify if student is already in this shortlist round
+        const existing = db.prepare(`
+          SELECT id FROM temp_shortlists
+          WHERE company_id = ? AND round_number = ?
+            AND (
+              (? IS NOT NULL AND regno IS NOT NULL AND UPPER(regno) = UPPER(?))
+              OR (? IS NOT NULL AND neo_id IS NOT NULL AND UPPER(neo_id) = UPPER(?))
+            )
+        `).get(companyId, roundNumber, resolved.regno || null, resolved.regno || null, resolved.neo_id || null, resolved.neo_id || null);
+
+        if (existing) {
+          results.push({
+            identifier: resolved.token,
+            regno: resolved.regno,
+            neo_id: resolved.neo_id,
+            round: roundName,
+            success: true,
+            isDuplicate: true,
+            note: 'Already shortlisted for this round'
+          });
+          continue;
+        }
+
         const insertResult = db.prepare(`
-          INSERT INTO temp_shortlists (regno, neo_id, company_id, round_number, round_name)
+          INSERT OR IGNORE INTO temp_shortlists (regno, neo_id, company_id, round_number, round_name)
           VALUES (?, ?, ?, ?, ?)
         `).run(resolved.regno || null, resolved.neo_id || null, companyId, roundNumber, roundName);
 

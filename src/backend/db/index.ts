@@ -295,6 +295,14 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_temp_students_neoid ON temp_students(neo_id);
     CREATE INDEX IF NOT EXISTS idx_temp_neoid_neoid ON temp_neoid_table(neoid);
     CREATE INDEX IF NOT EXISTS idx_temp_neoid_regno ON temp_neoid_table(regno);
+
+    -- Case-insensitive (NOCASE) indexes for instant O(log N) lookups without full table scans
+    CREATE INDEX IF NOT EXISTS idx_temp_students_regno_nocase ON temp_students (regno COLLATE NOCASE);
+    CREATE INDEX IF NOT EXISTS idx_temp_students_neoid_nocase ON temp_students (neo_id COLLATE NOCASE);
+    CREATE INDEX IF NOT EXISTS idx_temp_neoid_neoid_nocase ON temp_neoid_table (neoid COLLATE NOCASE);
+    CREATE INDEX IF NOT EXISTS idx_temp_neoid_regno_nocase ON temp_neoid_table (regno COLLATE NOCASE);
+    CREATE INDEX IF NOT EXISTS idx_temp_shortlists_regno_nocase ON temp_shortlists (regno COLLATE NOCASE);
+    CREATE INDEX IF NOT EXISTS idx_temp_shortlists_neoid_nocase ON temp_shortlists (neo_id COLLATE NOCASE);
   `);
 
   console.log('Database initialized successfully');

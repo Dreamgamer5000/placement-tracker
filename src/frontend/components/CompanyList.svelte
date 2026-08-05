@@ -11,11 +11,84 @@
   let newCompany = {
     name: '',
     ctc: '',
+    stipend: '',
+    role: '',
+    category: '',
+    job_location: '',
+    eligible_branches: '',
+    eligibility_criteria: '',
+    website: '',
     total_rounds: '',
     experience_required: '',
     notes: '',
     round_details: ''
   };
+
+  let emailRawText = '';
+  let emailParseSuccessMsg = '';
+
+  function autoParseEmail() {
+    if (!emailRawText || !emailRawText.trim()) return;
+
+    const lines = emailRawText.split('\n');
+    let currentKey = '';
+    const map: Record<string, string[]> = {};
+
+    for (let line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      const lower = trimmed.toLowerCase();
+      let matchedKey = '';
+
+      if (lower.includes('name of the company') || lower.includes('company name')) {
+        matchedKey = 'name';
+      } else if (lower.startsWith('category')) {
+        matchedKey = 'category';
+      } else if (lower.includes('eligible branches')) {
+        matchedKey = 'eligible_branches';
+      } else if (lower.includes('eligibility criteria') || lower.startsWith('eligibility')) {
+        matchedKey = 'eligibility_criteria';
+      } else if (lower.startsWith('ctc')) {
+        matchedKey = 'ctc';
+      } else if (lower.startsWith('stipend')) {
+        matchedKey = 'stipend';
+      } else if (lower.startsWith('website')) {
+        matchedKey = 'website';
+      } else if (lower.includes('job location') || lower.startsWith('location')) {
+        matchedKey = 'job_location';
+      } else if (lower.includes('job profile') || lower.includes('job role') || lower.startsWith('role')) {
+        matchedKey = 'role';
+      }
+
+      if (matchedKey) {
+        currentKey = matchedKey;
+        if (!map[currentKey]) map[currentKey] = [];
+        const colonIdx = trimmed.indexOf(':');
+        if (colonIdx !== -1) {
+          const valAfterColon = trimmed.substring(colonIdx + 1).trim();
+          if (valAfterColon) {
+            map[currentKey].push(valAfterColon);
+          }
+        }
+      } else if (currentKey) {
+        map[currentKey].push(trimmed);
+      }
+    }
+
+    if (map['name'] && map['name'].length > 0) newCompany.name = map['name'].join(' ');
+    if (map['category'] && map['category'].length > 0) newCompany.category = map['category'].join(' ');
+    if (map['eligible_branches'] && map['eligible_branches'].length > 0) newCompany.eligible_branches = map['eligible_branches'].join(' ');
+    if (map['eligibility_criteria'] && map['eligibility_criteria'].length > 0) newCompany.eligibility_criteria = map['eligibility_criteria'].join('\n');
+    if (map['ctc'] && map['ctc'].length > 0) newCompany.ctc = map['ctc'].join(' ');
+    if (map['stipend'] && map['stipend'].length > 0) newCompany.stipend = map['stipend'].join(' ');
+    if (map['website'] && map['website'].length > 0) newCompany.website = map['website'].join(' ');
+    if (map['job_location'] && map['job_location'].length > 0) newCompany.job_location = map['job_location'].join(' ');
+    if (map['role'] && map['role'].length > 0) newCompany.role = map['role'].join(' / ');
+
+    emailParseSuccessMsg = '✨ Email parsed successfully! Form fields populated below.';
+    setTimeout(() => { emailParseSuccessMsg = ''; }, 4000);
+  }
 
   let recalculatingAnalytics = false;
   let analyticsMessage = '';
@@ -162,7 +235,22 @@
       });
       
       if (response.ok) {
-        newCompany = { name: '', ctc: '', total_rounds: '', experience_required: '', notes: '', round_details: '' };
+        newCompany = {
+          name: '',
+          ctc: '',
+          stipend: '',
+          role: '',
+          category: '',
+          job_location: '',
+          eligible_branches: '',
+          eligibility_criteria: '',
+          website: '',
+          total_rounds: '',
+          experience_required: '',
+          notes: '',
+          round_details: ''
+        };
+        emailRawText = '';
         showAddForm = false;
         await loadCompanies();
       }
@@ -176,6 +264,13 @@
       id: company.id,
       name: company.name || '',
       ctc: company.ctc || '',
+      stipend: company.stipend || '',
+      role: company.role || '',
+      category: company.category || '',
+      job_location: company.job_location || '',
+      eligible_branches: company.eligible_branches || '',
+      eligibility_criteria: company.eligibility_criteria || '',
+      website: company.website || '',
       total_rounds: company.total_rounds || company.rounds || '',
       experience_required: company.experience_required || '',
       notes: company.notes || '',
@@ -250,6 +345,13 @@
     const combinedText = [
       c.name,
       c.ctc,
+      c.stipend,
+      c.role,
+      c.category,
+      c.job_location,
+      c.eligible_branches,
+      c.eligibility_criteria,
+      c.website,
       c.notes,
       c.round_details,
       c.experience_required,
@@ -311,59 +413,178 @@
   {/if}
 
   {#if showAddForm}
-    <div class="bg-white rounded-2xl shadow-md p-6 mb-8 border border-purple-100">
-      <h3 class="text-xl font-bold text-gray-800 mb-4">✨ Add New Company</h3>
+    <div class="bg-white rounded-2xl shadow-md p-6 mb-8 border border-purple-100 space-y-6">
+      <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+        <h3 class="text-xl font-bold text-gray-800">✨ Add New Company</h3>
+        <span class="text-xs font-semibold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">Manual Entry or Paste Email</span>
+      </div>
+
+      <!-- Quick Email Parser Box -->
+      <div class="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl p-5">
+        <div class="flex justify-between items-center mb-2">
+          <label for="email-quick-parser" class="text-sm font-bold text-purple-900 flex items-center gap-2">
+            📋 Quick Auto-Fill from Placement Email
+          </label>
+          <button 
+            type="button"
+            on:click={autoParseEmail}
+            class="px-4 py-1.5 bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+          >
+            ⚡ Parse & Fill Fields
+          </button>
+        </div>
+        <p class="text-xs text-purple-700 mb-2">Paste raw placement cell notification text (Company Name, Category, Eligible Branches, Eligibility Criteria, CTC, Stipend, Location, Role, Website):</p>
+        <textarea 
+          id="email-quick-parser"
+          bind:value={emailRawText}
+          placeholder="Paste email text here... then click 'Parse & Fill Fields'"
+          rows="4"
+          class="w-full px-3.5 py-2.5 border border-purple-200 rounded-xl bg-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500"
+        />
+        {#if emailParseSuccessMsg}
+          <p class="text-xs font-bold text-emerald-700 mt-2 flex items-center gap-1">{emailParseSuccessMsg}</p>
+        {/if}
+      </div>
+
+      <!-- Form Inputs Grid -->
       <div class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input 
-            type="text" 
-            placeholder="Company Name *" 
-            bind:value={newCompany.name}
-            class="px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
-            required
-          />
-          <input 
-            type="text" 
-            placeholder="CTC Package (e.g. 14 LPA)" 
-            bind:value={newCompany.ctc}
-            class="px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Company Name *</label>
+            <input 
+              type="text" 
+              placeholder="e.g. Saviynt" 
+              bind:value={newCompany.name}
+              class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+              required
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Category / Tier</label>
+            <input 
+              type="text" 
+              placeholder="e.g. Super Dream Internship/ Placement" 
+              bind:value={newCompany.category}
+              class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Job Profile / Role</label>
+            <input 
+              type="text" 
+              placeholder="e.g. Associate Engineer / SRE" 
+              bind:value={newCompany.role}
+              class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">CTC Package</label>
+            <input 
+              type="text" 
+              placeholder="e.g. 21,00,000 (21 LPA)" 
+              bind:value={newCompany.ctc}
+              class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Stipend</label>
+            <input 
+              type="text" 
+              placeholder="e.g. 50,000 per month" 
+              bind:value={newCompany.stipend}
+              class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Job Location</label>
+            <input 
+              type="text" 
+              placeholder="e.g. Bengaluru / Remote" 
+              bind:value={newCompany.job_location}
+              class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Company Website</label>
+            <input 
+              type="text" 
+              placeholder="e.g. saviynt.com" 
+              bind:value={newCompany.website}
+              class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input 
-            type="number" 
-            placeholder="Total Rounds (e.g. 4)" 
-            bind:value={newCompany.total_rounds}
-            class="px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-          <input 
-            type="text" 
-            placeholder="Experience Required (e.g. Freshers, 0-1 yrs)" 
-            bind:value={newCompany.experience_required}
-            class="px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Eligible Branches</label>
+            <input 
+              type="text" 
+              placeholder="e.g. B.Tech (CSE, IT & ECE related courses)" 
+              bind:value={newCompany.eligible_branches}
+              class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Eligibility Criteria</label>
+            <input 
+              type="text" 
+              placeholder="e.g. 90% in X & XII, 9.0 CGPA, No Standing Arrears" 
+              bind:value={newCompany.eligibility_criteria}
+              class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Total Rounds</label>
+            <input 
+              type="number" 
+              placeholder="e.g. 4" 
+              bind:value={newCompany.total_rounds}
+              class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Experience Required</label>
+            <input 
+              type="text" 
+              placeholder="e.g. Freshers (2026 batch)" 
+              bind:value={newCompany.experience_required}
+              class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-700 uppercase mb-1">General Notes</label>
+          <textarea 
+            placeholder="General Notes (optional)" 
+            bind:value={newCompany.notes}
+            rows="2"
+            class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-vertical"
           />
         </div>
 
-        <textarea 
-          placeholder="General Notes (optional)" 
-          bind:value={newCompany.notes}
-          rows="2"
-          class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-vertical"
-        />
-
-        <textarea 
-          placeholder="Round-by-Round Notes & Details (e.g. Round 1: OA, Round 2: Tech Interview...)" 
-          bind:value={newCompany.round_details}
-          rows="3"
-          class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-vertical"
-        />
+        <div>
+          <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Round-by-Round Details / Instructions</label>
+          <textarea 
+            placeholder="Describe each round, questions asked, cutoffs, etc." 
+            bind:value={newCompany.round_details}
+            rows="3"
+            class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-vertical"
+          />
+        </div>
 
         <button 
-          class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-colors duration-200 shadow-md"
+          class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-colors duration-200 shadow-md flex items-center justify-center gap-2"
           on:click={addCompany}
         >
-          Save Company Profile
+          💾 Save Company Profile
         </button>
       </div>
     </div>
@@ -389,8 +610,15 @@
           on:click={() => viewCompany(company.id)}
         >
           <div>
-            <div class="flex justify-between items-start mb-3 gap-2">
-              <h3 class="text-xl font-bold text-gray-900 leading-snug">{company.name}</h3>
+            <div class="flex justify-between items-start mb-2 gap-2">
+              <div>
+                <h3 class="text-xl font-bold text-gray-900 leading-snug">{company.name}</h3>
+                {#if company.category}
+                  <span class="inline-block text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded mt-1">
+                    🌟 {company.category}
+                  </span>
+                {/if}
+              </div>
               {#if company.ctc}
                 <span class="px-2.5 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-full whitespace-nowrap">
                   💰 {company.ctc}
@@ -398,20 +626,37 @@
               {/if}
             </div>
 
+            {#if company.role}
+              <div class="text-xs font-semibold text-indigo-700 bg-indigo-50/70 px-2.5 py-1 rounded-md mb-2 inline-block">
+                💼 {company.role}
+              </div>
+            {/if}
+
+            {#if company.job_location}
+              <div class="text-xs text-gray-600 mb-2 flex items-center gap-1 font-medium">
+                📍 {company.job_location}
+              </div>
+            {/if}
+
             {#if company.notes}
-              <p class="text-gray-600 text-sm mb-4 line-clamp-2">{company.notes}</p>
+              <p class="text-gray-600 text-xs mb-3 line-clamp-2">{company.notes}</p>
             {/if}
           </div>
 
-          <div class="pt-4 border-t border-gray-100 flex flex-wrap gap-2 text-xs text-gray-500">
+          <div class="pt-3 border-t border-gray-100 flex flex-wrap gap-1.5 text-xs text-gray-500">
+            {#if company.stipend}
+              <span class="px-2 py-0.5 bg-amber-50 text-amber-800 rounded font-semibold text-[11px]">
+                💵 Stipend: {company.stipend}
+              </span>
+            {/if}
             {#if company.total_rounds || company.rounds}
-              <span class="px-2.5 py-1 bg-purple-50 text-purple-700 rounded-md font-semibold">
+              <span class="px-2 py-0.5 bg-purple-50 text-purple-700 rounded font-semibold text-[11px]">
                 📝 {company.total_rounds || company.rounds} Rounds
               </span>
             {/if}
             {#if company.experience_required}
-              <span class="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-md font-medium">
-                💼 {company.experience_required}
+              <span class="px-2 py-0.5 bg-gray-100 text-gray-700 rounded font-medium text-[11px]">
+                🎓 {company.experience_required}
               </span>
             {/if}
           </div>
@@ -436,7 +681,7 @@
       on:click|stopPropagation
     >
       <button 
-        class="absolute top-5 right-5 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xl font-bold transition-colors"
+        class="absolute top-5 right-5 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xl font-bold transition-colors z-10"
         on:click={() => { selectedCompany = null; editingCompany = null; }}
       >
         ×
@@ -445,22 +690,51 @@
       <!-- Modal Header & Actions -->
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pr-12">
         <div>
-          <h3 class="text-3xl font-bold text-gray-900">{selectedCompany.name}</h3>
+          <div class="flex items-center gap-3">
+            <h3 class="text-3xl font-bold text-gray-900">{selectedCompany.name}</h3>
+            {#if selectedCompany.category}
+              <span class="px-3 py-1 bg-purple-100 text-purple-900 text-xs font-bold rounded-full">
+                🌟 {selectedCompany.category}
+              </span>
+            {/if}
+          </div>
+
+          {#if selectedCompany.role}
+            <div class="text-sm font-bold text-indigo-700 mt-1">
+              💼 Role: {selectedCompany.role}
+            </div>
+          {/if}
+
           <div class="flex flex-wrap gap-2 mt-2">
             {#if selectedCompany.ctc}
-              <span class="px-3 py-1 bg-green-100 text-green-800 text-sm font-bold rounded-full">
+              <span class="px-3 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-full">
                 💰 CTC: {selectedCompany.ctc}
               </span>
             {/if}
+            {#if selectedCompany.stipend}
+              <span class="px-3 py-1 bg-amber-100 text-amber-900 text-xs font-bold rounded-full">
+                💵 Stipend: {selectedCompany.stipend}
+              </span>
+            {/if}
+            {#if selectedCompany.job_location}
+              <span class="px-3 py-1 bg-blue-100 text-blue-900 text-xs font-bold rounded-full">
+                📍 {selectedCompany.job_location}
+              </span>
+            {/if}
             {#if selectedCompany.total_rounds || selectedCompany.rounds}
-              <span class="px-3 py-1 bg-purple-100 text-purple-800 text-sm font-bold rounded-full">
+              <span class="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-bold rounded-full">
                 📝 {selectedCompany.total_rounds || selectedCompany.rounds} Rounds
               </span>
             {/if}
-            {#if selectedCompany.experience_required}
-              <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">
-                💼 {selectedCompany.experience_required}
-              </span>
+            {#if selectedCompany.website}
+              <a 
+                href={selectedCompany.website.startsWith('http') ? selectedCompany.website : `https://${selectedCompany.website}`}
+                target="_blank"
+                rel="noreferrer"
+                class="px-3 py-1 bg-sky-100 text-sky-800 hover:bg-sky-200 text-xs font-bold rounded-full transition-colors inline-flex items-center gap-1"
+              >
+                🌐 {selectedCompany.website} ↗
+              </a>
             {/if}
           </div>
         </div>
@@ -475,69 +749,118 @@
 
       <!-- Editable Form inside Modal if Editing -->
       {#if editingCompany}
-        <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 mb-8">
-          <h4 class="text-xl font-bold text-amber-900 mb-4">✏️ Edit Company Profile</h4>
-          <div class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="edit-company-name" class="block text-xs font-bold text-gray-700 uppercase mb-1">Company Name *</label>
-                <input id="edit-company-name" type="text" bind:value={editingCompany.name} class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" required />
-              </div>
-              <div>
-                <label for="edit-company-ctc" class="block text-xs font-bold text-gray-700 uppercase mb-1">CTC Package</label>
-                <input id="edit-company-ctc" type="text" bind:value={editingCompany.ctc} placeholder="e.g. 16 LPA" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="edit-company-rounds" class="block text-xs font-bold text-gray-700 uppercase mb-1">Total Rounds</label>
-                <input id="edit-company-rounds" type="number" bind:value={editingCompany.total_rounds} placeholder="e.g. 4" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
-              </div>
-              <div>
-                <label for="edit-company-exp" class="block text-xs font-bold text-gray-700 uppercase mb-1">Experience Required</label>
-                <input id="edit-company-exp" type="text" bind:value={editingCompany.experience_required} placeholder="e.g. Freshers" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
-              </div>
-            </div>
-
+        <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 mb-8 space-y-4">
+          <h4 class="text-xl font-bold text-amber-900 mb-2">✏️ Edit Company Profile</h4>
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label for="edit-company-notes" class="block text-xs font-bold text-gray-700 uppercase mb-1">General Notes</label>
-              <textarea id="edit-company-notes" bind:value={editingCompany.notes} rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+              <label for="edit-company-name" class="block text-xs font-bold text-gray-700 uppercase mb-1">Company Name *</label>
+              <input id="edit-company-name" type="text" bind:value={editingCompany.name} class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" required />
             </div>
-
             <div>
-              <label for="edit-company-details" class="block text-xs font-bold text-gray-700 uppercase mb-1">Round-by-Round Details / Instructions</label>
-              <textarea id="edit-company-details" bind:value={editingCompany.round_details} rows="4" placeholder="Describe each round, questions asked, cutoffs, etc." class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+              <label for="edit-company-category" class="block text-xs font-bold text-gray-700 uppercase mb-1">Category</label>
+              <input id="edit-company-category" type="text" bind:value={editingCompany.category} placeholder="e.g. Super Dream" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
             </div>
+            <div>
+              <label for="edit-company-role" class="block text-xs font-bold text-gray-700 uppercase mb-1">Job Profile / Role</label>
+              <input id="edit-company-role" type="text" bind:value={editingCompany.role} placeholder="e.g. Associate Engineer" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+            </div>
+          </div>
 
-            <div class="flex justify-end gap-3 pt-2">
-              <button on:click={() => editingCompany = null} class="px-5 py-2 bg-gray-200 text-gray-700 font-semibold rounded-xl">Cancel</button>
-              <button on:click={saveCompany} class="px-6 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700">Save Changes</button>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label for="edit-company-ctc" class="block text-xs font-bold text-gray-700 uppercase mb-1">CTC Package</label>
+              <input id="edit-company-ctc" type="text" bind:value={editingCompany.ctc} placeholder="e.g. 21 LPA" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
             </div>
+            <div>
+              <label for="edit-company-stipend" class="block text-xs font-bold text-gray-700 uppercase mb-1">Stipend</label>
+              <input id="edit-company-stipend" type="text" bind:value={editingCompany.stipend} placeholder="e.g. 50k/month" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+            </div>
+            <div>
+              <label for="edit-company-location" class="block text-xs font-bold text-gray-700 uppercase mb-1">Job Location</label>
+              <input id="edit-company-location" type="text" bind:value={editingCompany.job_location} placeholder="e.g. Bengaluru" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+            </div>
+            <div>
+              <label for="edit-company-website" class="block text-xs font-bold text-gray-700 uppercase mb-1">Website</label>
+              <input id="edit-company-website" type="text" bind:value={editingCompany.website} placeholder="e.g. saviynt.com" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label for="edit-company-branches" class="block text-xs font-bold text-gray-700 uppercase mb-1">Eligible Branches</label>
+              <input id="edit-company-branches" type="text" bind:value={editingCompany.eligible_branches} placeholder="e.g. B.Tech CSE, IT, ECE" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+            </div>
+            <div>
+              <label for="edit-company-criteria" class="block text-xs font-bold text-gray-700 uppercase mb-1">Eligibility Criteria</label>
+              <input id="edit-company-criteria" type="text" bind:value={editingCompany.eligibility_criteria} placeholder="e.g. 9.0 CGPA, No Standing Arrears" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label for="edit-company-rounds" class="block text-xs font-bold text-gray-700 uppercase mb-1">Total Rounds</label>
+              <input id="edit-company-rounds" type="number" bind:value={editingCompany.total_rounds} placeholder="e.g. 4" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+            </div>
+            <div>
+              <label for="edit-company-exp" class="block text-xs font-bold text-gray-700 uppercase mb-1">Experience Required</label>
+              <input id="edit-company-exp" type="text" bind:value={editingCompany.experience_required} placeholder="e.g. Freshers" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+            </div>
+          </div>
+
+          <div>
+            <label for="edit-company-notes" class="block text-xs font-bold text-gray-700 uppercase mb-1">General Notes</label>
+            <textarea id="edit-company-notes" bind:value={editingCompany.notes} rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+          </div>
+
+          <div>
+            <label for="edit-company-details" class="block text-xs font-bold text-gray-700 uppercase mb-1">Round-by-Round Details / Instructions</label>
+            <textarea id="edit-company-details" bind:value={editingCompany.round_details} rows="4" placeholder="Describe each round, questions asked, cutoffs, etc." class="w-full px-4 py-2 border border-gray-300 rounded-xl bg-white" />
+          </div>
+
+          <div class="flex justify-end gap-3 pt-2">
+            <button on:click={() => editingCompany = null} class="px-5 py-2 bg-gray-200 text-gray-700 font-semibold rounded-xl">Cancel</button>
+            <button on:click={saveCompany} class="px-6 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700">Save Changes</button>
           </div>
         </div>
       {/if}
 
       <!-- SECTION 1 (FIRST): Company Overview & Round Information -->
-      <div class="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-6 mb-8">
-        <h4 class="text-xl font-bold text-indigo-950 mb-4">📋 Company Overview & Round Information</h4>
+      <div class="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-6 mb-8 space-y-4">
+        <h4 class="text-xl font-bold text-indigo-950">📋 Company Overview & Placement Criteria</h4>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {#if selectedCompany.eligible_branches}
+            <div class="bg-white p-4 rounded-xl border border-indigo-100">
+              <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider block mb-1">🎓 Eligible Branches:</span>
+              <p class="text-gray-800 text-sm font-semibold">{selectedCompany.eligible_branches}</p>
+            </div>
+          {/if}
+
+          {#if selectedCompany.eligibility_criteria}
+            <div class="bg-white p-4 rounded-xl border border-indigo-100">
+              <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider block mb-1">📊 Eligibility Criteria:</span>
+              <p class="text-gray-800 text-sm whitespace-pre-line font-medium">{selectedCompany.eligibility_criteria}</p>
+            </div>
+          {/if}
+        </div>
 
         {#if selectedCompany.notes}
-          <div class="mb-4">
+          <div>
             <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider">General Notes:</span>
-            <p class="text-gray-800 mt-1 whitespace-pre-line">{selectedCompany.notes}</p>
+            <p class="text-gray-800 mt-1 whitespace-pre-line text-sm">{selectedCompany.notes}</p>
           </div>
         {/if}
 
         {#if selectedCompany.round_details}
           <div>
             <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider">Round-by-Round Details & Process Notes:</span>
-            <div class="bg-white p-4 rounded-xl border border-indigo-100 text-gray-800 mt-2 whitespace-pre-line leading-relaxed">
+            <div class="bg-white p-4 rounded-xl border border-indigo-100 text-gray-800 mt-2 whitespace-pre-line text-sm leading-relaxed">
               {selectedCompany.round_details}
             </div>
           </div>
-        {:else if !selectedCompany.notes}
-          <p class="text-gray-500 italic">No round notes provided yet. Click "Edit Company Details" above to add round information.</p>
+        {:else if !selectedCompany.notes && !selectedCompany.eligible_branches && !selectedCompany.eligibility_criteria}
+          <p class="text-gray-500 italic text-sm">No round notes provided yet. Click "Edit Company Details" above to add information.</p>
         {/if}
       </div>
 

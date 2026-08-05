@@ -73,6 +73,14 @@ if (!hasRoundDetails && companyTableInfo.length > 0) {
   db.exec('ALTER TABLE companies ADD COLUMN round_details TEXT');
 }
 
+const extraCols = ['role', 'category', 'stipend', 'job_location', 'eligible_branches', 'eligibility_criteria', 'website'];
+for (const colName of extraCols) {
+  if (!companyTableInfo.some((col) => col.name === colName) && companyTableInfo.length > 0) {
+    console.log(`Adding ${colName} column to companies table...`);
+    db.exec(`ALTER TABLE companies ADD COLUMN ${colName} TEXT`);
+  }
+}
+
 // Recreate shortlists table if missing round_number or to update unique index
 const shortlistTableInfo = db.pragma('table_info(shortlists)') as { name: string }[];
 const hasRoundNumber = shortlistTableInfo.some((col) => col.name === 'round_number');

@@ -145,9 +145,33 @@ export function initDatabase() {
       ctc TEXT,
       total_rounds INTEGER,
       round_details TEXT,
-      experience_required TEXT
+      experience_required TEXT,
+      role TEXT,
+      category TEXT,
+      stipend TEXT,
+      job_location TEXT,
+      eligible_branches TEXT,
+      eligibility_criteria TEXT,
+      website TEXT
     )
   `);
+
+  // Ensure new columns exist on companies table if database was created earlier
+  const companyCols = (db.pragma('table_info(companies)') as { name: string }[]).map(c => c.name);
+  const newCols: [string, string][] = [
+    ['role', 'TEXT'],
+    ['category', 'TEXT'],
+    ['stipend', 'TEXT'],
+    ['job_location', 'TEXT'],
+    ['eligible_branches', 'TEXT'],
+    ['eligibility_criteria', 'TEXT'],
+    ['website', 'TEXT']
+  ];
+  for (const [colName, colType] of newCols) {
+    if (!companyCols.includes(colName)) {
+      db.exec(`ALTER TABLE companies ADD COLUMN ${colName} ${colType}`);
+    }
+  }
 
   // Shortlists table (many-to-many relationship supporting multi-round shortlists)
   db.exec(`

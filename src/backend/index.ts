@@ -620,11 +620,17 @@ app.get('/api/companies/:id', (c) => {
 // Create company
 app.post('/api/companies', async (c) => {
   const body = await c.req.json();
-  const { name, notes, rounds, ctc, total_rounds, round_details, experience_required } = body;
+  const {
+    name, notes, rounds, ctc, total_rounds, round_details, experience_required,
+    role, category, stipend, job_location, eligible_branches, eligibility_criteria, website
+  } = body;
   
   try {
     const result = db.prepare(
-      'INSERT INTO companies (name, notes, rounds, ctc, total_rounds, round_details, experience_required) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      `INSERT INTO companies (
+        name, notes, rounds, ctc, total_rounds, round_details, experience_required,
+        role, category, stipend, job_location, eligible_branches, eligibility_criteria, website
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       name,
       notes || null,
@@ -632,7 +638,14 @@ app.post('/api/companies', async (c) => {
       ctc || null,
       total_rounds ? parseInt(total_rounds) : (rounds ? parseInt(rounds) : null),
       round_details || null,
-      experience_required || null
+      experience_required || null,
+      role || null,
+      category || null,
+      stipend || null,
+      job_location || null,
+      eligible_branches || null,
+      eligibility_criteria || null,
+      website || null
     );
     
     // Initialize analytics
@@ -651,11 +664,17 @@ app.post('/api/companies', async (c) => {
 app.put('/api/companies/:id', async (c) => {
   const id = c.req.param('id');
   const body = await c.req.json();
-  const { name, notes, rounds, ctc, total_rounds, round_details, experience_required } = body;
+  const {
+    name, notes, rounds, ctc, total_rounds, round_details, experience_required,
+    role, category, stipend, job_location, eligible_branches, eligibility_criteria, website
+  } = body;
   
   try {
     db.prepare(
-      'UPDATE companies SET name = ?, notes = ?, rounds = ?, ctc = ?, total_rounds = ?, round_details = ?, experience_required = ? WHERE id = ?'
+      `UPDATE companies SET 
+        name = ?, notes = ?, rounds = ?, ctc = ?, total_rounds = ?, round_details = ?, experience_required = ?,
+        role = ?, category = ?, stipend = ?, job_location = ?, eligible_branches = ?, eligibility_criteria = ?, website = ?
+      WHERE id = ?`
     ).run(
       name,
       notes || null,
@@ -664,6 +683,13 @@ app.put('/api/companies/:id', async (c) => {
       total_rounds ? parseInt(total_rounds) : (rounds ? parseInt(rounds) : null),
       round_details || null,
       experience_required || null,
+      role || null,
+      category || null,
+      stipend || null,
+      job_location || null,
+      eligible_branches || null,
+      eligibility_criteria || null,
+      website || null,
       id
     );
     

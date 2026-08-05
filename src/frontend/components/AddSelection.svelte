@@ -39,6 +39,34 @@
     }
   }
 
+  const HEADER_WORDS = new Set([
+    'NEO', 'ID', 'NEOID', 'NEOIDS', 'REGNO', 'REGNOS', 'REGISTER', 'REGISTRATION', 
+    'NUMBER', 'NUMBERS', 'NAME', 'NAMES', 'STATUS', 'STATE', 'SERIAL', 'SL', 'NO', 
+    'SNO', 'S.NO', 'SELECTED', 'PLACED', 'INTERN', 'OFFER', 'TYPE', 'GENDER', 'BRANCH', 'CAMPUS'
+  ]);
+
+  function extractCleanTokens(input: string): string[] {
+    if (!input || !input.trim()) return [];
+    const rawTokens = input.split(/[\s,;\t\r\n]+/);
+    const result: string[] = [];
+    const seen = new Set<string>();
+
+    for (let token of rawTokens) {
+      token = token.trim().replace(/^\d+[\.\)]/, '').trim();
+      if (!token) continue;
+      const upper = token.toUpperCase();
+      if (HEADER_WORDS.has(upper)) continue;
+      if (!/^[A-Z0-9]{5,20}$/i.test(upper)) continue;
+      if (!seen.has(upper)) {
+        seen.add(upper);
+        result.push(upper);
+      }
+    }
+    return result;
+  }
+
+  $: detectedTokens = extractCleanTokens(regnos);
+
   async function addSelections() {
     if (!selectedCompanyId || !regnos.trim()) {
       message = 'Please select a company and enter registration numbers';
@@ -46,10 +74,10 @@
       return;
     }
 
-    const regnoList = regnos.split('\n').map(r => r.trim()).filter(r => r);
+    const regnoList = detectedTokens;
 
     if (regnoList.length === 0) {
-      message = 'Please enter at least one registration number';
+      message = 'Please enter at least one valid registration number or Neo ID';
       messageType = 'error';
       return;
     }
@@ -89,12 +117,14 @@
       if (successCount > 0) {
         message = `Successfully added ${successCount} student(s) to final selections as "${statusLabel}".`;
         if (errorCount > 0) {
-          message += ` ${errorCount} error(s) occurred (students not found).`;
+          const sampleErrors = result.errors.slice(0, 3).map((e: any) => e.identifier).join(', ');
+          message += ` ${errorCount} error(s): Not found in database (${sampleErrors}${errorCount > 3 ? '...' : ''}).`;
         }
         messageType = 'success';
         regnos = '';
       } else if (errorCount > 0) {
-        message = `Failed to add students. ${errorCount} registration number(s) not found in database.`;
+        const sampleErrors = result.errors.slice(0, 3).map((e: any) => e.identifier).join(', ');
+        message = `Failed to add students. ${errorCount} registration number(s) / Neo ID(s) not found in database: (${sampleErrors}${errorCount > 3 ? '...' : ''}).`;
         messageType = 'error';
       } else {
         message = 'No students were added. Please check the registration numbers.';
@@ -108,7 +138,7 @@
 
     setTimeout(() => {
       message = '';
-    }, 5000);
+    }, 6000);
   }
 </script>
 
@@ -194,10 +224,12 @@
         class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-mono resize-vertical"
       />
       <div class="mt-2 text-sm text-gray-600 space-y-1">
-        <p>Enter Register Numbers (e.g. 23BAI1008) or Neo IDs (e.g. O3W3I4P1), one per line.</p>
-        <p class="text-xs text-gray-500">
-          <strong>Tip:</strong> Selected candidates will be updated to the chosen offer status. Unmapped Neo IDs are stored in the mapping table for future matching.
-        </p>
+        <p>Enter Register Numbers (e.g. 23BAI1008) or Neo IDs (e.g. O3W3I4P1). Paste entire single lines or lists with names/headers — headers like "Neo ID" are automatically filtered out.</p>
+        {#if detectedTokens.length > 0}
+          <p class="text-xs font-semibold text-blue-700 bg-blue-50 p-2 rounded border border-blue-200 inline-block mt-1">
+            🔍 Detected {detectedTokens.length} candidate identifier(s): {detectedTokens.slice(0, 5).join(', ')}{detectedTokens.length > 5 ? '...' : ''}
+          </p>
+        {/if}
       </div>
     </div>
 

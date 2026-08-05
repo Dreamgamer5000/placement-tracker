@@ -66,3 +66,40 @@ export function parseMarks(marks: string | number): number | undefined {
   const parsed = parseFloat(marks);
   return isNaN(parsed) ? undefined : parsed;
 }
+
+const HEADER_WORDS = new Set([
+  'NEO', 'ID', 'NEOID', 'NEOIDS', 'REGNO', 'REGNOS', 'REGISTER', 'REGISTRATION', 
+  'NUMBER', 'NUMBERS', 'NAME', 'NAMES', 'STATUS', 'STATE', 'SERIAL', 'SL', 'NO', 
+  'SNO', 'S.NO', 'SELECTED', 'PLACED', 'INTERN', 'OFFER', 'TYPE', 'GENDER', 'BRANCH', 'CAMPUS'
+]);
+
+export function extractCleanTokens(input: string | string[]): string[] {
+  const rawText = Array.isArray(input) ? input.join(' ') : (input || '');
+  if (!rawText.trim()) return [];
+
+  const rawTokens = rawText.split(/[\s,;\t\r\n]+/);
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  for (let token of rawTokens) {
+    token = token.trim();
+    if (!token) continue;
+    
+    token = token.replace(/^\d+[\.\)]/, '').trim();
+    if (!token) continue;
+
+    const upper = token.toUpperCase();
+    
+    if (HEADER_WORDS.has(upper)) continue;
+
+    if (!/^[A-Z0-9]{5,20}$/i.test(upper)) continue;
+
+    if (!seen.has(upper)) {
+      seen.add(upper);
+      result.push(upper);
+    }
+  }
+
+  return result;
+}
+

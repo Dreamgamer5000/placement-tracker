@@ -6,10 +6,8 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "tsx watch src/backend/index.ts",
-    "dev:temp": "concurrently \"npm run dev:backend:temp\" \"npm run dev:frontend:temp\"",
-    "dev:backend:temp": "tsx watch src/backend/temp_index.ts",
-    "dev:frontend:temp": "vite --config vite.temp.config.js",
     "dev:frontend": "vite",
+    "dev:temp": "npm run dev",
     "build": "npm run build:frontend && npm run build:backend",
     "build:backend": "tsc",
     "build:frontend": "vite build",

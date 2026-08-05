@@ -19,11 +19,34 @@
   let unmappedChennaiCount = 0;
   let filterMasters = false;
   let mastersCount = 0;
-  let sortBy: 'default' | 'shortlists' = 'default';
+  let sortBy: 'default' | 'shortlists' | 'placed' = 'default';
+  let recalculating = false;
+  let syncMessage = '';
 
   onMount(async () => {
     await loadStudents();
   });
+
+  async function recalculateStudentAnalytics() {
+    if (recalculating) return;
+    recalculating = true;
+    syncMessage = '';
+    try {
+      const response = await fetch('/api/students/recalculate-analytics', { method: 'POST' });
+      const data = await response.json();
+      if (response.ok) {
+        syncMessage = `✅ Synced ${data.updatedNeoIds || 0} NeoIDs, ${data.updatedFinalPlacements || 0} final placements, ${data.updatedInterns || 0} interns, reset ${data.resetStaleCandidates || 0} stale records.`;
+        await loadStudents();
+      } else {
+        syncMessage = `❌ Error: ${data.error || 'Failed to sync'}`;
+      }
+    } catch (err: any) {
+      syncMessage = `❌ Error: ${err.message}`;
+    } finally {
+      recalculating = false;
+      setTimeout(() => { syncMessage = ''; }, 6000);
+    }
+  }
 
   function handleSearchInput(e: Event) {
     const val = (e.target as HTMLInputElement).value;
@@ -55,6 +78,7 @@
         page: page.toString(),
         limit: limit.toString(),
         search: debouncedSearch,
+        sort: sortBy,
         sortByShortlists: (sortBy === 'shortlists').toString(),
         unmappedChennai: filterUnmappedChennai.toString(),
         masters: filterMasters.toString()
@@ -89,11 +113,11 @@
     await loadStudents();
   }
 
-  async function viewStudent(id: number) {
-    const s = students.find(item => item.id === id);
+  async function viewStudent(regno: string) {
+    const s = students.find(item => item.regno === regno);
     selectedStudent = s ? { ...s, loadingDetails: true } : null;
     try {
-      const response = await fetch(`/api/students/${id}`);
+      const response = await fetch(`/api/students/${regno}`);
       if (response.ok) {
         selectedStudent = await response.json();
       }
@@ -112,7 +136,7 @@
     saveLoading = true;
     saveMessage = '';
     try {
-      const response = await fetch(`/api/students/${editingStudent.id}`, {
+      const response = await fetch(`/api/students/${editingStudent.regno}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingStudent)
@@ -126,9 +150,9 @@
       const updated = await response.json();
       saveMessage = '✅ Student details updated successfully!';
       
-      // Update in local state
-      students = students.map(s => s.id === updated.id ? { ...s, ...updated } : s);
-      if (selectedStudent && selectedStudent.id === updated.id) {
+      // Update in local state (keyed by regno since temp_students has no integer id)
+      students = students.map(s => s.regno === updated.regno ? { ...s, ...updated } : s);
+      if (selectedStudent && selectedStudent.regno === updated.regno) {
         selectedStudent = { ...selectedStudent, ...updated };
       }
       setTimeout(() => {
@@ -142,10 +166,20 @@
   }
 
   async function toggleSort() {
-    if (sortBy === 'default') {
-      sortBy = 'shortlists';
-    } else {
+    if (sortBy === 'shortlists') {
       sortBy = 'default';
+    } else {
+      sortBy = 'shortlists';
+    }
+    page = 1;
+    await loadStudents();
+  }
+
+  async function togglePlacedSort() {
+    if (sortBy === 'placed') {
+      sortBy = 'default';
+    } else {
+      sortBy = 'placed';
     }
     page = 1;
     await loadStudents();
@@ -180,8 +214,22 @@
       >
         🎓 Masters ({mastersCount})
       </button>
+      <button 
+        type="button"
+        class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 bg-emerald-600 text-white border-emerald-600 shadow-sm hover:bg-emerald-700 disabled:opacity-50"
+        disabled={recalculating}
+        on:click={recalculateStudentAnalytics}
+      >
+        {recalculating ? 'Syncing...' : '🔄 Sync Student Data'}
+      </button>
     </div>
   </div>
+
+  {#if syncMessage}
+    <div class="mb-4 p-3 rounded-xl text-sm font-semibold {syncMessage.includes('❌') ? 'bg-red-50 text-red-800 border border-red-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}">
+      {syncMessage}
+    </div>
+  {/if}
   
   <div class="search-container">
     <input 
@@ -207,11 +255,9 @@
       <table>
         <thead>
           <tr>
-            <th>Reg No</th>
-            <th>Neo ID</th>
+            <th>Reg No / Neo ID</th>
             <th>Name</th>
             <th>TopCoder</th>
-            <th>Campus</th>
             <th>CGPA</th>
             <th class="sortable" on:click={toggleSort}>
               Shortlists 
@@ -221,18 +267,27 @@
                 <span class="sort-icon">⬍</span>
               {/if}
             </th>
-            <th>Status</th>
+            <th class="sortable" on:click={togglePlacedSort}>
+              Status 
+              {#if sortBy === 'placed'}
+                <span class="sort-icon">⬇</span>
+              {:else}
+                <span class="sort-icon">⬍</span>
+              {/if}
+            </th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {#each students as student}
             <tr>
-              <td><span class="regno-tag">{student.regno}</span></td>
               <td>
-                <span class="neo-badge" class:has-neoid={student.neo_id}>
-                  {student.neo_id || 'Not Assigned'}
-                </span>
+                <div class="id-combined">
+                  <span class="regno-tag">{student.regno}</span>
+                  {#if student.neo_id}
+                    <span class="neo-badge has-neoid">{student.neo_id}</span>
+                  {/if}
+                </div>
               </td>
               <td class="name-cell">{student.name}</td>
               <td>
@@ -242,7 +297,6 @@
                   <span class="text-gray-400 text-xs">No</span>
                 {/if}
               </td>
-              <td>{student.campus}</td>
               <td><strong>{student.cgpa || 'N/A'}</strong></td>
               <td>
                 <span class="shortlist-count" class:has-shortlists={student.shortlist_count > 0}>
@@ -261,7 +315,7 @@
                 {/if}
               </td>
               <td class="action-cells">
-                <button class="btn-action btn-view" on:click={() => viewStudent(student.id)}>
+                <button class="btn-action btn-view" on:click={() => viewStudent(student.regno)}>
                   View Details
                 </button>
               </td>
@@ -317,7 +371,6 @@
         <div class="detail-item"><strong>CGPA:</strong> {selectedStudent.cgpa || 'N/A'}</div>
         <div class="detail-item"><strong>10th Marks:</strong> {selectedStudent.tenth_marks || 'N/A'}</div>
         <div class="detail-item"><strong>12th Marks:</strong> {selectedStudent.twelfth_marks || 'N/A'}</div>
-        <div class="detail-item"><strong>Campus:</strong> {selectedStudent.campus}</div>
         <div class="detail-item"><strong>Status:</strong> {selectedStudent.status}</div>
         <div class="detail-item">
           <strong>TopCoder:</strong> 
@@ -382,8 +435,8 @@
                       <div class="text-xs text-emerald-700 font-medium">Package: {selection.ctc_lpa || selection.package_lpa} LPA</div>
                     {/if}
                   </div>
-                  <span class="text-xs font-bold px-2.5 py-1 rounded-lg {selectedStudent.status === 'intern' ? 'bg-indigo-600 text-white' : 'bg-emerald-600 text-white'} shadow-xs">
-                    {selectedStudent.status === 'intern' ? 'Interned' : 'Selected'}
+                  <span class="text-xs font-bold px-2.5 py-1 rounded-lg {selection.offer_type === 'intern' ? 'bg-indigo-600 text-white' : 'bg-emerald-600 text-white'} shadow-xs">
+                    {selection.offer_type === 'intern' ? '💼 Intern Offer' : '✓ Full-Time Placed'}
                   </span>
                 </div>
               {/each}
@@ -654,6 +707,13 @@
   .name-cell {
     font-weight: 600;
     color: #0f172a;
+  }
+
+  .id-combined {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .regno-tag {

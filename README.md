@@ -1,164 +1,114 @@
-# Placement Tracker Platform
+# 🎓 Placement Tracker Platform (2027 Batch)
 
-A comprehensive placement tracking system built with Hono.js, Svelte, and SQLite to manage student placements, company analytics, and shortlisting processes.
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
+[![Svelte](https://img.shields.io/badge/Svelte-5.0-orange.svg)](https://svelte.dev/)
+[![Hono.js](https://img.shields.io/badge/Hono.js-4.0-firebrick.svg)](https://hono.dev/)
+[![TailwindCSS](https://img.shields.io/badge/Tailwind-v4.0-teal.svg)](https://tailwindcss.com/)
+[![SQLite](https://img.shields.io/badge/SQLite3-better--sqlite3-lightgrey.svg)](https://github.com/WiseLibs/better-sqlite3)
 
-## Features
+**Placement Tracker** is a high-performance placement management and statistical analytics platform engineered for the **2027 Batch** (VIT). It aggregates student records, tracks multi-round shortlists and final selection offers per company, calculates real-time academic cutoffs, and predicts candidate drive eligibility.
 
-### 📊 Analytics Dashboard
-- Real-time placement statistics
-- Branch-wise and campus-wise analytics
-- Top companies by placement count
-- Overall placement rate tracking
+---
 
-### 👥 Student Management
-- Complete student profiles with academic details
-- Track shortlisted companies for each student
-- Monitor final placement status
-- Resume links and contact information
-- Search and filter capabilities
+## 🌟 Key Features
 
-### 🏢 Company Profiles
-- Company details and notes
-- Shortlisting analytics (cutoffs, gender ratio, etc.)
-- List of shortlisted and placed students
-- Resume access for shortlisted candidates
+- **📊 Analytics Dashboard**: Real-time placement rates, Master NeoID statistics, Chennai placement rate highlights, and campus-wise breakdowns (`Chennai`, `Vellore`, `Unknown`).
+- **🎓 Candidate Directory**: Search 3,500+ student profiles with CGPA, 10th/12th percentages, TopCoder flags, resume links, and shortlist history. Filter by Unmapped Chennai candidates or Higher Studies status.
+- **🏢 Company Profiles**: Manage drive details with Category badges (🌟 Super Dream), Job Roles (💼), Stipends (💵), CTC (💰), Job Locations (📍), Eligible Branches, and Eligibility Criteria.
+- **⚡ Email Quick Parser**: Paste raw placement cell drive emails to auto-fill company profiles instantly.
+- **📝 Multi-Round Shortlists**: Bulk upload candidate lists (Registration Numbers or Neo IDs) into custom rounds (`Shortlist 1`, `Shortlist 2`, `Interview`).
+- **✅ Selections & Offers**: Bulk track Full-Time placement offers and Internship selections with automatic status updates.
+- **🔮 Eligibility Predictor**: Input CGPA, 10th %, and 12th % to return matching companies based on historical cutoff data.
 
-### 📝 Shortlisting System
-- Bulk add students to company shortlists
-- Automatic analytics calculation
-- Track multiple shortlists per student
+---
 
-### 🔮 Company Prediction
-- Predict eligible companies based on academic marks
-- Historical cutoff analysis
-- Smart recommendations based on past data
+## 🏗️ Technology Stack
 
-## Tech Stack
+- **Backend Framework**: Hono.js (Node.js `@hono/node-server`)
+- **Database Engine**: SQLite3 with `better-sqlite3` & `NOCASE` B-tree performance indexes
+- **Frontend Engine**: Svelte 5 + TypeScript
+- **Bundler & Dev Server**: Vite 5
+- **UI Design System**: Tailwind CSS v4 + Plus Jakarta Sans typography with custom glassmorphism
 
-- **Backend**: Hono.js (Node.js framework)
-- **Frontend**: Svelte
-- **Database**: SQLite with better-sqlite3
-- **Build Tool**: Vite
+---
 
-## Installation
+## 🚀 Quick Setup & Installation
 
-1. Install dependencies:
 ```bash
+# 1. Install dependencies
 npm install
-```
 
-2. Set up the database:
-```bash
-npm run setup:db
-```
+# 2. Initialize SQLite database & migrations
+npm run setup-db
 
-3. Import student data from CSV files:
-```bash
-npm run import:data
-```
+# 3. Ingest master student CSV datasets
+npm run import-data
 
-## Usage
-
-### Development Mode
-
-Run both backend and frontend in development mode:
-```bash
+# 4. Launch development server
 npm run dev
 ```
 
-Or run them separately:
-```bash
-# Backend only (runs on http://localhost:3000)
-npm run dev:backend
+- **Frontend App**: `http://localhost:5173`
+- **Backend API**: `http://localhost:3001`
 
-# Frontend only (runs on http://localhost:5173)
-npm run dev:frontend
+---
+
+## 📁 Repository Structure
+
+```text
+tracker/
+├── src/
+│   ├── backend/
+│   │   ├── db/
+│   │   │   └── index.ts            # SQLite database initialization & migrations
+│   │   ├── scripts/
+│   │   │   ├── setup-db.ts         # Database setup script
+│   │   │   └── import-data.ts      # CSV ingestion script
+│   │   ├── index.ts                # Hono REST API server endpoints
+│   │   └── utils.ts                # Branch & campus detection utility functions
+│   └── frontend/
+│       ├── main.ts                 # Svelte 5 app entry
+│       ├── App.svelte              # Glassmorphic header & navigation container
+│       ├── app.css                 # Tailwind v4 & font configuration
+│       └── components/
+│           ├── Analytics.svelte    # Analytics dashboard
+│           ├── StudentList.svelte  # Candidate management directory
+│           ├── CompanyList.svelte  # Company profiles & email quick-parser
+│           ├── AddShortlist.svelte # Bulk shortlisting
+│           ├── AddSelection.svelte # Bulk placement & internship offers
+│           └── PredictCompanies.svelte # Academic eligibility predictor
+├── csvs/                           # Master CSV datasets (IOE, fidelity, placement_batch)
+├── placement.db                    # SQLite database file
+├── PROJECT_SUMMARY.md              # Detailed technical summary & DB schema documentation
+├── QUICKSTART.md                   # Developer & user guide
+└── README.md                       # Project overview
 ```
 
-### Production Build
+---
 
-```bash
-npm run build
-```
+## 🔗 REST API Endpoints
 
-## Data Format
+### Candidate Endpoints
+- `GET /api/students` — List candidates (supports search, campus filter, pagination, sorting)
+- `GET /api/students/:id` — Get candidate details with all shortlists & selections
+- `POST /api/students/recalculate-analytics` — Re-evaluate candidate status flags
 
-### IOE.csv
-Contains basic student information:
-- `regno`: Registration number
-- `name`: Student name
-- `email`: VIT email
-- `phone`: Phone number
+### Company Endpoints
+- `GET /api/companies` — List company profiles
+- `GET /api/companies/:id` — Get detailed company profile with analytics & shortlist rounds
+- `POST /api/companies` — Create company profile (supports email quick parser fields)
+- `PUT /api/companies/:id` — Edit company profile
+- `POST /api/companies/:id/shortlist` — Bulk add candidates to shortlist round
+- `PUT /api/companies/:id/shortlist-round/:roundNumber` — Rename shortlist round
+- `POST /api/companies/:id/selections` — Bulk add placement or internship offers
+- `POST /api/companies/recalculate-analytics` — Recalculate cutoffs across all companies
 
-### fidelity.csv
-Contains detailed student information:
-- `Reg..no`: Registration number
-- `Name`: Student name
-- `Email id (personal id)`: Personal email
-- `Phone no`: Phone number
-- `Gender`: Male/Female
-- `CGPA`: Current CGPA
-- `10th`: 10th marks (percentage)
-- `12th`: 12th marks (percentage)
-- `Resume link`: Google Drive or other resume link
+### Analytics Endpoints
+- `GET /api/analytics/summary` — Retrieve dashboard metrics & campus breakdowns
+- `POST /api/predict-companies` — Predict candidate eligibility from academic marks
 
-## Branch Detection
+---
 
-The system automatically detects student branches from registration numbers:
-- `XX**BCE**XXXX` → Computer Engineering
-- `XX**BAI**XXXX` → Artificial Intelligence
-- `XX**BPS**XXXX` → Physical Sciences
-- etc.
+## 📄 License
 
-## Campus Detection
-
-Campus is detected from the 6th digit of the registration number:
-- **Vellore**: XXXXX0XXX or XXXXX5XXX
-- **Chennai**: XXXXX1XXX or XXXXX6XXX
-- **AP**: XXXXX7XXX
-- **Bhopal**: XXXXX1XXXX (10 digits)
-
-## API Endpoints
-
-### Students
-- `GET /api/students` - Get all students
-- `GET /api/students/:id` - Get student details with shortlists
-- `GET /api/students/search/:regno` - Search student by registration number
-- `POST /api/students/:id/place` - Mark student as placed
-
-### Companies
-- `GET /api/companies` - Get all companies
-- `GET /api/companies/:id` - Get company details with analytics
-- `POST /api/companies` - Create new company
-- `PUT /api/companies/:id` - Update company details
-- `POST /api/companies/:id/shortlist` - Add students to shortlist
-
-### Analytics
-- `GET /api/analytics/summary` - Get overall analytics summary
-- `POST /api/predict-companies` - Predict eligible companies for given marks
-
-## Database Schema
-
-### students
-- Basic info (regno, name, email, phone, etc.)
-- Academic details (cgpa, 10th, 12th)
-- Branch and campus (auto-detected)
-- Placement status and final company
-
-### companies
-- Company name and details
-- Notes and metadata (rounds, experience requirements)
-
-### shortlists
-- Many-to-many relationship between students and companies
-- Timestamp of shortlisting
-
-### company_analytics
-- Automatically calculated cutoffs
-- Min/max/avg CGPA, 10th, 12th marks
-- Gender ratio
-- Total shortlisted count
-
-## License
-
-MIT
+MIT License

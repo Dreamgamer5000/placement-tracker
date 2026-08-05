@@ -1,147 +1,118 @@
-# 🚀 Quick Start Guide
+# 🚀 Quick Start Guide - Placement Tracker (2027 Batch)
 
-## What We Built
+Welcome to the **Placement Tracker** for the **2027 Batch**. Follow this guide to set up, run, and manage your placement tracking platform.
 
-A comprehensive placement tracking platform with the following features:
+---
 
-### ✅ Core Features Implemented
+## ⚡ Prerequisites & Setup
 
-1. **Student Profiles**
-   - 3,572 students imported from IOE.csv
-   - 949 students enriched with Fidelity data (CGPA, marks, resumes)
-   - Auto-detected branch and campus from registration numbers
-   - Search and filter capabilities
+Ensure you have **Node.js 18+** installed.
 
-2. **Company Management**
-   - Create and manage company profiles
-   - Add notes, rounds info, and experience requirements
-   - View shortlisted and placed students
-
-3. **Shortlisting System**
-   - Bulk add students to company shortlists
-   - Track multiple shortlists per student
-   - Automatic analytics calculation
-
-4. **Analytics Dashboard**
-   - Real-time placement statistics
-   - Branch-wise and campus-wise breakdowns
-   - Company cutoff analysis (min/avg CGPA, 10th, 12th)
-   - Gender ratio tracking
-
-5. **Company Prediction**
-   - Enter student marks to predict eligible companies
-   - Based on historical cutoff data
-   - Shows min/max/avg requirements per company
-
-## 🌐 Access the Application
-
-The application is now running at:
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:3000
-
-## 📊 How to Use
-
-### 1. View Analytics
-- Navigate to the Analytics tab (default view)
-- See overall statistics, branch-wise data, and campus-wise data
-
-### 2. Browse Students
-- Click "Students" in the navigation
-- Search by name, registration number, or branch
-- Click "View Details" to see full profile including shortlists
-
-### 3. Manage Companies
-- Click "Companies" in the navigation
-- Click "+ Add Company" to create new companies
-- Click on a company card to view:
-  - Cutoff analytics
-  - Shortlisted students with their marks and resumes
-  - Final placements
-
-### 4. Add Shortlists
-- Click "Add Shortlist" in the navigation
-- Select a company from the dropdown
-- Enter registration numbers (one per line)
-- System automatically calculates cutoffs and analytics
-
-### 5. Predict Eligible Companies
-- Click "Predict Companies" in the navigation
-- Enter CGPA, 10th marks, and 12th marks
-- System shows companies where the student meets minimum requirements
-
-## 🎯 Example Workflow
-
-1. **Add a Company**
-   - Go to Companies → Add Company
-   - Enter: "Google", Notes: "Software Engineering Internship", Rounds: "3"
-
-2. **Add Students to Shortlist**
-   - Go to Add Shortlist
-   - Select "Google"
-   - Enter registration numbers of shortlisted students
-
-3. **View Analytics**
-   - Go back to Companies
-   - Click on "Google"
-   - See minimum CGPA, gender ratio, and all shortlisted students
-
-4. **Check Eligibility**
-   - Go to Predict Companies
-   - Enter marks: CGPA 8.5, 10th: 90, 12th: 85
-   - See which companies this student is eligible for
-
-## 📁 Data Structure
-
-### Branch Detection
-Registration numbers like `23BAI1001` are automatically parsed:
-- `23` = Batch year
-- `BAI` = Branch (Artificial Intelligence)
-- `1001` = Roll number with campus code
-
-### Campus Detection (6th digit)
-- `0` or `5` = Vellore
-- `1` or `6` = Chennai
-- `7` = AP
-- `1` in 10-digit regno = Bhopal
-
-## 🔧 Development Commands
+### 1. Installation
 
 ```bash
-# Start both servers
-pnpm run dev
+# Clone repository or enter directory
+cd "placement tracker/tracker"
 
-# Backend only
-pnpm run dev:backend
-
-# Frontend only
-pnpm run dev:frontend
-
-# Setup database
-pnpm run setup:db
-
-# Import data
-pnpm run import:data
-
-# Build for production
-pnpm run build
+# Install dependencies
+npm install
 ```
 
-## 📝 Next Steps
+### 2. Initialize Database & Import CSV Data
 
-To make the platform more useful:
+```bash
+# Initialize SQLite database schema
+npm run setup-db
 
-1. **Add more companies** through the Companies interface
-2. **Update shortlists** as students get selected
-3. **Mark students as placed** when they accept offers
-4. **View analytics** to understand placement trends
+# Ingest student CSV datasets (IOE.csv, fidelity.csv, placement_batch.csv, etc.)
+npm run import-data
+```
 
-## 🎨 Features Highlight
+### 3. Launch Server in Development Mode
 
-- **Real-time search**: Instantly filter students and companies
-- **Responsive design**: Works on desktop and mobile
-- **Auto-calculated analytics**: Cutoffs update automatically
-- **Resume links**: Direct access to student resumes
-- **Bulk operations**: Add multiple students at once
-- **Smart predictions**: AI-powered company recommendations
+```bash
+# Runs backend API (port 3001) and Vite dev server (port 5173) concurrently
+npm run dev
+```
 
-Enjoy using your placement tracker! 🎓
+Open your browser to:
+- 🌐 **Frontend App**: `http://localhost:5173`
+- ⚙️ **Backend API**: `http://localhost:3001`
+
+---
+
+## 🧭 How to Use Each View
+
+### 📊 1. Analytics Dashboard
+- View Master NeoID student placement percentages and total placed statistics.
+- Monitor the **Chennai NeoID Placement Rate** highlight metric card.
+- Inspect campus-wise breakdown tables (`Chennai`, `Vellore`, `Unknown`).
+- Search company placement & internship breakdown statistics in real-time.
+
+### 🎓 2. Student Directory
+- Search candidates by Name, Registration Number (e.g., `23BCE1087`), or Neo ID (e.g., `B6B1O8G8`).
+- Filter candidates by **Unmapped Chennai Students** or **Higher Studies / Masters Status**.
+- Click **View Details** to open a student modal displaying CGPA, 10th/12th marks, branch, campus, resume link, TopCoder badge, and all shortlists/selections.
+- Click **Sync Candidate Data** to re-evaluate placement statuses across database tables.
+
+### 🏢 3. Company Profiles & Drive Management
+- View recruiting company cards formatted with Category badges (🌟 Super Dream), Job Role (💼), Location (📍), Monthly Stipend (💵), and CTC (💰).
+- Click **+ Add Company** to register new drive profiles.
+- **⚡ Email Quick Parser**: Paste raw placement cell email announcements into the quick-fill box and click **Parse & Fill Fields** to instantly populate all company details!
+- Click any company card to open the detailed modal:
+  - View corporate website link (`saviynt.com ↗`).
+  - Read **Eligible Branches** and **Eligibility Criteria** card boxes.
+  - Review round-by-round candidate shortlists deterministically ranked by **Campus (Chennai ➔ Vellore ➔ Others)**, **TopCoder Status**, and **CGPA**.
+  - Inspect final full-time placements and internship selection lists.
+
+### 📝 4. Add Shortlists
+- Select a recruiting company from the auto-complete dropdown menu.
+- Choose a Shortlist Round (`Shortlist 1`, `Shortlist 2`, `Technical Interview`, or custom round name).
+- Paste a bulk list of candidate Registration Numbers or Neo IDs (one per line or separated by spaces/tabs).
+- The system automatically sanitizes headers, validates candidate identifiers, updates multi-round tables, and recalculates company cutoff analytics.
+
+### ✅ 5. Add Final Selections & Internships
+- Select a recruiting company.
+- Toggle between **Full-Time Final Placement** and **Internship Selection**.
+- Paste candidate Registration Numbers or Neo IDs.
+- Submitting updates candidate placement status flags (`placed`, `intern`, `final_company_id`) and recalculates statistics automatically.
+
+### 🎯 6. Predict Eligible Companies
+- Input a candidate's **CGPA** (e.g. `8.75`), **10th Percentage** (e.g. `92%`), and **12th Percentage** (e.g. `89%`).
+- Click **⚡ Calculate Eligible Companies**.
+- View all companies where the candidate meets or exceeds historical minimum shortlisting cutoffs.
+
+---
+
+## 💻 NPM Commands Reference
+
+| Command | Action |
+|---|---|
+| `npm run dev` | Launch both backend API and Vite dev server concurrently |
+| `npm run setup-db` | Execute database initialization & schema migrations |
+| `npm run import-data` | Import master CSV student & Neo ID datasets into SQLite |
+| `npm run build` | Compile frontend Vite app & TypeScript backend for production |
+| `npm run start` | Start production Node.js server |
+
+---
+
+## 📧 Email Quick-Parser Example
+
+When a new placement email arrives:
+
+```text
+Saviynt
+Super Dream Internship/ Placement
+B.Tech (CSE, IT & ECE related courses)
+Eligibility Criteria: % in X and XII – 90% or 9.0 CGPA, in Pursuing Degree – 90% or 9.0 CGPA, No Standing Arrears
+CTC: 21,00,000 (If converted)
+Stipend: 50000 per month
+Website: saviynt.com
+Job location: Bengaluru
+Job profile: Associate Engineer / Associate Engineer (SRE)
+```
+
+1. Navigate to **Companies** ➔ **+ Add Company**.
+2. Paste the text into **Clipboard Quick Auto-Fill from Placement Email**.
+3. Click **⚡ Parse & Fill Fields**.
+4. Click **💾 Save Company Profile**.

@@ -12,7 +12,8 @@
     "build:backend": "tsc",
     "build:frontend": "vite build",
     "setup:db": "tsx src/backend/scripts/setup-db.ts",
-    "import:data": "tsx src/backend/scripts/import-data.ts"
+    "import:data": "tsx src/backend/scripts/import-data.ts",
+    "import:company-details": "tsx src/backend/scripts/import-company-details.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.12.2",

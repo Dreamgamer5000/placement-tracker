@@ -146,11 +146,11 @@
 </script>
 
 <div class="p-8 max-w-[1600px] mx-auto space-y-8">
-  <h2 class="text-3xl font-bold text-gray-800">📝 Add Students to Company Shortlist</h2>
+  <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-300 dark:text-slate-200">📝 Add Students to Company Shortlist</h2>
   
-  <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-6">
     <div class="mb-6">
-      <label for="company-search" class="block text-sm font-semibold text-gray-700 mb-2">
+      <label for="company-search" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 dark:text-slate-300 mb-2">
         Select Company *
       </label>
       <div class="space-y-2">
@@ -159,78 +159,78 @@
           type="text" 
           placeholder="🔍 Type to search company by name, CTC, or text..."
           bind:value={companySearchTerm}
-          class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+          class="w-full px-4 py-2 border-2 border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
         />
         <select 
           id="company" 
           bind:value={selectedCompanyId}
-          class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          class="w-full px-4 py-2 border-2 border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
         >
           <option value="">-- Select a company ({filteredCompanies.length} available) --</option>
           {#each filteredCompanies as company}
             <option value={company.id}>{company.name} {company.ctc ? `(${company.ctc})` : ''}</option>
           {/each}
         </select>
-        <p class="text-xs text-gray-500">
+        <p class="text-xs text-gray-500 dark:text-slate-400">
           Showing {filteredCompanies.length} of {companies.length} companies. New companies can be added from the <strong>Companies</strong> page.
         </p>
       </div>
     </div>
     <!-- Shortlist Round / Stage Selection -->
-    <div class="mb-6 bg-purple-50/70 p-4 rounded-xl border border-purple-200">
-      <span class="block text-sm font-bold text-purple-900 mb-2">
+    <div class="mb-6 bg-purple-50/70 dark:bg-purple-900/40 dark:bg-indigo-950/40 p-4 rounded-xl border border-purple-200 dark:border-indigo-800">
+      <span class="block text-sm font-bold text-purple-900 dark:text-purple-300 dark:text-indigo-200 mb-2">
         Shortlist Round / Stage *
       </span>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
         <button
           type="button"
-          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber === 1 ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'}"
+          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber === 1 ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-purple-300'}"
           on:click={() => { roundNumber = 1; if (!customRoundName || customRoundName.startsWith('Shortlist ')) customRoundName = 'Shortlist 1'; }}
         >
           Shortlist 1
         </button>
         <button
           type="button"
-          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber === 2 ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'}"
+          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber === 2 ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-purple-300'}"
           on:click={() => { roundNumber = 2; if (!customRoundName || customRoundName.startsWith('Shortlist ')) customRoundName = 'Shortlist 2'; }}
         >
           Shortlist 2
         </button>
         <button
           type="button"
-          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber === 3 ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'}"
+          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber === 3 ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-purple-300'}"
           on:click={() => { roundNumber = 3; if (!customRoundName || customRoundName.startsWith('Shortlist ')) customRoundName = 'Shortlist 3'; }}
         >
           Shortlist 3
         </button>
         <button
           type="button"
-          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber >= 4 ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'}"
+          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {roundNumber >= 4 ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-purple-300'}"
           on:click={() => { if (roundNumber < 4) roundNumber = 4; if (!customRoundName || customRoundName.startsWith('Shortlist ')) customRoundName = `Shortlist ${roundNumber}`; }}
         >
           Custom / Next Round
         </button>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-center pt-3 border-t border-purple-200/60">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-center pt-3 border-t border-purple-200 dark:border-indigo-800/60">
         <div>
-          <label for="round-num" class="block text-xs font-bold text-purple-900 uppercase mb-1">Round Index (#)</label>
+          <label for="round-num" class="block text-xs font-bold text-purple-900 dark:text-purple-300 dark:text-indigo-200 uppercase mb-1">Round Index (#)</label>
           <input
             id="round-num"
             type="number"
             min="1"
             bind:value={roundNumber}
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-bold"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-sm font-bold"
             placeholder="Round #"
           />
         </div>
         <div class="md:col-span-2">
-          <label for="custom-round-name" class="block text-xs font-bold text-purple-900 uppercase mb-1">Custom Shortlist / Round Name *</label>
+          <label for="custom-round-name" class="block text-xs font-bold text-purple-900 dark:text-purple-300 dark:text-indigo-200 uppercase mb-1">Custom Shortlist / Round Name *</label>
           <input
             id="custom-round-name"
             type="text"
             bind:value={customRoundName}
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+            class="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-sm"
             placeholder="e.g. Shortlist 1, Technical OA, Coding Assessment, Interview Round 2"
           />
         </div>
@@ -238,7 +238,7 @@
     </div>
 
     <div class="mb-6">
-      <label for="regnos" class="block text-sm font-semibold text-gray-700 mb-2">
+      <label for="regnos" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 dark:text-slate-300 mb-2">
         Register Numbers or Neo IDs (one per line) *
       </label>
       <textarea 
@@ -246,12 +246,12 @@
         bind:value={regnos}
         placeholder="Enter one Register Number or Neo ID per line:&#10;23BAI1008&#10;O3W3I4P1&#10;A621V0L6"
         rows="10"
-        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-mono resize-vertical"
+        class="w-full px-4 py-3 border-2 border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-mono resize-vertical"
       />
-      <div class="mt-2 text-sm text-gray-600 space-y-1">
+      <div class="mt-2 text-sm text-gray-600 dark:text-slate-400 space-y-1">
         <p>Enter Register Numbers (e.g. 23BAI1008) or Neo IDs (e.g. O3W3I4P1). Paste entire single lines or lists with names/headers — headers like "Neo ID" are automatically filtered out.</p>
         {#if detectedTokens.length > 0}
-          <p class="text-xs font-semibold text-purple-700 bg-purple-50 p-2 rounded border border-purple-200 inline-block mt-1">
+          <p class="text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/40 dark:bg-indigo-950/40 p-2 rounded border border-purple-200 dark:border-indigo-800 inline-block mt-1">
             🔍 Detected {detectedTokens.length} candidate identifier(s): {detectedTokens.slice(0, 5).join(', ')}{detectedTokens.length > 5 ? '...' : ''}
           </p>
         {/if}
@@ -266,15 +266,15 @@
     </button>
 
     {#if message}
-      <div class="mt-6 p-4 rounded-lg border-l-4 {messageType === 'success' ? 'bg-green-50 border-green-500 text-green-800' : 'bg-red-50 border-red-500 text-red-800'}">
+      <div class="mt-6 p-4 rounded-lg border-l-4 {messageType === 'success' ? 'bg-green-50 dark:bg-green-900/40 border-green-500 text-green-800 dark:text-green-300' : 'bg-red-50 dark:bg-red-900/40 border-red-500 text-red-800 dark:text-red-300'}">
         <p class="font-semibold">{message}</p>
       </div>
     {/if}
   </div>
 
-  <div class="bg-white rounded-lg shadow-md p-6">
-    <h3 class="text-xl font-bold text-gray-800 mb-4">ℹ️ Instructions</h3>
-    <ul class="space-y-3 text-gray-700">
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6">
+    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-300 dark:text-slate-200 mb-4">ℹ️ Instructions</h3>
+    <ul class="space-y-3 text-gray-700 dark:text-gray-300 dark:text-slate-300">
       <li class="flex items-start">
         <span class="text-primary-600 mr-2">•</span>
         <span>Select an existing company from the dropdown list. (New companies can be created on the <strong>Companies</strong> page)</span>

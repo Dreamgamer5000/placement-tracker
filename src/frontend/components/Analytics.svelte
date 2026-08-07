@@ -646,4 +646,81 @@
   .success-fill {
     background: #10b981;
   }
+
+  /* --- Dark Mode Overrides --- */
+  :global(.dark) .analytics h2,
+  :global(.dark) .analytics h3,
+  :global(.dark) .analytics h4 { color: #f8fafc; }
+  
+  :global(.dark) .stat-card {
+    background: #1e293b;
+    border-color: #334155;
+  }
+  :global(.dark) .stat-card.primary { background: linear-gradient(135deg, #1e293b 0%, #312e81 100%); }
+  :global(.dark) .stat-card.success { background: linear-gradient(135deg, #1e293b 0%, #064e3b 100%); }
+  :global(.dark) .stat-card.chennai-highlight { background: linear-gradient(135deg, #1e293b 0%, #4c1d95 100%); }
+  :global(.dark) .stat-card.warning { background: linear-gradient(135deg, #1e293b 0%, #78350f 100%); }
+  :global(.dark) .stat-card.dark { background: linear-gradient(135deg, #1e293b 0%, #1e3a8a 100%); }
+  
+  :global(.dark) .stat-value { color: #f8fafc; }
+  :global(.dark) .stat-label { color: #cbd5e1; }
+  :global(.dark) .stat-sub { color: #94a3b8; }
+
+  :global(.dark) .section-container {
+    background: #0f172a;
+    border-color: #334155;
+  }
+  
+  :global(.dark) .chart-card {
+    background: #1e293b;
+    border-color: #334155;
+  }
+  
+  :global(.dark) .search-input {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+  :global(.dark) .search-input::placeholder {
+    color: #94a3b8;
+  }
+  :global(.dark) .search-input:focus { border-color: #818cf8; }
+  
+  :global(.dark) .chart-desc { color: #94a3b8; }
+  
+  :global(.dark) th {
+    background: #0f172a;
+    color: #cbd5e1;
+    border-bottom-color: #334155;
+  }
+  
+  :global(.dark) td { 
+    border-bottom-color: #334155; 
+    color: #cbd5e1;
+  }
+  :global(.dark) tbody tr:hover { background: #334155; }
+  
+  :global(.dark) .badge-success {
+    background: #064e3b;
+    color: #34d399;
+  }
+  :global(.dark) .badge-warning {
+    background: #78350f;
+    color: #fbbf24;
+  }
+  
+  :global(.dark) .campus-badge.chennai {
+    background: #312e81;
+    color: #a5b4fc;
+  }
+  :global(.dark) .campus-badge.vellore {
+    background: #064e3b;
+    color: #6ee7b7;
+  }
+  :global(.dark) .campus-badge.unknown {
+    background: #334155;
+    color: #cbd5e1;
+  }
+  
+  :global(.dark) .rate-bar { background: #334155; }
 </style>

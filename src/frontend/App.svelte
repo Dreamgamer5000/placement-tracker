@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import StudentList from './components/StudentList.svelte';
   import CompanyList from './components/CompanyList.svelte';
   import Analytics from './components/Analytics.svelte';
@@ -8,6 +9,28 @@
 
   let currentView = 'analytics';
   let mobileMenuOpen = false;
+  let isDarkMode = false;
+
+  onMount(() => {
+    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      isDarkMode = true;
+      document.documentElement.classList.add('dark');
+    } else {
+      isDarkMode = false;
+      document.documentElement.classList.remove('dark');
+    }
+  });
+
+  function toggleDarkMode() {
+    isDarkMode = !isDarkMode;
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.theme = 'dark';
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.theme = 'light';
+    }
+  }
 
   const navItems = [
     { id: 'analytics', label: 'Analytics', icon: '📊' },
@@ -24,7 +47,7 @@
   }
 </script>
 
-<main class="min-h-screen bg-slate-50/80">
+<main class="min-h-screen bg-slate-50/80 dark:bg-slate-950 transition-colors duration-300">
   <!-- Glassmorphic Premium Navbar -->
   <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 text-white shadow-xl">
     <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -45,25 +68,49 @@
           </div>
         </div>
 
-        <!-- Desktop Navigation Tabs -->
-        <nav class="hidden md:flex items-center gap-1.5 bg-slate-800/70 p-1.5 rounded-2xl border border-slate-700/60 shadow-inner">
-          {#each navItems as item}
-            <button 
-              on:click={() => navigate(item.id)}
-              class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 {currentView === item.id ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-900/30' : 'text-slate-300 hover:text-white hover:bg-slate-700/50'}"
-            >
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          {/each}
-        </nav>
+        <!-- Desktop Navigation Tabs & Dark Mode Toggle -->
+        <div class="hidden md:flex items-center gap-4">
+          <nav class="flex items-center gap-1.5 bg-slate-800/70 p-1.5 rounded-2xl border border-slate-700/60 shadow-inner">
+            {#each navItems as item}
+              <button 
+                on:click={() => navigate(item.id)}
+                class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 {currentView === item.id ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-900/30' : 'text-slate-300 hover:text-white hover:bg-slate-700/50'}"
+              >
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            {/each}
+          </nav>
+          
+          <button 
+            on:click={toggleDarkMode} 
+            class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center justify-center border border-slate-700/60"
+            title="Toggle Dark Mode"
+            aria-label="Toggle Dark Mode"
+          >
+            {#if isDarkMode}
+              ☀️
+            {:else}
+              🌙
+            {/if}
+          </button>
+        </div>
 
         <!-- Mobile Menu Toggle Button -->
-        <button 
-          on:click={() => mobileMenuOpen = !mobileMenuOpen}
-          class="md:hidden p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
-          aria-label="Toggle navigation menu"
-        >
+        <div class="flex items-center gap-2 md:hidden">
+          <button 
+            on:click={toggleDarkMode} 
+            class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+            aria-label="Toggle Dark Mode"
+          >
+            {#if isDarkMode}☀️{:else}🌙{/if}
+          </button>
+          
+          <button 
+            on:click={() => mobileMenuOpen = !mobileMenuOpen}
+            class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+            aria-label="Toggle navigation menu"
+          >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             {#if mobileMenuOpen}
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -72,6 +119,7 @@
             {/if}
           </svg>
         </button>
+        </div>
       </div>
 
       <!-- Mobile Navigation Drawer -->

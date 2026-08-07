@@ -195,21 +195,21 @@
     <div class="flex items-center gap-2">
       <button 
         type="button"
-        class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 {!filterUnmappedChennai ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'}"
+        class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 {!filterUnmappedChennai ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 dark:text-gray-300 border-gray-300 hover:border-purple-400'}"
         on:click={() => { if (filterUnmappedChennai) { filterUnmappedChennai = false; page = 1; loadStudents(); } }}
       >
         All Students ({filterUnmappedChennai ? 'Show All' : totalCount})
       </button>
       <button 
         type="button"
-        class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 {filterUnmappedChennai ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'}"
+        class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 {filterUnmappedChennai ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-amber-50 dark:bg-amber-900/40 text-amber-900 dark:text-amber-300 border-amber-300 hover:bg-amber-100 dark:bg-amber-900/40'}"
         on:click={toggleUnmappedChennaiFilter}
       >
         ⚠️ Unmapped Chennai NeoIDs ({unmappedChennaiCount})
       </button>
       <button 
         type="button"
-        class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 {filterMasters ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-indigo-50 text-indigo-900 border-indigo-300 hover:bg-indigo-100'}"
+        class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 {filterMasters ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-900 dark:text-indigo-300 border-indigo-300 hover:bg-indigo-100 dark:bg-indigo-900/40'}"
         on:click={toggleMastersFilter}
       >
         🎓 Masters ({mastersCount})
@@ -226,7 +226,7 @@
   </div>
 
   {#if syncMessage}
-    <div class="mb-4 p-3 rounded-xl text-sm font-semibold {syncMessage.includes('❌') ? 'bg-red-50 text-red-800 border border-red-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}">
+    <div class="mb-4 p-3 rounded-xl text-sm font-semibold {syncMessage.includes('❌') ? 'bg-red-50 dark:bg-red-900/40 text-red-800 dark:text-red-300 border border-red-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}">
       {syncMessage}
     </div>
   {/if}
@@ -398,17 +398,17 @@
         </div>
       {:else}
         <!-- Shortlisted Companies Section -->
-        <div class="mt-6 pt-6 border-t border-gray-100">
-          <h4 class="text-sm font-bold uppercase tracking-wider text-purple-900 mb-3 flex items-center gap-2">
+        <div class="mt-6 pt-6 border-t border-gray-100 dark:border-slate-700">
+          <h4 class="text-sm font-bold uppercase tracking-wider text-purple-900 dark:text-purple-300 mb-3 flex items-center gap-2">
             <span>📋</span> Shortlisted Companies ({selectedStudent.shortlists ? selectedStudent.shortlists.length : 0})
           </h4>
           {#if selectedStudent.shortlists && selectedStudent.shortlists.length > 0}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               {#each selectedStudent.shortlists as company}
-                <div class="flex items-center justify-between p-3 rounded-xl bg-purple-50/70 border border-purple-100 hover:border-purple-200 transition-all">
-                  <div class="font-semibold text-gray-800 text-sm">{company.name}</div>
+                <div class="flex items-center justify-between p-3 rounded-xl bg-purple-50/70 dark:bg-indigo-950/40 border border-purple-100 dark:border-indigo-900/50 hover:border-purple-200 transition-all">
+                  <div class="font-semibold text-gray-800 dark:text-gray-300 text-sm">{company.name}</div>
                   {#if company.round_name || company.round_number}
-                    <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-purple-200 text-purple-800">
+                    <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-purple-200 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200">
                       {company.round_name || `Round ${company.round_number}`}
                     </span>
                   {/if}
@@ -421,21 +421,21 @@
         </div>
 
         <!-- Selections & Internships Section -->
-        <div class="mt-6 pt-6 border-t border-gray-100">
-          <h4 class="text-sm font-bold uppercase tracking-wider text-emerald-900 mb-3 flex items-center gap-2">
+        <div class="mt-6 pt-6 border-t border-gray-100 dark:border-slate-700">
+          <h4 class="text-sm font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-300 mb-3 flex items-center gap-2">
             <span>✅</span> Selections & Offers ({selectedStudent.selections ? selectedStudent.selections.length : 0})
           </h4>
           {#if selectedStudent.selections && selectedStudent.selections.length > 0}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               {#each selectedStudent.selections as selection}
-                <div class="flex items-center justify-between p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 hover:border-emerald-300 transition-all">
+                <div class="flex items-center justify-between p-3 rounded-xl bg-emerald-50/80 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50 hover:border-emerald-300 transition-all">
                   <div>
-                    <div class="font-bold text-emerald-950 text-sm">{selection.name}</div>
+                    <div class="font-bold text-emerald-950 dark:text-emerald-100 text-sm">{selection.name}</div>
                     {#if selection.ctc_lpa || selection.package_lpa}
-                      <div class="text-xs text-emerald-700 font-medium">Package: {selection.ctc_lpa || selection.package_lpa} LPA</div>
+                      <div class="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Package: {selection.ctc_lpa || selection.package_lpa} LPA</div>
                     {/if}
                   </div>
-                  <span class="text-xs font-bold px-2.5 py-1 rounded-lg {selection.offer_type === 'intern' ? 'bg-indigo-600 text-white' : 'bg-emerald-600 text-white'} shadow-xs">
+                  <span class="text-xs font-bold px-2.5 py-1 rounded-lg {selection.offer_type === 'intern' ? 'bg-indigo-600 text-white' : 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-emerald-950'} shadow-xs">
                     {selection.offer_type === 'intern' ? '💼 Intern Offer' : '✓ Full-Time Placed'}
                   </span>
                 </div>
@@ -457,7 +457,7 @@
                 </h4>
               </div>
               {#if selectedStudent.finalCompany.ctc_lpa}
-                <span class="text-sm font-extrabold bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/30">
+                <span class="text-sm font-extrabold bg-white/20 dark:bg-slate-800/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/30">
                   {selectedStudent.finalCompany.ctc_lpa} LPA
                 </span>
               {/if}
@@ -471,7 +471,7 @@
                 </h4>
               </div>
               {#if selectedStudent.finalCompany.ctc_lpa}
-                <span class="text-sm font-extrabold bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/30">
+                <span class="text-sm font-extrabold bg-white/20 dark:bg-slate-800/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/30">
                   {selectedStudent.finalCompany.ctc_lpa} LPA
                 </span>
               {/if}
@@ -577,7 +577,7 @@
             </select>
           </div>
 
-          <div class="form-group full-width bg-amber-50/60 p-3 rounded-xl border border-amber-200">
+          <div class="form-group full-width bg-amber-50/60 dark:bg-amber-900/40 p-3 rounded-xl border border-amber-200">
             <label for="edit-topcoder" class="flex items-center gap-3 cursor-pointer">
               <input id="edit-topcoder" type="checkbox" bind:checked={editingStudent.topcoder} class="w-5 h-5 accent-amber-600 rounded cursor-pointer" />
               <span class="font-bold text-amber-950 text-sm">⚡ TopCoder Student</span>
@@ -1072,5 +1072,127 @@
     background: #fee2e2;
     color: #b91c1c;
     border: 1px solid #fca5a5;
+  }
+
+  /* --- Dark Mode Overrides --- */
+  :global(.dark) .student-list h2 { color: #f8fafc; }
+  :global(.dark) .student-list p { color: #94a3b8; }
+  
+  :global(.dark) .search-box {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+  :global(.dark) .search-box::placeholder {
+    color: #94a3b8;
+  }
+  :global(.dark) .search-box:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.15);
+  }
+
+  :global(.dark) .loading, :global(.dark) .empty-state {
+    background: #1e293b;
+    color: #94a3b8;
+  }
+  
+  :global(.dark) .table-container {
+    background: #1e293b;
+    border-color: #334155;
+  }
+  
+  :global(.dark) th {
+    background: #0f172a;
+    color: #cbd5e1;
+    border-bottom-color: #334155;
+  }
+  
+  :global(.dark) td {
+    color: #f1f5f9;
+    border-bottom-color: #334155;
+  }
+  
+  :global(.dark) tbody tr:hover {
+    background: #334155;
+  }
+  
+  :global(.dark) .name-cell { color: #f8fafc; }
+  
+  :global(.dark) .regno-tag {
+    background: #334155;
+    color: #f8fafc;
+  }
+  
+  :global(.dark) .neo-badge {
+    background: #334155;
+    color: #cbd5e1;
+  }
+  :global(.dark) .neo-badge.has-neoid {
+    background: #3730a3;
+    color: #e0e7ff;
+  }
+  
+  :global(.dark) .shortlist-count {
+    background: #334155;
+    color: #cbd5e1;
+  }
+  
+  :global(.dark) .pagination-bar {
+    background: #1e293b;
+    border-color: #334155;
+  }
+  :global(.dark) .pagination-info {
+    color: #94a3b8;
+  }
+  
+  :global(.dark) .btn-page {
+    background: #1e293b;
+    border-color: #475569;
+    color: #e2e8f0;
+  }
+  :global(.dark) .btn-page:hover:not(:disabled) {
+    background: #818cf8;
+    border-color: #818cf8;
+    color: #ffffff;
+  }
+  :global(.dark) .page-indicator { color: #f8fafc; }
+
+  /* Modals in Dark Mode */
+  :global(.dark) .modal-content {
+    background: #1e293b;
+    color: #f8fafc;
+  }
+  :global(.dark) .modal-header h3 { color: #f8fafc; }
+  :global(.dark) .close-btn {
+    background: #334155;
+    color: #cbd5e1;
+  }
+  :global(.dark) .close-btn:hover {
+    background: #475569;
+    color: #f8fafc;
+  }
+  
+  :global(.dark) .details-grid {
+    background: #0f172a;
+    border-color: #334155;
+  }
+  :global(.dark) .detail-item { color: #e2e8f0; }
+  :global(.dark) .detail-item strong { color: #94a3b8; }
+  
+  :global(.dark) .form-group label { color: #cbd5e1; }
+  :global(.dark) .form-group input,
+  :global(.dark) .form-group select {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+  :global(.dark) .form-actions { border-top-color: #334155; }
+  :global(.dark) .btn-secondary {
+    background: #334155;
+    color: #cbd5e1;
+  }
+  :global(.dark) .btn-secondary:hover {
+    background: #475569;
+    color: #f8fafc;
   }
 </style>

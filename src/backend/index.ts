@@ -503,12 +503,23 @@ app.get('/api/companies/:id', (c) => {
     const roundMap = new Map<number, {
       round_number: number; round_name: string; students: any[];
       chennai_count: number; unknown_count: number;
+      min_cgpa?: number; avg_cgpa?: number; total_cgpa: number; cgpa_count: number;
+      min_tenth?: number; avg_tenth?: number; total_tenth: number; tenth_count: number;
+      min_twelfth?: number; avg_twelfth?: number; total_twelfth: number; twelfth_count: number;
+      male_count: number; female_count: number;
     }>();
     for (const st of shortlisted as any[]) {
       const rNum = st.round_number || 1;
       const rName = st.round_name || `Shortlist ${rNum}`;
       if (!roundMap.has(rNum)) {
-        roundMap.set(rNum, { round_number: rNum, round_name: rName, students: [], chennai_count: 0, unknown_count: 0 });
+        roundMap.set(rNum, {
+          round_number: rNum, round_name: rName, students: [],
+          chennai_count: 0, unknown_count: 0,
+          total_cgpa: 0, cgpa_count: 0, min_cgpa: Infinity,
+          total_tenth: 0, tenth_count: 0, min_tenth: Infinity,
+          total_twelfth: 0, twelfth_count: 0, min_twelfth: Infinity,
+          male_count: 0, female_count: 0
+        });
       } else {
         const existing = roundMap.get(rNum)!;
         if (rName && rName !== `Shortlist ${rNum}` && existing.round_name === `Shortlist ${rNum}`) {
@@ -519,6 +530,39 @@ app.get('/api/companies/:id', (c) => {
       rObj.students.push(st);
       if (!st.campus || st.campus === 'Unknown') rObj.unknown_count++;
       else if (st.campus === 'Chennai' || st.campus.includes('Chennai')) rObj.chennai_count++;
+
+      if (st.gender === 'Male') rObj.male_count++;
+      else if (st.gender === 'Female') rObj.female_count++;
+
+      if (typeof st.cgpa === 'number' && st.cgpa > 0) {
+        rObj.cgpa_count++;
+        rObj.total_cgpa += st.cgpa;
+        if (st.cgpa < rObj.min_cgpa!) rObj.min_cgpa = st.cgpa;
+      }
+
+      if (typeof st.tenth_marks === 'number' && st.tenth_marks > 0) {
+        rObj.tenth_count++;
+        rObj.total_tenth += st.tenth_marks;
+        if (st.tenth_marks < rObj.min_tenth!) rObj.min_tenth = st.tenth_marks;
+      }
+
+      if (typeof st.twelfth_marks === 'number' && st.twelfth_marks > 0) {
+        rObj.twelfth_count++;
+        rObj.total_twelfth += st.twelfth_marks;
+        if (st.twelfth_marks < rObj.min_twelfth!) rObj.min_twelfth = st.twelfth_marks;
+      }
+    }
+
+    // Post-process to calculate averages and handle Infinities
+    for (const rObj of roundMap.values()) {
+      if (rObj.cgpa_count > 0) rObj.avg_cgpa = rObj.total_cgpa / rObj.cgpa_count;
+      else rObj.min_cgpa = undefined;
+
+      if (rObj.tenth_count > 0) rObj.avg_tenth = rObj.total_tenth / rObj.tenth_count;
+      else rObj.min_tenth = undefined;
+
+      if (rObj.twelfth_count > 0) rObj.avg_twelfth = rObj.total_twelfth / rObj.twelfth_count;
+      else rObj.min_twelfth = undefined;
     }
     const shortlist_rounds = Array.from(roundMap.values()).sort((a, b) => b.round_number - a.round_number);
 
@@ -932,6 +976,27 @@ app.put('/api/companies/:id/shortlist-round/:roundNumber', async (c) => {
     return c.json({ success: true, updatedCount: result.changes, round_number: roundNumber, round_name: roundName });
   } catch (error: any) {
     console.error('Error renaming shortlist round:', error);
+    return c.json({ error: 'Internal server error', details: error.message }, 500);
+  }
+});
+
+// Delete a shortlist round for a company
+app.delete('/api/companies/:id/shortlist-round/:roundNumber', async (c) => {
+  try {
+    const companyId = c.req.param('id');
+    const roundNumber = parseInt(c.req.param('roundNumber'));
+
+    const result = db.prepare(`
+      DELETE FROM temp_shortlists
+      WHERE company_id = ? AND round_number = ?
+    `).run(companyId, roundNumber);
+
+    updateCompanyAnalytics(parseInt(companyId));
+    cachedAnalyticsSummary = null;
+
+    return c.json({ success: true, deletedCount: result.changes });
+  } catch (error: any) {
+    console.error('Error deleting shortlist round:', error);
     return c.json({ error: 'Internal server error', details: error.message }, 500);
   }
 });

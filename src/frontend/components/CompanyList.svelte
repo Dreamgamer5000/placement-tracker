@@ -121,6 +121,26 @@
     }
   }
 
+  async function deleteRound(companyId: number, roundNumber: number) {
+    if (!confirm(`Are you sure you want to delete Shortlist Round ${roundNumber}? This action cannot be undone.`)) return;
+    try {
+      const response = await fetch(`/api/companies/${companyId}/shortlist-round/${roundNumber}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        if (selectedCompany) {
+          await viewCompany(companyId);
+        }
+      } else {
+        const err = await response.json();
+        alert(err.error || 'Failed to delete round');
+      }
+    } catch (error) {
+      console.error('Error deleting round:', error);
+      alert('Error deleting round');
+    }
+  }
+
   onMount(async () => {
     await loadCompanies();
   });
@@ -1251,6 +1271,13 @@
                     >
                       ✏️ Rename
                     </button>
+                    <button
+                      on:click={() => deleteRound(selectedCompany.id, round.round_number)}
+                      class="px-2.5 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 font-semibold rounded-md transition-colors"
+                      title="Delete this shortlist round"
+                    >
+                      🗑️ Delete
+                    </button>
                   </div>
                 {/if}
                 <div class="flex flex-wrap items-center gap-2">
@@ -1267,6 +1294,33 @@
                   {/if}
                 </div>
               </div>
+              
+              <!-- Analytics Row for this Round -->
+              <div class="bg-purple-50/50 border-b border-purple-200 p-4">
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div class="bg-white/80 p-3 rounded-lg text-center border border-purple-100 shadow-sm">
+                    <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Gender Ratio</div>
+                    <div class="text-lg font-bold text-purple-700">{round.male_count || 0}:{round.female_count || 0}</div>
+                  </div>
+                  <div class="bg-white/80 p-3 rounded-lg text-center border border-purple-100 shadow-sm">
+                    <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Min / Avg CGPA</div>
+                    <div class="text-lg font-bold text-purple-700">{round.min_cgpa?.toFixed(2) || 'N/A'} / {round.avg_cgpa?.toFixed(2) || 'N/A'}</div>
+                  </div>
+                  <div class="bg-white/80 p-3 rounded-lg text-center border border-purple-100 shadow-sm">
+                    <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Min / Avg 10th</div>
+                    <div class="text-lg font-bold text-purple-700">{round.min_tenth?.toFixed(2) || 'N/A'} / {round.avg_tenth?.toFixed(2) || 'N/A'}</div>
+                  </div>
+                  <div class="bg-white/80 p-3 rounded-lg text-center border border-purple-100 shadow-sm">
+                    <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Min / Avg 12th</div>
+                    <div class="text-lg font-bold text-purple-700">{round.min_twelfth?.toFixed(2) || 'N/A'} / {round.avg_twelfth?.toFixed(2) || 'N/A'}</div>
+                  </div>
+                  <div class="bg-white/80 p-3 rounded-lg text-center border border-purple-100 shadow-sm">
+                    <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wide">TopCoder</div>
+                    <div class="text-lg font-bold text-purple-700">{round.students.filter(s => s.topcoder).length || 0}</div>
+                  </div>
+                </div>
+              </div>
+
               <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-purple-100">
                   <thead class="bg-white/80">

@@ -710,7 +710,7 @@
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div 
-      class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] overflow-y-auto relative p-8"
+      class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] overflow-y-auto relative p-4 sm:p-8"
       on:click|stopPropagation
     >
       <button 
@@ -993,8 +993,8 @@
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm">
                         {#if student.topcoder}
-                          <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-300">⚡ TopCoder</span>
-                        {#else}
+                          <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-600/70">⚡ TopCoder</span>
+                        {:else}
                           <span class="text-gray-400 text-xs">No</span>
                         {/if}
                       </td>
@@ -1102,8 +1102,8 @@
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm">
                         {#if student.topcoder}
-                          <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-300">⚡ TopCoder</span>
-                        {#else}
+                          <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-600/70">⚡ TopCoder</span>
+                        {:else}
                           <span class="text-gray-400 text-xs">No</span>
                         {/if}
                       </td>
@@ -1360,7 +1360,7 @@
                           </td>
                           <td class="px-6 py-3.5 whitespace-nowrap text-sm">
                             {#if student.topcoder}
-                              <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-300">⚡ TopCoder</span>
+                              <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-600/70">⚡ TopCoder</span>
                             {:else}
                               <span class="text-gray-400 text-xs">No</span>
                             {/if}

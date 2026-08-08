@@ -72,3 +72,10 @@
   color: #9ca3af !important; /* Neutral grey for dark mode */
   opacity: 1 !important;
 }
+
+/* Touch-friendly Table Responsive Wrapper */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}

@@ -192,31 +192,31 @@
       <h2>👥 Student Directory</h2>
       <p class="text-xs text-gray-500 mt-1">Manage students, Neo IDs, placement statuses, and company shortlists.</p>
     </div>
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
       <button 
         type="button"
-        class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 {!filterUnmappedChennai ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 dark:text-gray-300 border-gray-300 hover:border-purple-400'}"
+        class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 flex-grow sm:flex-grow-0 text-center {!filterUnmappedChennai ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 dark:text-gray-300 border-gray-300 hover:border-purple-400'}"
         on:click={() => { if (filterUnmappedChennai) { filterUnmappedChennai = false; page = 1; loadStudents(); } }}
       >
         All Students ({filterUnmappedChennai ? 'Show All' : totalCount})
       </button>
       <button 
         type="button"
-        class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 {filterUnmappedChennai ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-amber-50 dark:bg-amber-900/40 text-amber-900 dark:text-amber-300 border-amber-300 hover:bg-amber-100 dark:bg-amber-900/40'}"
+        class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 flex-grow sm:flex-grow-0 text-center {filterUnmappedChennai ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-amber-50 dark:bg-amber-900/40 text-amber-900 dark:text-amber-300 border-amber-300 hover:bg-amber-100 dark:bg-amber-900/40'}"
         on:click={toggleUnmappedChennaiFilter}
       >
         ⚠️ Unmapped Chennai NeoIDs ({unmappedChennaiCount})
       </button>
       <button 
         type="button"
-        class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 {filterMasters ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-900 dark:text-indigo-300 border-indigo-300 hover:bg-indigo-100 dark:bg-indigo-900/40'}"
+        class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 flex-grow sm:flex-grow-0 text-center {filterMasters ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-900 dark:text-indigo-300 border-indigo-300 hover:bg-indigo-100 dark:bg-indigo-900/40'}"
         on:click={toggleMastersFilter}
       >
         🎓 Masters ({mastersCount})
       </button>
       <button 
         type="button"
-        class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 bg-emerald-600 text-white border-emerald-600 shadow-sm hover:bg-emerald-700 disabled:opacity-50"
+        class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 flex-grow sm:flex-grow-0 text-center bg-emerald-600 text-white border-emerald-600 shadow-sm hover:bg-emerald-700 disabled:opacity-50"
         disabled={recalculating}
         on:click={recalculateStudentAnalytics}
       >
@@ -345,7 +345,9 @@
 </div>
 
 {#if selectedStudent}
-  <button class="modal" type="button" on:click|self={() => selectedStudent = null}>
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+  <div class="modal" on:click|self={() => selectedStudent = null} role="dialog" aria-modal="true">
     <div class="modal-content text-left cursor-default">
       <button class="close-btn" on:click={() => selectedStudent = null}>×</button>
       
@@ -480,14 +482,17 @@
         {/if}
       {/if}
     </div>
-  </button>
+  </div>
 {/if}
 
 {#if editingStudent}
-  <button class="modal" type="button" on:click|self={() => editingStudent = null}>
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+  <div class="modal" on:click|self={() => editingStudent = null} role="dialog" aria-modal="true">
     <div class="modal-content edit-modal text-left cursor-default">
       <button class="close-btn" on:click={() => editingStudent = null}>×</button>
       <h3>✏️ Edit Student Details</h3>
+      <p class="text-xs text-gray-500 dark:text-slate-400 mb-4 font-semibold">Editing student record for <strong>{editingStudent.regno}</strong></p>
 
       {#if saveMessage}
         <div class="alert" class:alert-error={saveMessage.includes('❌')} class:alert-success={saveMessage.includes('✅')}>
@@ -503,8 +508,13 @@
           </div>
 
           <div class="form-group">
-            <label for="edit-regno">Register Number *</label>
-            <input id="edit-regno" type="text" bind:value={editingStudent.regno} required />
+            <label for="edit-email">Email ID *</label>
+            <input id="edit-email" type="email" bind:value={editingStudent.email} required placeholder="student@example.com" />
+          </div>
+
+          <div class="form-group">
+            <label for="edit-phone">Phone Number</label>
+            <input id="edit-phone" type="text" bind:value={editingStudent.phone} placeholder="e.g. 9876543210" />
           </div>
 
           <div class="form-group">
@@ -513,74 +523,43 @@
           </div>
 
           <div class="form-group">
-            <label for="edit-email">Email *</label>
-            <input id="edit-email" type="email" bind:value={editingStudent.email} required />
-          </div>
-
-          <div class="form-group">
-            <label for="edit-personal-email">Personal Email</label>
-            <input id="edit-personal-email" type="email" bind:value={editingStudent.personal_email} />
-          </div>
-
-          <div class="form-group">
-            <label for="edit-phone">Phone</label>
-            <input id="edit-phone" type="text" bind:value={editingStudent.phone} />
-          </div>
-
-          <div class="form-group">
-            <label for="edit-gender">Gender</label>
-            <select id="edit-gender" bind:value={editingStudent.gender}>
-              <option value="">Select Gender</option>
-              <option value="M">Male (M)</option>
-              <option value="F">Female (F)</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="edit-branch">Branch</label>
-            <input id="edit-branch" type="text" bind:value={editingStudent.branch} />
-          </div>
-
-          <div class="form-group">
-            <label for="edit-campus">Campus</label>
-            <input id="edit-campus" type="text" bind:value={editingStudent.campus} />
-          </div>
-
-          <div class="form-group">
             <label for="edit-cgpa">CGPA</label>
-            <input id="edit-cgpa" type="number" step="0.01" min="0" max="10" bind:value={editingStudent.cgpa} />
+            <input id="edit-cgpa" type="number" step="0.01" min="0" max="10" bind:value={editingStudent.cgpa} placeholder="e.g. 8.75" />
           </div>
 
           <div class="form-group">
             <label for="edit-tenth">10th Marks (%)</label>
-            <input id="edit-tenth" type="number" step="0.01" min="0" max="100" bind:value={editingStudent.tenth_marks} />
+            <input id="edit-tenth" type="number" step="0.01" min="0" max="100" bind:value={editingStudent.tenth_marks} placeholder="e.g. 92.5" />
           </div>
 
-          <div class="form-group">
+          <div class="form-group full-width">
             <label for="edit-twelfth">12th Marks (%)</label>
-            <input id="edit-twelfth" type="number" step="0.01" min="0" max="100" bind:value={editingStudent.twelfth_marks} />
+            <input id="edit-twelfth" type="number" step="0.01" min="0" max="100" bind:value={editingStudent.twelfth_marks} placeholder="e.g. 95.0" />
           </div>
 
-          <div class="form-group full-width">
-            <label for="edit-resume">Resume Link</label>
-            <input id="edit-resume" type="url" bind:value={editingStudent.resume_link} placeholder="https://..." />
-          </div>
-
-          <div class="form-group full-width">
-            <label for="edit-status">Placement / Academic Status *</label>
-            <select id="edit-status" bind:value={editingStudent.status} class="w-full">
-              <option value="not_placed">Not Placed</option>
-              <option value="intern">💼 Intern (Internship)</option>
-              <option value="placed">✓ Placed (Full-Time Offer)</option>
-              <option value="masters">🎓 Masters (Higher Studies)</option>
-            </select>
-          </div>
-
-          <div class="form-group full-width bg-amber-50/60 dark:bg-amber-900/40 p-3 rounded-xl border border-amber-200">
-            <label for="edit-topcoder" class="flex items-center gap-3 cursor-pointer">
-              <input id="edit-topcoder" type="checkbox" bind:checked={editingStudent.topcoder} class="w-5 h-5 accent-amber-600 rounded cursor-pointer" />
-              <span class="font-bold text-amber-950 text-sm">⚡ TopCoder Student</span>
+          <div class="form-group full-width bg-indigo-50/80 dark:bg-indigo-950/70 p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800/60 shadow-xs">
+            <label for="edit-masters" class="flex items-center gap-3 cursor-pointer">
+              <input 
+                id="edit-masters" 
+                type="checkbox" 
+                checked={editingStudent.status === 'masters' || Boolean(editingStudent.masters)} 
+                on:change={(e) => {
+                  const checked = e.currentTarget.checked;
+                  if (checked) {
+                    editingStudent.status = 'masters';
+                    editingStudent.masters = 1;
+                  } else {
+                    if (editingStudent.status === 'masters') {
+                      editingStudent.status = 'not_placed';
+                    }
+                    editingStudent.masters = 0;
+                  }
+                }}
+                class="w-5 h-5 accent-indigo-600 rounded cursor-pointer" 
+              />
+              <span class="font-bold text-indigo-950 dark:text-indigo-200 text-sm">
+                🎓 Masters / Higher Studies
+              </span>
             </label>
           </div>
         </div>
@@ -593,21 +572,35 @@
         </div>
       </form>
     </div>
-  </button>
+  </div>
 {/if}
 
 <style>
   .student-list {
-    padding: 2.5rem;
+    padding: 1rem;
     max-width: 1400px;
     margin: 0 auto;
+  }
+  @media (min-width: 640px) {
+    .student-list {
+      padding: 2rem;
+    }
   }
 
   .header-row {
     display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (min-width: 640px) {
+    .header-row {
+      flex-direction: row;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
   }
 
   h2 {
@@ -904,7 +897,7 @@
 
   .modal-content {
     background: white;
-    padding: 2.5rem;
+    padding: 1.25rem;
     border-radius: 20px;
     max-width: 850px;
     width: 100%;
@@ -912,6 +905,11 @@
     overflow-y: auto;
     position: relative;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  }
+  @media (min-width: 640px) {
+    .modal-content {
+      padding: 2.5rem;
+    }
   }
 
   .close-btn {
@@ -998,18 +996,16 @@
     color: #334155;
   }
 
-  .form-group input,
-  .form-group select {
+  .form-group input {
     padding: 0.8rem 1rem;
     border: 1.5px solid #cbd5e1;
-    border-radius: 10px;
-    font-size: 1rem;
-    background: #ffffff;
+    border-radius: 12px;
+    font-size: 0.95rem;
     transition: all 0.2s;
+    background: #f8fafc;
   }
 
-  .form-group input:focus,
-  .form-group select:focus {
+  .form-group input:focus {
     outline: none;
     border-color: #6366f1;
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
@@ -1179,9 +1175,7 @@
   :global(.dark) .detail-item { color: #e2e8f0; }
   :global(.dark) .detail-item strong { color: #94a3b8; }
   
-  :global(.dark) .form-group label { color: #cbd5e1; }
-  :global(.dark) .form-group input,
-  :global(.dark) .form-group select {
+  :global(.dark) .form-group input {
     background: #0f172a;
     border-color: #334155;
     color: #f8fafc;
@@ -1194,5 +1188,11 @@
   :global(.dark) .btn-secondary:hover {
     background: #475569;
     color: #f8fafc;
+  }
+
+  :global(.dark) .status.topcoder {
+    background: rgba(180, 83, 9, 0.35);
+    color: #fcd34d;
+    border-color: #f59e0b;
   }
 </style>

@@ -107,71 +107,75 @@
         <div class="chart-card featured">
           <h4>🏫 NeoID Campus Placement Breakdown</h4>
           <p class="chart-desc">Placement rate of NeoIDs campus-wise (Chennai, Vellore, Unknown)</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Campus</th>
-                <th>Total NeoIDs</th>
-                <th>Placed NeoIDs</th>
-                <th>Campus Placement Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each (summary.neoIdCampusStats || []) as stat}
+          <div class="table-responsive">
+            <table>
+              <thead>
                 <tr>
-                  <td>
-                    <span class="campus-badge {stat.campus ? stat.campus.toLowerCase() : 'unknown'}">{stat.campus}</span>
-                  </td>
-                  <td><strong>{stat.total || 0}</strong></td>
-                  <td class="text-success"><strong>{stat.placed || 0}</strong></td>
-                  <td>
-                    <div class="rate-bar-container">
-                      <span class="rate-text">{stat.placedRate || "0.00"}%</span>
-                      <div class="rate-bar">
-                        <div
-                          class="rate-fill success-fill"
-                          style="width: {stat.placed > 0 ? Math.max(5, parseFloat(stat.placedRate || '0')) : 0}%"
-                        ></div>
-                      </div>
-                    </div>
-                  </td>
+                  <th>Campus</th>
+                  <th>Total NeoIDs</th>
+                  <th>Placed NeoIDs</th>
+                  <th>Campus Placement Rate</th>
                 </tr>
-              {/each}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {#each (summary.neoIdCampusStats || []) as stat}
+                  <tr>
+                    <td>
+                      <span class="campus-badge {stat.campus ? stat.campus.toLowerCase() : 'unknown'}">{stat.campus}</span>
+                    </td>
+                    <td><strong>{stat.total || 0}</strong></td>
+                    <td class="text-success"><strong>{stat.placed || 0}</strong></td>
+                    <td>
+                      <div class="rate-bar-container">
+                        <span class="rate-text">{stat.placedRate || "0.00"}%</span>
+                        <div class="rate-bar">
+                          <div
+                            class="rate-fill success-fill"
+                            style="width: {stat.placed > 0 ? Math.max(5, parseFloat(stat.placedRate || '0')) : 0}%"
+                          ></div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Known Student Branch-wise Placements -->
         <div class="chart-card">
           <h4>📚 Known Student Branch-wise Placements</h4>
           <p class="chart-desc">From temp_students & temp_final_selection</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Branch</th>
-                <th>Registered</th>
-                <th>Placed</th>
-                <th>Placement Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each (summary.finalPlacement?.branchStats || []) as stat}
+          <div class="table-responsive">
+            <table>
+              <thead>
                 <tr>
-                  <td><strong>{stat.branch}</strong></td>
-                  <td>{stat.total || 0}</td>
-                  <td class="text-success"><strong>{stat.placed || 0}</strong></td>
-                  <td>{stat.total > 0 ? (((stat.placed || 0) / stat.total) * 100).toFixed(1) : '0.0'}%</td>
+                  <th>Branch</th>
+                  <th>Registered</th>
+                  <th>Placed</th>
+                  <th>Placement Rate</th>
                 </tr>
-              {/each}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {#each (summary.finalPlacement?.branchStats || []) as stat}
+                  <tr>
+                    <td><strong>{stat.branch}</strong></td>
+                    <td>{stat.total || 0}</td>
+                    <td class="text-success"><strong>{stat.placed || 0}</strong></td>
+                    <td>{stat.total > 0 ? (((stat.placed || 0) / stat.total) * 100).toFixed(1) : '0.0'}%</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <!-- All Companies Final Placements Breakdown Table -->
+        <!-- All Companies Final Placements Table -->
         <div class="chart-card featured">
           <div class="card-title-row">
             <div>
-              <h4>🏆 All Companies Final Offers (Campus Breakdown)</h4>
+              <h4>🏆 All Companies Final Offers</h4>
               <p class="chart-desc">Companies with at least 1 final placement offer</p>
             </div>
             <div class="search-box">
@@ -183,34 +187,30 @@
               />
             </div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Company Name</th>
-                <th>Chennai</th>
-                <th>Vellore</th>
-                <th>Unknown</th>
-                <th>Total Placed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#if filteredFinalCompanies.length === 0}
+          <div class="table-responsive">
+            <table>
+              <thead>
                 <tr>
-                  <td colspan="5" class="empty-state">No placement offers found matching your search.</td>
+                  <th>Company Name</th>
+                  <th>Total Placed</th>
                 </tr>
-              {:else}
-                {#each filteredFinalCompanies as company}
+              </thead>
+              <tbody>
+                {#if filteredFinalCompanies.length === 0}
                   <tr>
-                    <td><strong>{company.name}</strong></td>
-                    <td class="text-info">{company.chennai || 0}</td>
-                    <td class="text-info">{company.vellore || 0}</td>
-                    <td class="text-muted">{company.unknown || 0}</td>
-                    <td><span class="badge badge-success">{company.total || 0} Placed</span></td>
+                    <td colspan="2" class="empty-state">No placement offers found matching your search.</td>
                   </tr>
-                {/each}
-              {/if}
-            </tbody>
-          </table>
+                {:else}
+                  {#each filteredFinalCompanies as company}
+                    <tr>
+                      <td><strong>{company.name}</strong></td>
+                      <td><span class="badge badge-success">{company.total || 0} Placed</span></td>
+                    </tr>
+                  {/each}
+                {/if}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -227,61 +227,65 @@
         <div class="chart-card">
           <h4>📚 Branch-wise Intern Selections</h4>
           <p class="chart-desc">Intern Candidates (temp_students)</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Branch</th>
-                <th>Registered</th>
-                <th>Interned</th>
-                <th>Intern Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each (summary.internAnalytics?.branchStats || []) as stat}
+          <div class="table-responsive">
+            <table>
+              <thead>
                 <tr>
-                  <td><strong>{stat.branch}</strong></td>
-                  <td>{stat.total || 0}</td>
-                  <td class="text-warning"><strong>{stat.interned || 0}</strong></td>
-                  <td>{stat.total > 0 ? (((stat.interned || 0) / stat.total) * 100).toFixed(1) : '0.0'}%</td>
+                  <th>Branch</th>
+                  <th>Registered</th>
+                  <th>Interned</th>
+                  <th>Intern Rate</th>
                 </tr>
-              {/each}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {#each (summary.internAnalytics?.branchStats || []) as stat}
+                  <tr>
+                    <td><strong>{stat.branch}</strong></td>
+                    <td>{stat.total || 0}</td>
+                    <td class="text-warning"><strong>{stat.interned || 0}</strong></td>
+                    <td>{stat.total > 0 ? (((stat.interned || 0) / stat.total) * 100).toFixed(1) : '0.0'}%</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Campus-wise Interns -->
         <div class="chart-card">
           <h4>🏫 Campus-wise Intern Selections</h4>
           <p class="chart-desc">Intern Candidates by Campus</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Campus</th>
-                <th>Registered</th>
-                <th>Interned</th>
-                <th>Intern Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each (summary.internAnalytics?.campusStats || []) as stat}
+          <div class="table-responsive">
+            <table>
+              <thead>
                 <tr>
-                  <td>
-                    <span class="campus-badge {stat.campus ? stat.campus.toLowerCase() : 'unknown'}">{stat.campus}</span>
-                  </td>
-                  <td>{stat.total || 0}</td>
-                  <td class="text-warning"><strong>{stat.interned || 0}</strong></td>
-                  <td>{stat.total > 0 ? (((stat.interned || 0) / stat.total) * 100).toFixed(1) : '0.0'}%</td>
+                  <th>Campus</th>
+                  <th>Registered</th>
+                  <th>Interned</th>
+                  <th>Intern Rate</th>
                 </tr>
-              {/each}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {#each (summary.internAnalytics?.campusStats || []) as stat}
+                  <tr>
+                    <td>
+                      <span class="campus-badge {stat.campus ? stat.campus.toLowerCase() : 'unknown'}">{stat.campus}</span>
+                    </td>
+                    <td>{stat.total || 0}</td>
+                    <td class="text-warning"><strong>{stat.interned || 0}</strong></td>
+                    <td>{stat.total > 0 ? (((stat.interned || 0) / stat.total) * 100).toFixed(1) : '0.0'}%</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <!-- All Companies Intern Selections Breakdown Table -->
+        <!-- All Companies Intern Selections Table -->
         <div class="chart-card featured">
           <div class="card-title-row">
             <div>
-              <h4>⭐ All Companies Intern Offers (Campus Breakdown)</h4>
+              <h4>⭐ All Companies Intern Offers</h4>
               <p class="chart-desc">Companies with at least 1 intern offer</p>
             </div>
             <div class="search-box">
@@ -293,34 +297,30 @@
               />
             </div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Company Name</th>
-                <th>Chennai</th>
-                <th>Vellore</th>
-                <th>Unknown</th>
-                <th>Total Interns</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#if filteredInternCompanies.length === 0}
+          <div class="table-responsive">
+            <table>
+              <thead>
                 <tr>
-                  <td colspan="5" class="empty-state">No intern offers found matching your search.</td>
+                  <th>Company Name</th>
+                  <th>Total Interns</th>
                 </tr>
-              {:else}
-                {#each filteredInternCompanies as company}
+              </thead>
+              <tbody>
+                {#if filteredInternCompanies.length === 0}
                   <tr>
-                    <td><strong>{company.name}</strong></td>
-                    <td class="text-info">{company.chennai || 0}</td>
-                    <td class="text-info">{company.vellore || 0}</td>
-                    <td class="text-muted">{company.unknown || 0}</td>
-                    <td><span class="badge badge-warning">{company.total || 0} Interns</span></td>
+                    <td colspan="2" class="empty-state">No intern offers found matching your search.</td>
                   </tr>
-                {/each}
-              {/if}
-            </tbody>
-          </table>
+                {:else}
+                  {#each filteredInternCompanies as company}
+                    <tr>
+                      <td><strong>{company.name}</strong></td>
+                      <td><span class="badge badge-warning">{company.total || 0} Interns</span></td>
+                    </tr>
+                  {/each}
+                {/if}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -467,6 +467,8 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
   }
 
   .section-header h3 {
@@ -477,7 +479,7 @@
 
   .charts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
     gap: 1.25rem;
   }
 
@@ -487,6 +489,7 @@
     border-radius: 10px;
     border: 1px solid #e2e8f0;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    overflow: hidden;
   }
 
   .chart-card.featured {
@@ -499,6 +502,13 @@
     align-items: center;
     gap: 1rem;
     margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .card-title-row h4 {

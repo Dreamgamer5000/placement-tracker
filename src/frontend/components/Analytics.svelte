@@ -39,9 +39,94 @@
   $: filteredInternCompanies = (summary?.internAnalytics?.companiesBreakdown || []).filter(
     (c: any) => !internSearchTerm.trim() || c.name.toLowerCase().includes(internSearchTerm.toLowerCase().trim())
   );
+
+  // Pie chart computations
+  const pieColors = [
+    '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6',
+    '#ec4899', '#14b8a6', '#f43f5e', '#6366f1',
+    '#0ea5e9', '#84cc16'
+  ];
+
+  $: branchChartData = (summary?.finalPlacement?.branchStats || [])
+    .filter((s: any) => s.placed > 0)
+    .sort((a: any, b: any) => b.placed - a.placed);
+
+  $: branchTotalPlaced = branchChartData.reduce((sum: number, s: any) => sum + s.placed, 0);
+
+  $: branchConicGradient = branchChartData.length > 0
+    ? (() => {
+        let currentPercent = 0;
+        return branchChartData.map((s: any, i: number) => {
+          const start = currentPercent;
+          currentPercent += (s.placed / branchTotalPlaced) * 100;
+          return `${pieColors[i % pieColors.length]} ${start}% ${currentPercent}%`;
+        }).join(', ');
+      })()
+    : 'transparent';
+
+  function parseCTC(ctcStr: string) {
+    if (!ctcStr) return null;
+    const s = ctcStr.toLowerCase().replace(/,/g, '');
+    let match = s.match(/(\d+(?:\.\d+)?)\s*cr/);
+    if (match) return parseFloat(match[1]) * 100;
+    match = s.match(/(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*lpa/);
+    if (match) return (parseFloat(match[1]) + parseFloat(match[2])) / 2;
+    match = s.match(/(\d+(?:\.\d+)?)\s*lpa/);
+    if (match) return parseFloat(match[1]);
+    match = s.match(/(\d{5,})/);
+    if (match) return parseFloat(match[1]) / 100000;
+    return null;
+  }
+
+  $: ctcBuckets = (() => {
+    const buckets = [
+      { label: '< 10 LPA', count: 0, color: '#f87171' },
+      { label: '10 - 15 LPA', count: 0, color: '#fbbf24' },
+      { label: '15 - 20 LPA', count: 0, color: '#34d399' },
+      { label: '20 - 30 LPA', count: 0, color: '#38bdf8' },
+      { label: '> 30 LPA', count: 0, color: '#818cf8' },
+      { label: 'Not Disclosed', count: 0, color: '#94a3b8' }
+    ];
+    
+    (summary?.finalPlacement?.companiesBreakdown || []).forEach((c: any) => {
+      // Use the total selected students for this company to weight the CTC bucket
+      const studentsSelected = c.total || 0;
+      if (studentsSelected === 0) return;
+
+      const val = parseCTC(c.ctc);
+      if (val === null) {
+        buckets[5].count += studentsSelected;
+      } else if (val < 10) {
+        buckets[0].count += studentsSelected;
+      } else if (val < 15) {
+        buckets[1].count += studentsSelected;
+      } else if (val < 20) {
+        buckets[2].count += studentsSelected;
+      } else if (val <= 30) {
+        buckets[3].count += studentsSelected;
+      } else {
+        buckets[4].count += studentsSelected;
+      }
+    });
+    
+    return buckets.filter(b => b.count > 0);
+  })();
+
+  $: ctcTotalPlaced = ctcBuckets.reduce((sum, b) => sum + b.count, 0);
+
+  $: ctcConicGradient = ctcBuckets.length > 0
+    ? (() => {
+        let currentPercent = 0;
+        return ctcBuckets.map(b => {
+          const start = currentPercent;
+          currentPercent += (b.count / ctcTotalPlaced) * 100;
+          return `${b.color} ${start}% ${currentPercent}%`;
+        }).join(', ');
+      })()
+    : 'transparent';
 </script>
 
-<div class="analytics">
+<div id="analytics-page" class="analytics">
   <div class="header">
     <h2>📊 Placement & Internship Analytics</h2>
     <button class="btn-refresh" on:click={() => loadSummary(true)} disabled={loading}>
@@ -143,31 +228,79 @@
           </div>
         </div>
 
-        <!-- Known Student Branch-wise Placements -->
-        <div class="chart-card">
-          <h4>📚 Known Student Branch-wise Placements</h4>
-          <p class="chart-desc">From temp_students & temp_final_selection</p>
-          <div class="table-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th>Branch</th>
-                  <th>Registered</th>
-                  <th>Placed</th>
-                  <th>Placement Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each (summary.finalPlacement?.branchStats || []) as stat}
-                  <tr>
-                    <td><strong>{stat.branch}</strong></td>
-                    <td>{stat.total || 0}</td>
-                    <td class="text-success"><strong>{stat.placed || 0}</strong></td>
-                    <td>{stat.total > 0 ? (((stat.placed || 0) / stat.total) * 100).toFixed(1) : '0.0'}%</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
+        <!-- Known Student Branch-wise Placements & Pie Charts -->
+        <div class="chart-card featured">
+          <h4>📚 Placement Distribution</h4>
+          <p class="chart-desc">Branch & Campus level placement breakdown</p>
+          
+          <div class="distribution-grid">
+            <div class="table-container">
+              <h5>Branch-wise Details</h5>
+              <div class="table-responsive" style="max-height: 350px;">
+                <table class="compact-table">
+                  <thead>
+                    <tr>
+                      <th>Branch</th>
+                      <th>Registered</th>
+                      <th>Placed</th>
+                      <th class="hide-mobile">Placement Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each (summary.finalPlacement?.branchStats || []) as stat}
+                      <tr>
+                        <td><strong>{stat.branch}</strong></td>
+                        <td>{stat.total || 0}</td>
+                        <td class="text-success"><strong>{stat.placed || 0}</strong></td>
+                        <td class="hide-mobile">{stat.total > 0 ? (((stat.placed || 0) / stat.total) * 100).toFixed(1) : '0.0'}%</td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="charts-container">
+              <div class="pie-card">
+                <h5>Selections by Branch</h5>
+                <p class="chart-desc" style="font-size: 0.75rem; margin-top: -0.5rem; margin-bottom: 1rem;">Pie chart showing the proportion of total hires contributed by each branch.</p>
+                {#if branchChartData.length > 0}
+                  <div class="pie-wrapper">
+                    <div class="pie-chart" style="background: conic-gradient({branchConicGradient})"></div>
+                    <div class="pie-legend">
+                      {#each branchChartData as s, i}
+                        <div class="legend-item">
+                          <span class="legend-color" style="background: {pieColors[i % pieColors.length]}"></span>
+                          <span class="legend-text">{s.branch} ({((s.placed / branchTotalPlaced) * 100).toFixed(1)}% of hires)</span>
+                        </div>
+                      {/each}
+                    </div>
+                  </div>
+                {:else}
+                  <p class="empty-state">No data available</p>
+                {/if}
+              </div>
+
+              <div class="pie-card">
+                <h5>Salary Distribution (CTC)</h5>
+                <p class="chart-desc" style="font-size: 0.75rem; margin-top: -0.5rem; margin-bottom: 1rem;">Pie chart showing placed students grouped by their CTC (LPA) packages.</p>
+                {#if ctcBuckets.length > 0}
+                  <div class="pie-wrapper">
+                    <div class="pie-chart" style="background: conic-gradient({ctcConicGradient})"></div>
+                    <div class="pie-legend">
+                      {#each ctcBuckets as b}
+                        <div class="legend-item">
+                          <span class="legend-color" style="background: {b.color}"></span>
+                          <span class="legend-text">{b.label} ({((b.count / ctcTotalPlaced) * 100).toFixed(1)}%)</span>
+                        </div>
+                      {/each}
+                    </div>
+                  </div>
+                {:else}
+                  <p class="empty-state">No CTC data available</p>
+                {/if}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -256,13 +389,13 @@
           <h4>🏫 Campus-wise Intern Selections</h4>
           <p class="chart-desc">Intern Candidates by Campus</p>
           <div class="table-responsive">
-            <table>
+            <table class="compact-table">
               <thead>
                 <tr>
                   <th>Campus</th>
                   <th>Registered</th>
                   <th>Interned</th>
-                  <th>Intern Rate</th>
+                  <th class="hide-mobile">Intern Rate</th>
                 </tr>
               </thead>
               <tbody>
@@ -273,7 +406,7 @@
                     </td>
                     <td>{stat.total || 0}</td>
                     <td class="text-warning"><strong>{stat.interned || 0}</strong></td>
-                    <td>{stat.total > 0 ? (((stat.interned || 0) / stat.total) * 100).toFixed(1) : '0.0'}%</td>
+                    <td class="hide-mobile">{stat.total > 0 ? (((stat.interned || 0) / stat.total) * 100).toFixed(1) : '0.0'}%</td>
                   </tr>
                 {/each}
               </tbody>
@@ -538,16 +671,124 @@
   }
 
   .chart-card h4 {
-    margin: 0 0 0.25rem 0;
+    margin: 0 0 0.5rem 0;
+    font-size: 1.15rem;
     color: #1e293b;
-    font-size: 1.05rem;
   }
 
   .chart-desc {
     margin: 0 0 1rem 0;
+    font-size: 0.85rem;
     color: #64748b;
-    font-size: 0.8rem;
   }
+
+  /* --- Distribution Layout & Pie Charts --- */
+  .distribution-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+    margin-top: 1.5rem;
+  }
+
+  .distribution-grid > div {
+    min-width: 0;
+  }
+
+  @media (min-width: 1024px) {
+    .distribution-grid {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 4fr);
+    }
+  }
+
+  .distribution-grid h5 {
+    margin: 0 0 1rem 0;
+    color: #334155;
+    font-size: 1rem;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0.5rem;
+  }
+
+  .charts-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .pie-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+
+  .pie-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-direction: column;
+  }
+
+  @media (min-width: 640px) {
+    .pie-wrapper {
+      flex-direction: row;
+      align-items: flex-start;
+    }
+  }
+
+  .pie-chart {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05), inset 0 2px 5px rgba(255,255,255,0.5);
+    border: 4px solid white;
+  }
+  
+  @media (min-width: 640px) {
+    .pie-chart {
+      width: 140px;
+      height: 140px;
+    }
+  }
+
+  .pie-legend {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+  }
+  
+  @media (min-width: 640px) {
+    .pie-legend {
+      flex: 1;
+      min-width: 160px;
+      max-height: 140px;
+      width: auto;
+    }
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: #475569;
+  }
+
+  .legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .legend-color.bg-chennai { background: #3730a3; }
+  .legend-color.bg-vellore { background: #166534; }
+  .legend-color.bg-unknown { background: #4b5563; }
+  /* ---------------------------------------- */
 
   table {
     width: 100%;
@@ -560,6 +801,19 @@
     padding: 0.6rem 0.75rem;
     text-align: left;
     border-bottom: 1px solid #f1f5f9;
+  }
+
+  .compact-table {
+    font-size: 0.75rem; /* slightly smaller for cramped spaces */
+  }
+
+  @media (max-width: 640px) {
+    .hide-mobile {
+      display: none;
+    }
+    .compact-table th, .compact-table td {
+      padding: 0.5rem 0.4rem; /* tighter padding on mobile */
+    }
   }
 
   th {
@@ -584,6 +838,7 @@
     border-radius: 9999px;
     font-size: 0.75rem;
     font-weight: 600;
+    white-space: nowrap;
   }
 
   .badge-success {
@@ -658,79 +913,98 @@
   }
 
   /* --- Dark Mode Overrides --- */
-  :global(.dark) .analytics h2,
-  :global(.dark) .analytics h3,
-  :global(.dark) .analytics h4 { color: #f8fafc; }
+  :global(.dark) #analytics-page h2,
+  :global(.dark) #analytics-page h3,
+  :global(.dark) #analytics-page h4 { color: #f8fafc; }
   
-  :global(.dark) .stat-card {
+  :global(.dark) #analytics-page .stat-card {
     background: #1e293b;
     border-color: #334155;
   }
-  :global(.dark) .stat-card.primary { background: linear-gradient(135deg, #1e293b 0%, #312e81 100%); }
-  :global(.dark) .stat-card.success { background: linear-gradient(135deg, #1e293b 0%, #064e3b 100%); }
-  :global(.dark) .stat-card.chennai-highlight { background: linear-gradient(135deg, #1e293b 0%, #4c1d95 100%); }
-  :global(.dark) .stat-card.warning { background: linear-gradient(135deg, #1e293b 0%, #78350f 100%); }
-  :global(.dark) .stat-card.dark { background: linear-gradient(135deg, #1e293b 0%, #1e3a8a 100%); }
+  :global(.dark) #analytics-page .stat-card.primary { background: linear-gradient(135deg, #1e293b 0%, #312e81 100%); }
+  :global(.dark) #analytics-page .stat-card.success { background: linear-gradient(135deg, #1e293b 0%, #064e3b 100%); }
+  :global(.dark) #analytics-page .stat-card.chennai-highlight { background: linear-gradient(135deg, #1e293b 0%, #4c1d95 100%); }
+  :global(.dark) #analytics-page .stat-card.warning { background: linear-gradient(135deg, #1e293b 0%, #78350f 100%); }
+  :global(.dark) #analytics-page .stat-card.dark { background: linear-gradient(135deg, #1e293b 0%, #1e3a8a 100%); }
   
-  :global(.dark) .stat-value { color: #f8fafc; }
-  :global(.dark) .stat-label { color: #cbd5e1; }
-  :global(.dark) .stat-sub { color: #94a3b8; }
+  :global(.dark) #analytics-page .stat-value { color: #f8fafc; }
+  :global(.dark) #analytics-page .stat-label { color: #cbd5e1; }
+  :global(.dark) #analytics-page .stat-sub { color: #94a3b8; }
 
-  :global(.dark) .section-container {
+  :global(.dark) #analytics-page .section-container {
     background: #0f172a;
     border-color: #334155;
   }
   
-  :global(.dark) .chart-card {
+  :global(.dark) #analytics-page .chart-card {
     background: #1e293b;
     border-color: #334155;
   }
   
-  :global(.dark) .search-input {
+  :global(.dark) #analytics-page .search-input {
     background: #0f172a;
     border-color: #334155;
     color: #f8fafc;
   }
-  :global(.dark) .search-input::placeholder {
+  :global(.dark) #analytics-page .search-input::placeholder {
     color: #94a3b8;
   }
-  :global(.dark) .search-input:focus { border-color: #818cf8; }
+  :global(.dark) #analytics-page .search-input:focus { border-color: #818cf8; }
   
-  :global(.dark) .chart-desc { color: #94a3b8; }
+  :global(.dark) #analytics-page .chart-desc { color: #94a3b8; }
   
-  :global(.dark) th {
+  :global(.dark) #analytics-page th {
     background: #0f172a;
     color: #cbd5e1;
     border-bottom-color: #334155;
   }
   
-  :global(.dark) td { 
+  :global(.dark) #analytics-page td { 
     border-bottom-color: #334155; 
     color: #cbd5e1;
   }
-  :global(.dark) tbody tr:hover { background: #334155; }
+  :global(.dark) #analytics-page tbody tr:hover { background: #334155; }
   
-  :global(.dark) .badge-success {
+  :global(.dark) #analytics-page .badge-success {
     background: #064e3b;
     color: #34d399;
   }
-  :global(.dark) .badge-warning {
+  :global(.dark) #analytics-page .badge-warning {
     background: #78350f;
     color: #fbbf24;
   }
   
-  :global(.dark) .campus-badge.chennai {
+  :global(.dark) #analytics-page .campus-badge.chennai {
     background: #312e81;
     color: #a5b4fc;
   }
-  :global(.dark) .campus-badge.vellore {
+  :global(.dark) #analytics-page .campus-badge.vellore {
     background: #064e3b;
     color: #6ee7b7;
   }
-  :global(.dark) .campus-badge.unknown {
+  :global(.dark) #analytics-page .campus-badge.unknown {
     background: #334155;
     color: #cbd5e1;
   }
   
-  :global(.dark) .rate-bar { background: #334155; }
+  :global(.dark) #analytics-page .distribution-grid h5 {
+    color: #f8fafc;
+    border-bottom-color: #334155;
+  }
+  
+  :global(.dark) #analytics-page .pie-card {
+    background: #1e293b;
+    border-color: #334155;
+  }
+  
+  :global(.dark) #analytics-page .pie-chart {
+    border-color: #0f172a;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  }
+  
+  :global(.dark) #analytics-page .legend-item {
+    color: #cbd5e1;
+  }
+  
+  :global(.dark) #analytics-page .rate-bar { background: #334155; }
 </style>

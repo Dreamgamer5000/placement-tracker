@@ -342,6 +342,272 @@ app.get('/api/neo-ids', (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// GET /api/neo-ids/search/:neoid — Look up a single Neo ID
+// ---------------------------------------------------------------------------
+app.get('/api/neo-ids/search/:neoid', (c) => {
+  const neoid = c.req.param('neoid').trim().toUpperCase();
+
+  const record = db.prepare(
+    `SELECT * FROM temp_neoid_table WHERE UPPER(neoid) = ?`
+  ).get(neoid) as { neoid: string; campus: string; regno: string | null; topcoder: number } | undefined;
+
+  if (!record) {
+    return c.json({ found: false, neoid });
+  }
+
+  // Try to find the student name from temp_students if regno is available
+  let studentName: string | null = null;
+  if (record.regno) {
+    const student = db.prepare(
+      `SELECT name FROM temp_students WHERE UPPER(regno) = ?`
+    ).get(record.regno.toUpperCase()) as { name: string } | undefined;
+    if (student) studentName = student.name;
+  }
+
+  return c.json({
+    found: true,
+    neoid: record.neoid,
+    campus: record.campus,
+    regno: record.regno,
+    topcoder: !!record.topcoder,
+    studentName
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/neo-ids/batch-map-regno — Batch map Neo IDs → Registration Numbers
+// ---------------------------------------------------------------------------
+app.post('/api/neo-ids/batch-map-regno', async (c) => {
+  if (!verifyAdminPassword(c)) {
+    return c.json({ error: 'Invalid admin password' }, 401);
+  }
+
+  try {
+    const body = await c.req.json();
+    const mappings: { neoid: string; regno: string }[] = body.mappings || [];
+
+    if (!mappings.length) {
+      return c.json({ error: 'No mappings provided' }, 400);
+    }
+
+    const upsertNeoStmt = db.prepare(`
+      INSERT INTO temp_neoid_table (neoid, campus, regno)
+      VALUES (?, 'Unknown', ?)
+      ON CONFLICT(neoid) DO UPDATE SET regno = excluded.regno
+    `);
+
+    const updateStudentStmt = db.prepare(`
+      UPDATE temp_students SET neo_id = ? WHERE UPPER(regno) = ?
+    `);
+
+    const batchUpdate = db.transaction((items: { neoid: string; regno: string }[]) => {
+      let neoCount = 0;
+      let studentCount = 0;
+      for (const item of items) {
+        const neoid = item.neoid.trim().toUpperCase();
+        const regno = item.regno.trim().toUpperCase();
+        if (!neoid || !regno) continue;
+
+        upsertNeoStmt.run(neoid, regno);
+        neoCount++;
+
+        const res = updateStudentStmt.run(neoid, regno);
+        if (res.changes > 0) studentCount++;
+      }
+      return { neoCount, studentCount };
+    });
+
+    const result = batchUpdate(mappings);
+
+    return c.json({
+      success: true,
+      message: `Mapped ${result.neoCount} Neo IDs to registration numbers. Updated ${result.studentCount} students.`,
+      neoCount: result.neoCount,
+      studentCount: result.studentCount
+    });
+  } catch (err: any) {
+    console.error('[POST /api/neo-ids/batch-map-regno] Error:', err);
+    return c.json({ error: 'Failed to batch map regnos', details: err?.message }, 500);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/neo-ids/batch-set-campus — Batch set campus for Neo IDs
+// ---------------------------------------------------------------------------
+app.post('/api/neo-ids/batch-set-campus', async (c) => {
+  if (!verifyAdminPassword(c)) {
+    return c.json({ error: 'Invalid admin password' }, 401);
+  }
+
+  try {
+    const body = await c.req.json();
+    const neoids: string[] = body.neoids || [];
+    const campus: string = body.campus;
+
+    if (!neoids.length) {
+      return c.json({ error: 'No Neo IDs provided' }, 400);
+    }
+
+    const validCampuses = ['Chennai', 'Vellore', 'Unknown'];
+    if (!validCampuses.includes(campus)) {
+      return c.json({ error: `Invalid campus. Must be one of: ${validCampuses.join(', ')}` }, 400);
+    }
+
+    const upsertStmt = db.prepare(`
+      INSERT INTO temp_neoid_table (neoid, campus)
+      VALUES (?, ?)
+      ON CONFLICT(neoid) DO UPDATE SET campus = excluded.campus
+    `);
+
+    const batchSetCampus = db.transaction((ids: string[], campusVal: string) => {
+      let count = 0;
+      for (const id of ids) {
+        const neoid = id.trim().toUpperCase();
+        if (!neoid) continue;
+        upsertStmt.run(neoid, campusVal);
+        count++;
+      }
+      return count;
+    });
+
+    const updatedCount = batchSetCampus(neoids, campus);
+
+    return c.json({
+      success: true,
+      message: `Set campus to '${campus}' for ${updatedCount} Neo IDs.`,
+      updatedCount
+    });
+  } catch (err: any) {
+    console.error('[POST /api/neo-ids/batch-set-campus] Error:', err);
+    return c.json({ error: 'Failed to batch set campus', details: err?.message }, 500);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/students/batch-lookup-names — Batch name lookup (fuzzy, case-insensitive)
+// Jaro-Winkler >= 0.75 threshold; exact match always wins
+// ---------------------------------------------------------------------------
+
+/** Jaro similarity between two lowercased strings */
+function jaro(s1: string, s2: string): number {
+  if (s1 === s2) return 1;
+  const l1 = s1.length, l2 = s2.length;
+  if (l1 === 0 || l2 === 0) return 0;
+  const md = Math.max(Math.floor(Math.max(l1, l2) / 2) - 1, 0);
+  const m1 = new Uint8Array(l1), m2 = new Uint8Array(l2);
+  let hits = 0, trans = 0;
+  for (let i = 0; i < l1; i++) {
+    const lo = Math.max(0, i - md), hi = Math.min(i + md + 1, l2);
+    for (let j = lo; j < hi; j++) {
+      if (m2[j] || s1[i] !== s2[j]) continue;
+      m1[i] = m2[j] = 1; hits++; break;
+    }
+  }
+  if (!hits) return 0;
+  let k = 0;
+  for (let i = 0; i < l1; i++) {
+    if (!m1[i]) continue;
+    while (!m2[k]) k++;
+    if (s1[i] !== s2[k]) trans++;
+    k++;
+  }
+  return (hits / l1 + hits / l2 + (hits - trans / 2) / hits) / 3;
+}
+
+/** Jaro-Winkler — boosts common-prefix matches */
+function jaroWinkler(a: string, b: string): number {
+  const j = jaro(a, b);
+  if (j < 0.7) return j;
+  let p = 0;
+  for (let i = 0; i < Math.min(a.length, b.length, 4); i++) {
+    if (a[i] === b[i]) p++; else break;
+  }
+  return j + p * 0.1 * (1 - j);
+}
+
+/** Best score between query and any word-span / individual word in candidate */
+function fuzzyScore(query: string, candidate: string): number {
+  const qw = query.split(/\s+/), cw = candidate.split(/\s+/);
+  let best = jaroWinkler(query, candidate);
+  for (let s = 0; s <= cw.length - qw.length; s++) {
+    const span = cw.slice(s, s + qw.length).join(' ');
+    const sc = jaroWinkler(query, span);
+    if (sc > best) best = sc;
+  }
+  for (const word of cw) {
+    const sc = jaroWinkler(query, word);
+    if (sc > best) best = sc;
+  }
+  return best;
+}
+
+const FUZZY_THRESHOLD = 0.75;
+
+app.post('/api/students/batch-lookup-names', async (c) => {
+  try {
+    const body = await c.req.json();
+    const names: string[] = body.names || [];
+
+    if (!names.length) {
+      return c.json({ error: 'No names provided' }, 400);
+    }
+
+    const exactStmt = db.prepare(
+      `SELECT name, regno, neo_id FROM temp_students WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))`
+    );
+    const tokenStmt = db.prepare(
+      `SELECT DISTINCT name, regno, neo_id FROM temp_students WHERE LOWER(name) LIKE ?`
+    );
+
+    const results: {
+      searchedName: string;
+      matches: { name: string; regno: string; neo_id: string | null; score: number }[];
+      found: boolean;
+    }[] = [];
+
+    for (const inputName of names) {
+      const trimmed = inputName.trim();
+      if (!trimmed) continue;
+      const queryLower = trimmed.toLowerCase();
+
+      // 1. Exact case-insensitive match (fast / indexed)
+      const exactMatches = exactStmt.all(trimmed) as { name: string; regno: string; neo_id: string | null }[];
+      if (exactMatches.length > 0) {
+        results.push({
+          searchedName: trimmed,
+          matches: exactMatches.map(m => ({ ...m, score: 1.0 })),
+          found: true
+        });
+        continue;
+      }
+
+      // 2. Candidate pool: broad LIKE on full query + each token
+      const candidateMap = new Map<string, { name: string; regno: string; neo_id: string | null }>();
+      const broadRows = tokenStmt.all(`%${queryLower}%`) as { name: string; regno: string; neo_id: string | null }[];
+      for (const r of broadRows) candidateMap.set(r.regno, r);
+      const tokens = queryLower.split(/\s+/).filter(t => t.length >= 2);
+      for (const tok of tokens) {
+        const rows = tokenStmt.all(`%${tok}%`) as { name: string; regno: string; neo_id: string | null }[];
+        for (const r of rows) candidateMap.set(r.regno, r);
+      }
+
+      // 3. Score candidates with Jaro-Winkler, keep >= threshold
+      const scored = Array.from(candidateMap.values())
+        .map(r => ({ ...r, score: fuzzyScore(queryLower, r.name.toLowerCase()) }))
+        .filter(r => r.score >= FUZZY_THRESHOLD)
+        .sort((a, b) => b.score - a.score);
+
+      results.push({ searchedName: trimmed, matches: scored, found: scored.length > 0 });
+    }
+
+    return c.json({ results });
+  } catch (err: any) {
+    console.error('[POST /api/students/batch-lookup-names] Error:', err);
+    return c.json({ error: 'Failed to lookup names', details: err?.message }, 500);
+  }
+});
+
+// ---------------------------------------------------------------------------
 // POST /api/students/recalculate-analytics — sync NeoIDs & placement statuses
 // ---------------------------------------------------------------------------
 app.post('/api/students/recalculate-analytics', (c) => {
@@ -1206,6 +1472,7 @@ function computeAnalyticsSummary() {
     SELECT 
       c.id,
       c.name,
+      c.ctc,
       COUNT(DISTINCT CASE WHEN COALESCE(s.campus, n.campus) LIKE '%Chennai%' THEN COALESCE(s.regno, fin.regno, fin.neo_id) END) as chennai,
       COUNT(DISTINCT CASE WHEN COALESCE(s.campus, n.campus) LIKE '%Vellore%' THEN COALESCE(s.regno, fin.regno, fin.neo_id) END) as vellore,
       COUNT(DISTINCT CASE WHEN COALESCE(s.campus, n.campus) NOT LIKE '%Chennai%' AND COALESCE(s.campus, n.campus) NOT LIKE '%Vellore%' THEN COALESCE(s.regno, fin.regno, fin.neo_id) END) as unknown,
@@ -1258,6 +1525,7 @@ function computeAnalyticsSummary() {
     SELECT 
       c.id,
       c.name,
+      c.ctc,
       COUNT(DISTINCT CASE WHEN COALESCE(s.campus, n.campus) LIKE '%Chennai%' THEN COALESCE(s.regno, sel.regno, sel.neo_id) END) as chennai,
       COUNT(DISTINCT CASE WHEN COALESCE(s.campus, n.campus) LIKE '%Vellore%' THEN COALESCE(s.regno, sel.regno, sel.neo_id) END) as vellore,
       COUNT(DISTINCT CASE WHEN COALESCE(s.campus, n.campus) NOT LIKE '%Chennai%' AND COALESCE(s.campus, n.campus) NOT LIKE '%Vellore%' THEN COALESCE(s.regno, sel.regno, sel.neo_id) END) as unknown,

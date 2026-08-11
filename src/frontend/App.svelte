@@ -6,6 +6,7 @@
   import AddShortlist from './components/AddShortlist.svelte';
   import AddSelection from './components/AddSelection.svelte';
   import PredictCompanies from './components/PredictCompanies.svelte';
+  import NeoIdManager from './components/NeoIdManager.svelte';
 
   let currentView = 'analytics';
   let mobileMenuOpen = false;
@@ -38,7 +39,8 @@
     { id: 'companies', label: 'Companies', icon: '🏢' },
     { id: 'shortlist', label: 'Add Shortlist', icon: '📝' },
     { id: 'selection', label: 'Add Selection', icon: '✅' },
-    { id: 'predict', label: 'Predict Companies', icon: '🎯' }
+    { id: 'predict', label: 'Predict Companies', icon: '🎯' },
+    { id: 'neoids', label: 'Neo ID Manager', icon: '🔗' }
   ];
   
   function navigate(view: string) {
@@ -153,6 +155,8 @@
       <AddSelection />
     {:else if currentView === 'predict'}
       <PredictCompanies />
+    {:else if currentView === 'neoids'}
+      <NeoIdManager />
     {/if}
   </div>
 </main>

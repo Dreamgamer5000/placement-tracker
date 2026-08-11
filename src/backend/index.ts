@@ -4,9 +4,17 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import db from './db/index.js';
 import { extractCleanTokens } from './utils.js';
-
+import crypto from 'crypto';
 
 const app = new Hono();
+
+const ADMIN_PASSWORD_HASH = '30fde358b34772de141e11ba599e28f9f44aa80ae89aaf243b73e6b9b9ebc896'; // SHA-256 of "dream"
+
+function verifyAdminPassword(c: any) {
+  const pwd = c.req.header('X-Admin-Password') || '';
+  const hash = crypto.createHash('sha256').update(pwd).digest('hex');
+  return hash === ADMIN_PASSWORD_HASH;
+}
 
 app.use('/*', cors());
 
@@ -223,6 +231,9 @@ app.get('/api/students/:regno', (c) => {
 
 // Update student by Regno
 app.put('/api/students/:regno', async (c) => {
+  if (!verifyAdminPassword(c)) {
+    return c.json({ error: 'Unauthorized: Invalid admin password' }, 401);
+  }
   const param = c.req.param('regno').trim().toUpperCase();
   const body = await c.req.json();
 
@@ -706,6 +717,9 @@ app.post('/api/companies', async (c) => {
 
 // Update company
 app.put('/api/companies/:id', async (c) => {
+  if (!verifyAdminPassword(c)) {
+    return c.json({ error: 'Unauthorized: Invalid admin password' }, 401);
+  }
   const id = c.req.param('id');
   const body = await c.req.json();
   const {
@@ -790,13 +804,13 @@ function resolveTempToken(token: string) {
   let student = db.prepare(`
     SELECT regno, neo_id, name, branch, campus, placed, status, final_company_id
     FROM temp_students
-    WHERE UPPER(regno) = ? OR UPPER(neo_id) = ?
+    WHERE regno = ? COLLATE NOCASE OR neo_id = ? COLLATE NOCASE
   `).get(upper, upper) as any;
 
   if (student) {
     let neo_id = student.neo_id || null;
     if (!neo_id) {
-      const neoRec = db.prepare('SELECT neoid FROM temp_neoid_table WHERE UPPER(regno) = ?').get(student.regno.toUpperCase()) as any;
+      const neoRec = db.prepare('SELECT neoid FROM temp_neoid_table WHERE regno = ? COLLATE NOCASE').get(student.regno.toUpperCase()) as any;
       if (neoRec) neo_id = neoRec.neoid;
     }
     return {
@@ -813,17 +827,17 @@ function resolveTempToken(token: string) {
   const neoRecord = db.prepare(`
     SELECT neoid, regno, campus
     FROM temp_neoid_table
-    WHERE UPPER(neoid) = ? OR UPPER(regno) = ?
+    WHERE neoid = ? COLLATE NOCASE OR regno = ? COLLATE NOCASE
   `).get(upper, upper) as any;
 
   if (neoRecord) {
     let regno = neoRecord.regno || null;
     if (regno) {
       // Verify if regno actually exists in temp_students to satisfy FK constraints
-      const validStudent = db.prepare('SELECT regno FROM temp_students WHERE UPPER(regno) = ?').get(regno.toUpperCase());
+      const validStudent = db.prepare('SELECT regno FROM temp_students WHERE regno = ? COLLATE NOCASE').get(regno.toUpperCase());
       if (!validStudent) regno = null;
     } else {
-      const studentRec = db.prepare('SELECT regno FROM temp_students WHERE UPPER(neo_id) = ?').get(neoRecord.neoid.toUpperCase()) as any;
+      const studentRec = db.prepare('SELECT regno FROM temp_students WHERE neo_id = ? COLLATE NOCASE').get(neoRecord.neoid.toUpperCase()) as any;
       if (studentRec) regno = studentRec.regno;
     }
     return {
@@ -896,57 +910,67 @@ app.post('/api/companies/:id/shortlist', async (c) => {
     const results: any[] = [];
     const errors: any[] = [];
 
-    for (const item of tokens) {
-      try {
-        const resolved = resolveTempToken(item);
-        if (!resolved || !resolved.success) {
-          errors.push({
-            identifier: item,
-            error: resolved?.error || `Identifier '${item}' not found in database.`
-          });
-          continue;
+    const processShortlistBulk = db.transaction(() => {
+      for (const item of tokens) {
+        try {
+          const resolved = resolveTempToken(item);
+          if (!resolved || !resolved.success) {
+            errors.push({
+              identifier: item,
+              error: resolved?.error || `Identifier '${item}' not found in database.`
+            });
+            continue;
+          }
+
+          // Duplicate check: Verify if student is already in this shortlist round
+          const existing = db.prepare(`
+            SELECT id FROM temp_shortlists
+            WHERE company_id = ? AND round_number = ?
+              AND (
+                (? IS NOT NULL AND regno IS NOT NULL AND regno = ? COLLATE NOCASE)
+                OR (? IS NOT NULL AND neo_id IS NOT NULL AND neo_id = ? COLLATE NOCASE)
+              )
+          `).get(companyId, roundNumber, resolved.regno || null, resolved.regno || null, resolved.neo_id || null, resolved.neo_id || null);
+
+          if (existing) {
+            results.push({
+              identifier: resolved.token,
+              regno: resolved.regno,
+              neo_id: resolved.neo_id,
+              round: roundName,
+              success: true,
+              isDuplicate: true,
+              note: 'Already shortlisted for this round'
+            });
+            continue;
+          }
+
+          const insertResult = db.prepare(`
+            INSERT OR IGNORE INTO temp_shortlists (regno, neo_id, company_id, round_number, round_name)
+            VALUES (?, ?, ?, ?, ?)
+          `).run(resolved.regno || null, resolved.neo_id || null, companyId, roundNumber, roundName);
+
+          if (insertResult.changes > 0) {
+            results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, round: roundName, success: true });
+          } else {
+            results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, round: roundName, success: true, note: 'Already shortlisted for this round' });
+          }
+        } catch (error: any) {
+          errors.push({ identifier: item, error: error.message });
         }
-
-        // Duplicate check: Verify if student is already in this shortlist round
-        const existing = db.prepare(`
-          SELECT id FROM temp_shortlists
-          WHERE company_id = ? AND round_number = ?
-            AND (
-              (? IS NOT NULL AND regno IS NOT NULL AND UPPER(regno) = UPPER(?))
-              OR (? IS NOT NULL AND neo_id IS NOT NULL AND UPPER(neo_id) = UPPER(?))
-            )
-        `).get(companyId, roundNumber, resolved.regno || null, resolved.regno || null, resolved.neo_id || null, resolved.neo_id || null);
-
-        if (existing) {
-          results.push({
-            identifier: resolved.token,
-            regno: resolved.regno,
-            neo_id: resolved.neo_id,
-            round: roundName,
-            success: true,
-            isDuplicate: true,
-            note: 'Already shortlisted for this round'
-          });
-          continue;
-        }
-
-        const insertResult = db.prepare(`
-          INSERT OR IGNORE INTO temp_shortlists (regno, neo_id, company_id, round_number, round_name)
-          VALUES (?, ?, ?, ?, ?)
-        `).run(resolved.regno || null, resolved.neo_id || null, companyId, roundNumber, roundName);
-
-        if (insertResult.changes > 0) {
-          results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, round: roundName, success: true });
-        } else {
-          results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, round: roundName, success: true, note: 'Already shortlisted for this round' });
-        }
-      } catch (error: any) {
-        errors.push({ identifier: item, error: error.message });
       }
-    }
+    });
 
-    updateCompanyAnalytics(parseInt(companyId));
-    cachedAnalyticsSummary = null;
+    processShortlistBulk();
+
+    setTimeout(() => {
+      try {
+        updateCompanyAnalytics(parseInt(companyId));
+        cachedAnalyticsSummary = null;
+      } catch (err) {
+        console.error('Background analytics error:', err);
+      }
+    }, 0);
 
     return c.json({ results, errors, round_number: roundNumber, round_name: roundName });
   } catch (error: any) {
@@ -957,6 +981,9 @@ app.post('/api/companies/:id/shortlist', async (c) => {
 
 // Update shortlist round name for a company
 app.put('/api/companies/:id/shortlist-round/:roundNumber', async (c) => {
+  if (!verifyAdminPassword(c)) {
+    return c.json({ error: 'Unauthorized: Invalid admin password' }, 401);
+  }
   try {
     const companyId = c.req.param('id');
     const roundNumber = parseInt(c.req.param('roundNumber'));
@@ -982,6 +1009,9 @@ app.put('/api/companies/:id/shortlist-round/:roundNumber', async (c) => {
 
 // Delete a shortlist round for a company
 app.delete('/api/companies/:id/shortlist-round/:roundNumber', async (c) => {
+  if (!verifyAdminPassword(c)) {
+    return c.json({ error: 'Unauthorized: Invalid admin password' }, 401);
+  }
   try {
     const companyId = c.req.param('id');
     const roundNumber = parseInt(c.req.param('roundNumber'));
@@ -1017,58 +1047,68 @@ app.post('/api/companies/:id/selections', async (c) => {
     const results: any[] = [];
     const errors: any[] = [];
 
-    for (const item of tokens) {
-      try {
-        const resolved = resolveTempToken(item);
-        if (!resolved || !resolved.success) {
-          errors.push({
-            identifier: item,
-            error: resolved?.error || `Identifier '${item}' not found in database.`
-          });
-          continue;
-        }
+    const processSelectionBulk = db.transaction(() => {
+      for (const item of tokens) {
+        try {
+          const resolved = resolveTempToken(item);
+          if (!resolved || !resolved.success) {
+            errors.push({
+              identifier: item,
+              error: resolved?.error || `Identifier '${item}' not found in database.`
+            });
+            continue;
+          }
 
-        let insertResult;
-        if (selectionStatus === 'placed') {
-          insertResult = db.prepare(`
-            INSERT OR IGNORE INTO temp_final_selection (regno, neo_id, company_id)
-            VALUES (?, ?, ?)
-          `).run(resolved.regno || null, resolved.neo_id || null, companyId);
-        } else {
-          insertResult = db.prepare(`
-            INSERT OR IGNORE INTO temp_interns_selected (regno, neo_id, company_id)
-            VALUES (?, ?, ?)
-          `).run(resolved.regno || null, resolved.neo_id || null, companyId);
-        }
+          let insertResult;
+          if (selectionStatus === 'placed') {
+            insertResult = db.prepare(`
+              INSERT OR IGNORE INTO temp_final_selection (regno, neo_id, company_id)
+              VALUES (?, ?, ?)
+            `).run(resolved.regno || null, resolved.neo_id || null, companyId);
+          } else {
+            insertResult = db.prepare(`
+              INSERT OR IGNORE INTO temp_interns_selected (regno, neo_id, company_id)
+              VALUES (?, ?, ?)
+            `).run(resolved.regno || null, resolved.neo_id || null, companyId);
+          }
 
-        // Update temp_students status
-        if (resolved.regno) {
-          db.prepare(`
-            UPDATE temp_students
-            SET placed = 1, status = ?, final_company_id = ?
-            WHERE UPPER(regno) = UPPER(?)
-          `).run(selectionStatus, companyId, resolved.regno);
-        }
-        if (resolved.neo_id) {
-          db.prepare(`
-            UPDATE temp_students
-            SET placed = 1, status = ?, final_company_id = ?
-            WHERE neo_id IS NOT NULL AND UPPER(neo_id) = UPPER(?)
-          `).run(selectionStatus, companyId, resolved.neo_id);
-        }
+          // Update temp_students status
+          if (resolved.regno) {
+            db.prepare(`
+              UPDATE temp_students
+              SET placed = 1, status = ?, final_company_id = ?
+              WHERE UPPER(regno) = UPPER(?)
+            `).run(selectionStatus, companyId, resolved.regno);
+          }
+          if (resolved.neo_id) {
+            db.prepare(`
+              UPDATE temp_students
+              SET placed = 1, status = ?, final_company_id = ?
+              WHERE neo_id IS NOT NULL AND UPPER(neo_id) = UPPER(?)
+            `).run(selectionStatus, companyId, resolved.neo_id);
+          }
 
-        if (insertResult.changes > 0) {
-          results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, success: true });
-        } else {
-          results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, success: true, note: 'Already selected' });
+          if (insertResult.changes > 0) {
+            results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, success: true });
+          } else {
+            results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, success: true, note: 'Already selected' });
+          }
+        } catch (error: any) {
+          errors.push({ identifier: item, error: error.message });
         }
-      } catch (error: any) {
-        errors.push({ identifier: item, error: error.message });
       }
-    }
+    });
 
-    updateCompanyAnalytics(parseInt(companyId));
-    cachedAnalyticsSummary = null;
+    processSelectionBulk();
+
+    setTimeout(() => {
+      try {
+        updateCompanyAnalytics(parseInt(companyId));
+        cachedAnalyticsSummary = null;
+      } catch (err) {
+        console.error('Background analytics error:', err);
+      }
+    }, 0);
 
     return c.json({ results, errors, status: selectionStatus });
   } catch (error: any) {
@@ -1348,11 +1388,11 @@ function updateCompanyAnalytics(companyId: number) {
       COUNT(DISTINCT CASE WHEN s.gender = 'Male' THEN COALESCE(s.regno, sl.regno, sl.neo_id) END) as male_count,
       COUNT(DISTINCT CASE WHEN s.gender = 'Female' THEN COALESCE(s.regno, sl.regno, sl.neo_id) END) as female_count
     FROM temp_shortlists sl
-    LEFT JOIN temp_neoid_table n ON (sl.neo_id IS NOT NULL AND UPPER(n.neoid) = UPPER(sl.neo_id))
+    LEFT JOIN temp_neoid_table n ON (sl.neo_id IS NOT NULL AND n.neoid = sl.neo_id COLLATE NOCASE)
     LEFT JOIN temp_students s ON (
-      (sl.regno IS NOT NULL AND UPPER(s.regno) = UPPER(sl.regno))
-      OR (sl.neo_id IS NOT NULL AND sl.neo_id != '' AND UPPER(s.neo_id) = UPPER(sl.neo_id))
-      OR (n.regno IS NOT NULL AND UPPER(s.regno) = UPPER(n.regno))
+      (sl.regno IS NOT NULL AND s.regno = sl.regno COLLATE NOCASE)
+      OR (sl.neo_id IS NOT NULL AND sl.neo_id != '' AND s.neo_id = sl.neo_id COLLATE NOCASE)
+      OR (n.regno IS NOT NULL AND s.regno = n.regno COLLATE NOCASE)
     )
     WHERE sl.company_id = ?
   `).get(companyId) as any;
@@ -1374,11 +1414,11 @@ function updateCompanyAnalytics(companyId: number) {
       UNION
       SELECT regno, neo_id, company_id FROM temp_interns_selected WHERE company_id = ?
     ) sel
-    LEFT JOIN temp_neoid_table n ON (sel.neo_id IS NOT NULL AND UPPER(n.neoid) = UPPER(sel.neo_id))
+    LEFT JOIN temp_neoid_table n ON (sel.neo_id IS NOT NULL AND n.neoid = sel.neo_id COLLATE NOCASE)
     LEFT JOIN temp_students s ON (
-      (sel.regno IS NOT NULL AND UPPER(s.regno) = UPPER(sel.regno))
-      OR (sel.neo_id IS NOT NULL AND sel.neo_id != '' AND UPPER(s.neo_id) = UPPER(sel.neo_id))
-      OR (n.regno IS NOT NULL AND UPPER(s.regno) = UPPER(n.regno))
+      (sel.regno IS NOT NULL AND s.regno = sel.regno COLLATE NOCASE)
+      OR (sel.neo_id IS NOT NULL AND sel.neo_id != '' AND s.neo_id = sel.neo_id COLLATE NOCASE)
+      OR (n.regno IS NOT NULL AND s.regno = n.regno COLLATE NOCASE)
     )
   `).get(companyId, companyId) as any;
   

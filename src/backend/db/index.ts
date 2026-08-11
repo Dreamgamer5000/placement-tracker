@@ -249,11 +249,18 @@ export function initDatabase() {
       placed BOOLEAN DEFAULT 0,
       final_company_id INTEGER,
       neo_id TEXT,
+      dob TEXT,
       masters BOOLEAN DEFAULT 0,
       status TEXT DEFAULT 'not_placed',
       topcoder BOOLEAN DEFAULT 0
     )
   `);
+
+  // Ensure dob column exists in temp_students if DB was created earlier
+  const tempStudentCols = (db.pragma('table_info(temp_students)') as { name: string }[]).map(c => c.name);
+  if (!tempStudentCols.includes('dob')) {
+    db.exec(`ALTER TABLE temp_students ADD COLUMN dob TEXT`);
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS temp_neoid_table (

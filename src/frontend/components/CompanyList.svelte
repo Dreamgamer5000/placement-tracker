@@ -1,5 +1,25 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import PasswordModal from './PasswordModal.svelte';
+
+  let showPasswordModal = false;
+  let pendingAction: any = null;
+  let passwordModalTitle = '';
+  let passwordModalMessage = '';
+
+  function handlePasswordSubmit(event: CustomEvent<string>) {
+    const pwd = event.detail;
+    showPasswordModal = false;
+    if (pendingAction) {
+      pendingAction(pwd);
+      pendingAction = null;
+    }
+  }
+
+  function handlePasswordCancel() {
+    showPasswordModal = false;
+    pendingAction = null;
+  }
 
   let companies: any[] = [];
   let loading = true;
@@ -102,12 +122,23 @@
     editingRoundNameInput = round.round_name || `Shortlist ${round.round_number}`;
   }
 
-  async function saveRoundName(companyId: number, roundNumber: number) {
+  function initiateSaveRoundName(companyId: number, roundNumber: number) {
+    if (!editingRoundNameInput.trim()) return;
+    passwordModalTitle = 'Rename Shortlist Round';
+    passwordModalMessage = `Enter admin password to rename Round ${roundNumber}.`;
+    pendingAction = (pwd: string) => executeSaveRoundName(companyId, roundNumber, pwd);
+    showPasswordModal = true;
+  }
+
+  async function executeSaveRoundName(companyId: number, roundNumber: number, pwd = '') {
     if (!editingRoundNameInput.trim()) return;
     try {
       const response = await fetch(`/api/companies/${companyId}/shortlist-round/${roundNumber}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Admin-Password': pwd
+        },
         body: JSON.stringify({ round_name: editingRoundNameInput.trim() })
       });
       if (response.ok) {
@@ -121,11 +152,19 @@
     }
   }
 
-  async function deleteRound(companyId: number, roundNumber: number) {
+  function initiateDeleteRound(companyId: number, roundNumber: number) {
     if (!confirm(`Are you sure you want to delete Shortlist Round ${roundNumber}? This action cannot be undone.`)) return;
+    passwordModalTitle = 'Delete Shortlist Round';
+    passwordModalMessage = `Enter admin password to permanently delete Round ${roundNumber}.`;
+    pendingAction = (pwd: string) => executeDeleteRound(companyId, roundNumber, pwd);
+    showPasswordModal = true;
+  }
+
+  async function executeDeleteRound(companyId: number, roundNumber: number, pwd = '') {
     try {
       const response = await fetch(`/api/companies/${companyId}/shortlist-round/${roundNumber}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'X-Admin-Password': pwd }
       });
       if (response.ok) {
         if (selectedCompany) {
@@ -298,12 +337,23 @@
     };
   }
 
-  async function saveCompany() {
+  function initiateSaveCompany() {
+    if (!editingCompany || !editingCompany.name.trim()) return;
+    passwordModalTitle = 'Save Company Changes';
+    passwordModalMessage = `Enter admin password to save changes to ${editingCompany.name}.`;
+    pendingAction = (pwd: string) => executeSaveCompany(pwd);
+    showPasswordModal = true;
+  }
+
+  async function executeSaveCompany(pwd = '') {
     if (!editingCompany || !editingCompany.name.trim()) return;
     try {
       const response = await fetch(`/api/companies/${editingCompany.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Admin-Password': pwd
+        },
         body: JSON.stringify(editingCompany)
       });
 
@@ -853,7 +903,7 @@
 
           <div class="flex justify-end gap-3 pt-2">
             <button on:click={() => editingCompany = null} class="px-5 py-2 bg-gray-200 text-gray-700 dark:text-gray-300 dark:text-slate-300 font-semibold rounded-xl">Cancel</button>
-            <button on:click={saveCompany} class="px-6 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700">Save Changes</button>
+            <button on:click={initiateSaveCompany} class="px-6 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700">Save Changes</button>
           </div>
         </div>
       {/if}
@@ -1247,7 +1297,7 @@
                       placeholder="Custom shortlist round name"
                     />
                     <button
-                      on:click={() => saveRoundName(selectedCompany.id, round.round_number)}
+                      on:click={() => initiateSaveRoundName(selectedCompany.id, round.round_number)}
                       class="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold rounded-lg shadow-sm"
                     >
                       Save
@@ -1272,7 +1322,7 @@
                       ✏️ Rename
                     </button>
                     <button
-                      on:click={() => deleteRound(selectedCompany.id, round.round_number)}
+                      on:click={() => initiateDeleteRound(selectedCompany.id, round.round_number)}
                       class="px-2.5 py-1 text-xs bg-red-100 dark:bg-red-900/40 hover:bg-red-200 text-red-700 dark:text-red-300 font-semibold rounded-md transition-colors"
                       title="Delete this shortlist round"
                     >
@@ -1501,3 +1551,10 @@
     </div>
   </div>
 {/if}
+<PasswordModal 
+  show={showPasswordModal}
+  title={passwordModalTitle}
+  message={passwordModalMessage}
+  on:submit={handlePasswordSubmit}
+  on:cancel={handlePasswordCancel}
+/>

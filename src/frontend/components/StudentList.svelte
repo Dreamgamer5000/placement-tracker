@@ -1,5 +1,25 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import PasswordModal from './PasswordModal.svelte';
+
+  let showPasswordModal = false;
+  let pendingAction: any = null;
+  let passwordModalTitle = '';
+  let passwordModalMessage = '';
+
+  function handlePasswordSubmit(event: CustomEvent<string>) {
+    const pwd = event.detail;
+    showPasswordModal = false;
+    if (pendingAction) {
+      pendingAction(pwd);
+      pendingAction = null;
+    }
+  }
+
+  function handlePasswordCancel() {
+    showPasswordModal = false;
+    pendingAction = null;
+  }
 
   let students: any[] = [];
   let loading = true;
@@ -131,14 +151,25 @@
     saveMessage = '';
   }
 
-  async function saveStudent() {
+  function initiateSaveStudent() {
+    if (!editingStudent) return;
+    passwordModalTitle = 'Save Changes';
+    passwordModalMessage = `Enter admin password to save changes for ${editingStudent.name}.`;
+    pendingAction = (pwd: string) => executeSaveStudent(pwd);
+    showPasswordModal = true;
+  }
+
+  async function executeSaveStudent(pwd = '') {
     if (!editingStudent) return;
     saveLoading = true;
     saveMessage = '';
     try {
       const response = await fetch(`/api/students/${editingStudent.regno}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Admin-Password': pwd 
+        },
         body: JSON.stringify(editingStudent)
       });
 
@@ -500,7 +531,7 @@
         </div>
       {/if}
 
-      <form on:submit|preventDefault={saveStudent} class="edit-form">
+      <form on:submit|preventDefault={initiateSaveStudent} class="edit-form">
         <div class="form-grid">
           <div class="form-group">
             <label for="edit-name">Name *</label>
@@ -566,8 +597,13 @@
 
         <div class="form-actions">
           <button type="button" class="btn-secondary" on:click={() => editingStudent = null}>Cancel</button>
-          <button type="submit" class="btn-primary" disabled={saveLoading}>
-            {saveLoading ? 'Saving...' : 'Save Changes'}
+          <button class="btn-primary flex items-center justify-center gap-1.5" type="button" on:click={initiateSaveStudent} disabled={saveLoading}>
+            {#if saveLoading}
+              <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              Saving...
+            {:else}
+              <span>💾</span> Save Changes
+            {/if}
           </button>
         </div>
       </form>
@@ -1196,3 +1232,10 @@
     border-color: #f59e0b;
   }
 </style>
+<PasswordModal 
+  show={showPasswordModal}
+  title={passwordModalTitle}
+  message={passwordModalMessage}
+  on:submit={handlePasswordSubmit}
+  on:cancel={handlePasswordCancel}
+/>

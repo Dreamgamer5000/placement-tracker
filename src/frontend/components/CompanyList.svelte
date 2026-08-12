@@ -231,7 +231,18 @@
       // 3. CGPA priority: Highest CGPA first
       const cgpaA = typeof a.cgpa === 'number' ? a.cgpa : 0;
       const cgpaB = typeof b.cgpa === 'number' ? b.cgpa : 0;
-      return cgpaB - cgpaA;
+      if (cgpaA !== cgpaB) return cgpaB - cgpaA;
+
+      // 4. Name priority: Alphabetical (Unknown "Student (...)" placeholders go last)
+      const nameA = (a.name || '').toString().trim().toLowerCase();
+      const nameB = (b.name || '').toString().trim().toLowerCase();
+      
+      const isUnknownA = !nameA || nameA.startsWith('student (');
+      const isUnknownB = !nameB || nameB.startsWith('student (');
+      
+      if (isUnknownA !== isUnknownB) return isUnknownA ? 1 : -1;
+      
+      return nameA.localeCompare(nameB);
     });
   }
 

@@ -5,6 +5,7 @@
 [![Hono.js](https://img.shields.io/badge/Hono.js-4.0-firebrick.svg)](https://hono.dev/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind-v4.0-teal.svg)](https://tailwindcss.com/)
 [![SQLite](https://img.shields.io/badge/SQLite3-better--sqlite3-lightgrey.svg)](https://github.com/WiseLibs/better-sqlite3)
+[![Docker](https://img.shields.io/badge/Docker-Supported-blue.svg)](https://www.docker.com/)
 
 **Placement Tracker** is a high-performance placement management and statistical analytics platform engineered for the **2027 Batch** (VIT). It aggregates student records, tracks multi-round shortlists and final selection offers per company, calculates real-time academic cutoffs, and predicts candidate drive eligibility.
 
@@ -12,13 +13,16 @@
 
 ## 🌟 Key Features
 
-- **📊 Analytics Dashboard**: Real-time placement rates, Master NeoID statistics, Chennai placement rate highlights, and campus-wise breakdowns (`Chennai`, `Vellore`, `Unknown`).
-- **🎓 Candidate Directory**: Search 3,500+ student profiles with CGPA, 10th/12th percentages, TopCoder flags, resume links, and shortlist history. Filter by Unmapped Chennai candidates or Higher Studies status.
+- **📊 Analytics Dashboard**: Real-time placement rates, Master NeoID statistics, Chennai placement rate highlights, campus-wise breakdowns, and interactive pie charts for branch & salary distributions.
+- **🎓 Candidate Directory**: Search 3,500+ student profiles with CGPA, 10th/12th percentages, Date of Birth (DOB), TopCoder flags, resume links, and shortlist history.
+- **🔍 Neo ID Management**: Advanced batch Neo ID lookup, mapping, and campus assignment with search scoring.
 - **🏢 Company Profiles**: Manage drive details with Category badges (🌟 Super Dream), Job Roles (💼), Stipends (💵), CTC (💰), Job Locations (📍), Eligible Branches, and Eligibility Criteria.
 - **⚡ Email Quick Parser**: Paste raw placement cell drive emails to auto-fill company profiles instantly.
-- **📝 Multi-Round Shortlists**: Bulk upload candidate lists (Registration Numbers or Neo IDs) into custom rounds (`Shortlist 1`, `Shortlist 2`, `Interview`).
+- **📝 Multi-Round Shortlists**: Bulk upload candidate lists (Registration Numbers or Neo IDs) into custom rounds (`Shortlist 1`, `Shortlist 2`, `Interview`). Delete rounds and view academic analytics.
 - **✅ Selections & Offers**: Bulk track Full-Time placement offers and Internship selections with automatic status updates.
 - **🔮 Eligibility Predictor**: Input CGPA, 10th %, and 12th % to return matching companies based on historical cutoff data.
+- **🔒 Admin Security**: Admin password verification for all critical data modifications.
+- **🌙 Dark Mode**: Full dark mode support with responsive, mobile-friendly UI layouts.
 
 ---
 
@@ -28,7 +32,8 @@
 - **Database Engine**: SQLite3 with `better-sqlite3` & `NOCASE` B-tree performance indexes
 - **Frontend Engine**: Svelte 5 + TypeScript
 - **Bundler & Dev Server**: Vite 5
-- **UI Design System**: Tailwind CSS v4 + Plus Jakarta Sans typography with custom glassmorphism
+- **UI Design System**: Tailwind CSS v4 + Plus Jakarta Sans typography with custom glassmorphism & dark mode
+- **Deployment**: Docker & Docker Compose ready
 
 ---
 
@@ -50,6 +55,13 @@ npm run dev
 
 - **Frontend App**: `http://localhost:5173`
 - **Backend API**: `http://localhost:3001`
+
+### Or Run with Docker 🐳
+
+```bash
+docker-compose up -d --build
+```
+- App will be available at `http://localhost:3000`
 
 ---
 

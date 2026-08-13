@@ -35,7 +35,8 @@ The platform aggregates multi-source student records (master registration data, 
 | **Database** | SQLite3 (`better-sqlite3`) | High-concurrency relational database with synchronous WAL mode & NOCASE indexes |
 | **Frontend Framework** | Svelte 5 + TypeScript | Reactive component architecture with zero virtual DOM overhead |
 | **Bundler / Dev Server**| Vite 5 | Instant HMR development server & production builder |
-| **Styling & UI** | Tailwind CSS v4 + Plus Jakarta Sans | Custom glassmorphic design system, smooth scrollbars, and vibrant gradients |
+| **Styling & UI** | Tailwind CSS v4 + Plus Jakarta Sans | Custom glassmorphic design system, smooth scrollbars, dark mode, and vibrant gradients |
+| **Deployment** | Docker & Docker Compose | Containerized dual-service deployment with multi-stage builds |
 
 ---
 
@@ -70,6 +71,7 @@ Stores all candidates across campuses with academic history and placement status
 | `cgpa` | `REAL` | — | Cumulative Grade Point Average (0.00 - 10.00) |
 | `tenth_marks` | `REAL` | — | 10th Standard Percentage (%) |
 | `twelfth_marks`| `REAL` | — | 12th Standard Percentage (%) |
+| `dob` | `TEXT` | — | Candidate Date of Birth |
 | `resume_link` | `TEXT` | — | Direct link to Google Drive/PDF resume |
 | `branch` | `TEXT` | — | Extracted Branch Code (e.g. `BCE`, `BAI`, `BPS`) |
 | `campus` | `TEXT` | `DEFAULT 'Unknown'` | Campus Location (`Chennai`, `Vellore`, `Bhopal`, `AP`) |
@@ -239,6 +241,8 @@ Automatically updated statistics table aggregated from candidate shortlist and s
   Standalone database setup script for fresh deployments or schema migrations.
 - **`src/backend/scripts/import-data.ts`**:
   Data ingestion runner that loads master datasets from CSV files (`IOE.csv`, `fidelity.csv`, `mapping1/2/3.csv`, `topcoder.csv`, `placement_batch.csv`, `all_neoids.csv`) into SQLite tables.
+- **`src/backend/scripts/import-company-details.ts`**:
+  CLI script (`npm run import-company-details`) to automatically parse and seed detailed company profiles from a markdown file (`company_details.md`).
 
 ### 3. Backend REST API Endpoints (`src/backend/index.ts`)
 

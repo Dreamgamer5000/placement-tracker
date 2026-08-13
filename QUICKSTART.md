@@ -35,8 +35,14 @@ npm run import-data
 npm run dev
 ```
 
+### Or Run with Docker 🐳
+
+```bash
+docker-compose up -d --build
+```
+
 Open your browser to:
-- 🌐 **Frontend App**: `http://localhost:5173`
+- 🌐 **Frontend App**: `http://localhost:5173` (or `http://localhost:3000` for Docker)
 - ⚙️ **Backend API**: `http://localhost:3001`
 
 ---
@@ -47,6 +53,7 @@ Open your browser to:
 - View Master NeoID student placement percentages and total placed statistics.
 - Monitor the **Chennai NeoID Placement Rate** highlight metric card.
 - Inspect campus-wise breakdown tables (`Chennai`, `Vellore`, `Unknown`).
+- Interact with **Pie Charts** for branch and salary distribution analytics.
 - Search company placement & internship breakdown statistics in real-time.
 
 ### 🎓 2. Student Directory
@@ -62,7 +69,8 @@ Open your browser to:
 - Click any company card to open the detailed modal:
   - View corporate website link (`saviynt.com ↗`).
   - Read **Eligible Branches** and **Eligibility Criteria** card boxes.
-  - Review round-by-round candidate shortlists deterministically ranked by **Campus (Chennai ➔ Vellore ➔ Others)**, **TopCoder Status**, and **CGPA**.
+  - Review round-by-round candidate shortlists deterministically ranked by **Campus (Chennai ➔ Vellore ➔ Others)**, **TopCoder Status**, and **CGPA** (with secondary sorting by name).
+  - You can now **Delete** specific shortlist rounds and view **Academic Analytics** (min/avg CGPA) for each round.
   - Inspect final full-time placements and internship selection lists.
 
 ### 📝 4. Add Shortlists
@@ -91,6 +99,7 @@ Open your browser to:
 | `npm run dev` | Launch both backend API and Vite dev server concurrently |
 | `npm run setup-db` | Execute database initialization & schema migrations |
 | `npm run import-data` | Import master CSV student & Neo ID datasets into SQLite |
+| `npm run import-company-details`| Bulk parse & import company profiles from `company_details.md` |
 | `npm run build` | Compile frontend Vite app & TypeScript backend for production |
 | `npm run start` | Start production Node.js server |
 

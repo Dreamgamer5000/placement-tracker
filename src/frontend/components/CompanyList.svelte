@@ -323,6 +323,9 @@
         emailRawText = '';
         showAddForm = false;
         await loadCompanies();
+      } else {
+        const err = await response.json();
+        alert(err.error || 'Failed to add company');
       }
     } catch (error) {
       console.error('Error adding company:', error);
@@ -375,6 +378,9 @@
         if (selectedCompany && selectedCompany.id === updated.id) {
           await viewCompany(updated.id);
         }
+      } else {
+        const err = await response.json();
+        alert(err.error || 'Failed to update company');
       }
     } catch (error) {
       console.error('Error saving company:', error);

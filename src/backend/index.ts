@@ -374,6 +374,55 @@ app.get('/api/neo-ids/search/:neoid', (c) => {
   });
 });
 
+// POST /api/neo-ids/batch-lookup — Batch Neo ID lookup
+// ---------------------------------------------------------------------------
+app.post('/api/neo-ids/batch-lookup', async (c) => {
+  try {
+    const body = await c.req.json();
+    const neoids = body.neoids || [];
+    
+    if (!Array.isArray(neoids)) {
+      return c.json({ error: 'Expected an array of neoids' }, 400);
+    }
+
+    const uniqueNeoids = [...new Set(neoids.map((n: string) => n.trim().toUpperCase()).filter(Boolean))];
+
+    const results = [];
+    
+    const stmt = db.prepare(`
+      SELECT n.*, s.name as studentName 
+      FROM temp_neoid_table n 
+      LEFT JOIN temp_students s ON UPPER(n.regno) = UPPER(s.regno) 
+      WHERE UPPER(n.neoid) = ?
+    `);
+
+    for (const id of uniqueNeoids) {
+      const record = stmt.get(id) as { neoid: string; campus: string; regno: string | null; topcoder: number; studentName: string | null } | undefined;
+      
+      if (record) {
+        results.push({
+          found: true,
+          neoid: record.neoid,
+          campus: record.campus,
+          regno: record.regno,
+          topcoder: !!record.topcoder,
+          studentName: record.studentName
+        });
+      } else {
+        results.push({
+          found: false,
+          neoid: id
+        });
+      }
+    }
+    
+    return c.json({ results });
+  } catch (err: any) {
+    console.error('[POST /api/neo-ids/batch-lookup] Error:', err);
+    return c.json({ error: err.message || 'Internal error' }, 500);
+  }
+});
+
 // ---------------------------------------------------------------------------
 // POST /api/neo-ids/batch-map-regno — Batch map Neo IDs → Registration Numbers
 // ---------------------------------------------------------------------------
@@ -977,6 +1026,10 @@ app.post('/api/companies', async (c) => {
     const created = db.prepare('SELECT * FROM companies WHERE id = ?').get(result.lastInsertRowid);
     return c.json(created);
   } catch (error: any) {
+    console.error('[POST /api/companies] Error:', error);
+    if (error.message?.includes('UNIQUE constraint failed: companies.name')) {
+      return c.json({ error: 'A company with this name already exists.' }, 400);
+    }
     return c.json({ error: error.message }, 400);
   }
 });

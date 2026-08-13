@@ -1352,11 +1352,11 @@
                     Total: {round.students.length}
                   </span>
                   <span class="px-3 py-1 bg-indigo-700 text-white text-xs font-bold rounded-full">
-                    Chennai: {round.chennai_count ?? round.students.filter((s: any) => s.campus === 'Chennai').length}
+                    Chennai: {round.chennai_count ?? round.students.filter((s) => s.campus === 'Chennai').length}
                   </span>
-                  {#if (round.unknown_count ?? round.students.filter((s: any) => s.campus === 'Unknown' || !s.campus).length) > 0}
+                  {#if (round.unknown_count ?? round.students.filter((s) => s.campus === 'Unknown' || !s.campus).length) > 0}
                     <span class="px-3 py-1 bg-amber-600 text-white text-xs font-bold rounded-full">
-                      Unknown: {round.unknown_count ?? round.students.filter((s: any) => s.campus === 'Unknown' || !s.campus).length}
+                      Unknown: {round.unknown_count ?? round.students.filter((s) => s.campus === 'Unknown' || !s.campus).length}
                     </span>
                   {/if}
                 </div>
@@ -1383,7 +1383,7 @@
                   </div>
                   <div class="bg-white/80 dark:bg-slate-800/80 p-3 rounded-lg text-center border border-purple-100 dark:border-indigo-900/50 shadow-sm">
                     <div class="text-[10px] text-gray-500 dark:text-slate-400 font-bold uppercase tracking-wide">TopCoder</div>
-                    <div class="text-lg font-bold text-purple-700 dark:text-purple-300">{round.students.filter((s: any) => s.topcoder).length || 0}</div>
+                    <div class="text-lg font-bold text-purple-700 dark:text-purple-300">{round.students.filter((s) => s.topcoder).length || 0}</div>
                   </div>
                 </div>
               </div>

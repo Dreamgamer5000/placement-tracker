@@ -134,7 +134,7 @@
   let lookupLoading = false;
   let lookupResults: {
     searchedName: string;
-    matches: { name: string; regno: string; neo_id: string | null }[];
+    matches: { name: string; regno: string; neo_id: string | null; score: number }[];
     found: boolean;
   }[] = [];
   let lookupDone = false;

@@ -90,7 +90,8 @@ export interface Selection {
   selected_at: string;
 }
 
-const db = new Database(join(process.cwd(), 'placement.db'));
+const dbPath = process.env.DB_PATH ? join(process.cwd(), process.env.DB_PATH) : join(process.cwd(), 'placement.db');
+const db = new Database(dbPath);
 
 // Enable foreign keys
 db.pragma('foreign_keys = ON');

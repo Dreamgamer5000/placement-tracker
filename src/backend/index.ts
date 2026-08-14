@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
+import { getCookie, setCookie } from 'hono/cookie';
 import db from './db/index.js';
 import { extractCleanTokens } from './utils.js';
 import crypto from 'crypto';
@@ -17,6 +18,142 @@ function verifyAdminPassword(c: any) {
 }
 
 app.use('/*', cors());
+
+const SESSION_COOKIE_NAME = 'tracker_auth_session';
+const loginAttempts = new Map<string, { lastAttempt: number, failures: number }>();
+
+app.post('/api/login', async (c) => {
+  const ip = c.req.header('x-forwarded-for') || 'unknown';
+  const now = Date.now();
+  const attemptData = loginAttempts.get(ip) || { lastAttempt: 0, failures: 0 };
+  
+  // Calculate exponential backoff: 0s, 2s, 4s, 8s, 16s...
+  const waitTimeMs = attemptData.failures > 0 ? (2 ** attemptData.failures) * 1000 : 0;
+  
+  if (now - attemptData.lastAttempt < waitTimeMs) {
+    const remainingSeconds = Math.ceil((waitTimeMs - (now - attemptData.lastAttempt)) / 1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return c.json({ error: `Too many attempts. Please wait ${remainingSeconds} seconds.` }, 429);
+  }
+  
+  attemptData.lastAttempt = now;
+  loginAttempts.set(ip, attemptData);
+
+  const body = await c.req.json().catch(() => ({}));
+  const password = body.password || '';
+  const hash = crypto.createHash('sha256').update(password).digest('hex');
+  
+  if (hash === ADMIN_PASSWORD_HASH) {
+    // Reset on success
+    loginAttempts.delete(ip);
+    
+    setCookie(c, SESSION_COOKIE_NAME, 'authenticated', {
+      maxAge: 60 * 60 * 24, // 1 day
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      path: '/'
+    });
+    return c.json({ success: true });
+  }
+  
+  // Increment failures on wrong password
+  attemptData.failures += 1;
+  loginAttempts.set(ip, attemptData);
+  
+  return c.json({ error: 'Invalid password' }, 401);
+});
+
+app.use('*', async (c, next) => {
+  const path = c.req.path;
+  
+  // Allow login endpoint
+  if (path === '/api/login') {
+    return next();
+  }
+  
+  // Allow static assets (js, css, images) to load so the frontend doesn't break
+  const isAsset = path.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff|woff2|ttf|eot)$/);
+  if (isAsset) {
+    return next();
+  }
+  
+  const authCookie = getCookie(c, SESSION_COOKIE_NAME);
+  if (authCookie === 'authenticated') {
+    return next();
+  }
+
+  // Not authenticated
+  const isApi = path.startsWith('/api/');
+  if (isApi) {
+    return c.json({ error: 'Unauthorized. Please login.' }, 401);
+  } else {
+    // Return a simple login page for all HTML routes
+    return c.html(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <title>Placement Tracker - Login</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body { font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #0f172a; color: white; margin: 0; }
+          .card { background: #1e293b; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); width: 100%; max-width: 350px; text-align: center; }
+          h2 { margin-top: 0; color: #f8fafc; }
+          input { width: 100%; padding: 0.75rem; margin-top: 1rem; margin-bottom: 1rem; border-radius: 4px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; font-size: 1rem; }
+          input:focus { outline: none; border-color: #3b82f6; }
+          button { width: 100%; padding: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1rem; transition: background 0.2s; }
+          button:hover { background: #2563eb; }
+          #error { color: #ef4444; margin-top: 1rem; display: none; font-size: 0.9rem; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h2>Tracker Access</h2>
+          <form id="loginForm">
+            <input type="password" id="password" placeholder="Enter Password" required autofocus>
+            <button type="submit">Login</button>
+          </form>
+          <div id="error">Invalid password</div>
+        </div>
+        <script>
+          document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.querySelector('button');
+            const err = document.getElementById('error');
+            btn.textContent = 'Verifying...';
+            btn.disabled = true;
+            err.style.display = 'none';
+            
+            const pwd = document.getElementById('password').value;
+            try {
+              const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pwd })
+              });
+              if (res.ok) {
+                window.location.reload();
+              } else {
+                const data = await res.json().catch(() => ({}));
+                err.textContent = data.error || 'Invalid password';
+                err.style.display = 'block';
+                btn.textContent = 'Login';
+                btn.disabled = false;
+              }
+            } catch (error) {
+              err.textContent = 'Connection error';
+              err.style.display = 'block';
+              btn.textContent = 'Login';
+              btn.disabled = false;
+            }
+          });
+        </script>
+      </body>
+      </html>
+    `);
+  }
+});
 
 // Health check
 app.get('/api/health', (c) => {

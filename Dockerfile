@@ -12,7 +12,10 @@ RUN npm install
 # Copy source
 COPY . .
 
-# Expose both ports
-EXPOSE 3000
+# Build the project (frontend and backend)
+RUN npm run build
 
-CMD ["npm", "run", "dev:backend"]
+# Expose port
+EXPOSE 3001
+
+CMD ["node", "dist/backend/index.js"]

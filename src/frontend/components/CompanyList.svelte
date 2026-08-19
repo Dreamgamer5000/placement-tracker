@@ -180,9 +180,22 @@
     }
   }
 
+  let availableRoles: any[] = [];
+
   onMount(async () => {
-    await loadCompanies();
+    await Promise.all([loadCompanies(), loadRoles()]);
   });
+
+  async function loadRoles() {
+    try {
+      const response = await fetch('/api/roles');
+      if (response.ok) {
+        availableRoles = await response.json();
+      }
+    } catch (error) {
+      console.error('Error loading roles in CompanyList:', error);
+    }
+  }
 
   // Windowed rendering & search state for company detail modal
   let modalSearchTerm = '';
@@ -562,10 +575,16 @@
             <input 
               id="new-company-role"
               type="text" 
-              placeholder="e.g. Associate Engineer / SRE" 
+              list="company-roles-list"
+              placeholder="e.g. Software Engineer / SDE" 
               bind:value={newCompany.role}
               class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
+            <datalist id="company-roles-list">
+              {#each availableRoles as role}
+                <option value={role.name}>{role.category ? `${role.name} (${role.category})` : role.name}</option>
+              {/each}
+            </datalist>
           </div>
         </div>
 
@@ -863,7 +882,7 @@
             </div>
             <div>
               <label for="edit-company-role" class="block text-xs font-bold text-gray-700 dark:text-gray-300 dark:text-slate-300 uppercase mb-1">Job Profile / Role</label>
-              <input id="edit-company-role" type="text" bind:value={editingCompany.role} placeholder="e.g. Associate Engineer" class="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800" />
+              <input id="edit-company-role" type="text" list="company-roles-list" bind:value={editingCompany.role} placeholder="e.g. Associate Engineer" class="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800" />
             </div>
           </div>
 
@@ -1029,6 +1048,7 @@
                 <tr>
                   <th class="px-6 py-3.5 text-left text-xs font-bold text-emerald-900 uppercase tracking-wider">Reg No / Neo ID</th>
                   <th class="px-6 py-3.5 text-left text-xs font-bold text-emerald-900 uppercase tracking-wider">Name</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-emerald-900 uppercase tracking-wider">Role</th>
                   <th class="px-6 py-3.5 text-left text-xs font-bold text-emerald-900 uppercase tracking-wider">Campus</th>
                   <th class="px-6 py-3.5 text-left text-xs font-bold text-emerald-900 uppercase tracking-wider">TopCoder</th>
                   <th class="px-6 py-3.5 text-left text-xs font-bold text-emerald-900 uppercase tracking-wider">CGPA</th>
@@ -1039,7 +1059,7 @@
               <tbody class="bg-white dark:bg-slate-800 divide-y divide-emerald-50">
                 {#if paginatedFinals.length === 0}
                   <tr>
-                    <td colspan="7" class="px-6 py-6 text-center text-gray-500 dark:text-slate-400 italic">
+                    <td colspan="8" class="px-6 py-6 text-center text-gray-500 dark:text-slate-400 italic">
                       No placed students matching "{modalSearchTerm}".
                     </td>
                   </tr>
@@ -1053,6 +1073,15 @@
                         {/if}
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300 dark:text-slate-100">{student.name}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        {#if student.role}
+                          <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 shadow-2xs">
+                            💼 {student.role}
+                          </span>
+                        {:else}
+                          <span class="text-gray-400 text-xs">-</span>
+                        {/if}
+                      </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm">
                         <span class="px-2 py-0.5 rounded-full text-xs font-bold {student.campus === 'Unknown' || !student.campus ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300' : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300'}">
                           {student.campus || 'Unknown'}
@@ -1138,6 +1167,7 @@
                 <tr>
                   <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Reg No / Neo ID</th>
                   <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Name</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Role</th>
                   <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">Campus</th>
                   <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">TopCoder</th>
                   <th class="px-6 py-3.5 text-left text-xs font-bold text-cyan-900 uppercase tracking-wider">CGPA</th>
@@ -1148,7 +1178,7 @@
               <tbody class="bg-white dark:bg-slate-800 divide-y divide-cyan-50">
                 {#if paginatedInterns.length === 0}
                   <tr>
-                    <td colspan="7" class="px-6 py-6 text-center text-gray-500 dark:text-slate-400 italic">
+                    <td colspan="8" class="px-6 py-6 text-center text-gray-500 dark:text-slate-400 italic">
                       No interns matching "{modalSearchTerm}".
                     </td>
                   </tr>
@@ -1162,6 +1192,15 @@
                         {/if}
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300 dark:text-slate-100">{student.name}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        {#if student.role}
+                          <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-cyan-100 dark:bg-cyan-900/60 text-cyan-900 dark:text-cyan-200 border border-cyan-300 dark:border-cyan-700 shadow-2xs">
+                            💼 {student.role}
+                          </span>
+                        {:else}
+                          <span class="text-gray-400 text-xs">-</span>
+                        {/if}
+                      </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm">
                         <span class="px-2 py-0.5 rounded-full text-xs font-bold {student.campus === 'Unknown' || !student.campus ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300' : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300'}">
                           {student.campus || 'Unknown'}
@@ -1394,6 +1433,7 @@
                     <tr>
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 dark:text-purple-300 dark:text-indigo-200 uppercase tracking-wider">Reg No / Neo ID</th>
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 dark:text-purple-300 dark:text-indigo-200 uppercase tracking-wider">Name</th>
+                      <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 dark:text-purple-300 dark:text-indigo-200 uppercase tracking-wider">Role</th>
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 dark:text-purple-300 dark:text-indigo-200 uppercase tracking-wider">Campus</th>
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 dark:text-purple-300 dark:text-indigo-200 uppercase tracking-wider">TopCoder</th>
                       <th class="px-6 py-3 text-left text-xs font-bold text-purple-900 dark:text-purple-300 dark:text-indigo-200 uppercase tracking-wider">CGPA</th>
@@ -1406,7 +1446,7 @@
                   <tbody class="bg-white dark:bg-slate-800 divide-y divide-purple-50 dark:divide-indigo-900/20">
                     {#if paginatedStudents.length === 0}
                       <tr>
-                        <td colspan="9" class="px-6 py-8 text-center text-gray-500 dark:text-slate-400 italic">
+                        <td colspan="10" class="px-6 py-8 text-center text-gray-500 dark:text-slate-400 italic">
                           No students matching "{modalSearchTerm}" in this shortlist.
                         </td>
                       </tr>
@@ -1420,6 +1460,15 @@
                             {/if}
                           </td>
                           <td class="px-6 py-3.5 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300 dark:text-slate-100">{student.name}</td>
+                          <td class="px-6 py-3.5 whitespace-nowrap text-sm">
+                            {#if student.role}
+                              <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-100 dark:bg-purple-900/60 text-purple-900 dark:text-purple-200 border border-purple-300 dark:border-purple-600 shadow-2xs">
+                                💼 {student.role}
+                              </span>
+                            {:else}
+                              <span class="text-gray-400 text-xs">-</span>
+                            {/if}
+                          </td>
                           <td class="px-6 py-3.5 whitespace-nowrap text-sm">
                             <span class="px-2 py-0.5 rounded-full text-xs font-bold {student.campus === 'Unknown' || !student.campus ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300' : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300'}">
                               {student.campus || 'Unknown'}

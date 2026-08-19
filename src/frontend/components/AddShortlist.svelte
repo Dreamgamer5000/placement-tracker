@@ -16,6 +16,11 @@
   let loadingRounds = false;
   let previousCompanyId = '';
 
+  let availableRoles: any[] = [];
+  let selectedRole = '';
+  let customRoleName = '';
+  let isCustomRole = false;
+
   $: filteredCompanies = Array.isArray(companies) ? companies.filter(c => {
     if (!companySearchTerm || !companySearchTerm.trim()) return true;
     
@@ -23,6 +28,7 @@
     const combinedText = [
       c.name,
       c.ctc,
+      c.role,
       c.notes,
       c.round_details,
       c.experience_required,
@@ -46,12 +52,26 @@
       suggestedNextRoundNumber = 1;
       roundNumber = 1;
       customRoundName = 'Shortlist 1';
+      selectedRole = '';
+      customRoleName = '';
+      isCustomRole = false;
     }
   }
 
   onMount(async () => {
-    await loadCompanies();
+    await Promise.all([loadCompanies(), loadRoles()]);
   });
+
+  async function loadRoles() {
+    try {
+      const response = await fetch('/api/roles');
+      if (response.ok) {
+        availableRoles = await response.json();
+      }
+    } catch (error) {
+      console.error('Error loading roles:', error);
+    }
+  }
 
   async function loadCompanies() {
     try {
@@ -67,9 +87,15 @@
 
     // Instant local preview from enriched companies list
     const comp = companies.find(c => String(c.id) === String(companyId));
-    if (comp && comp.latest_round_number) {
-      roundNumber = comp.latest_round_number;
-      customRoundName = comp.latest_round_name || `Shortlist ${comp.latest_round_number}`;
+    if (comp) {
+      if (comp.latest_round_number) {
+        roundNumber = comp.latest_round_number;
+        customRoundName = comp.latest_round_name || `Shortlist ${comp.latest_round_number}`;
+      }
+      if (comp.role) {
+        selectedRole = comp.role;
+        isCustomRole = false;
+      }
     }
 
     loadingRounds = true;
@@ -140,6 +166,7 @@
     }
 
     const finalRoundName = customRoundName.trim() || `Shortlist ${roundNumber}`;
+    const finalRole = isCustomRole ? (customRoleName.trim() || null) : (selectedRole.trim() || null);
 
     try {
       const response = await fetch(`/api/companies/${selectedCompanyId}/shortlist`, {
@@ -148,7 +175,8 @@
         body: JSON.stringify({
           regnos: regnoList,
           round_number: roundNumber,
-          round_name: finalRoundName
+          round_name: finalRoundName,
+          role: finalRole
         })
       });
 
@@ -174,17 +202,19 @@
       const errorCount = result.errors ? result.errors.length : 0;
       
       if (successCount > 0) {
-        message = `Successfully added ${successCount} student(s) to "${finalRoundName}".`;
+        const roleLabel = finalRole ? ` for role "${finalRole}"` : '';
+        message = `Successfully added ${successCount} student(s) to "${finalRoundName}"${roleLabel}.`;
         if (errorCount > 0) {
           const sampleErrors = result.errors.slice(0, 3).map((e: any) => e.identifier).join(', ');
           message += ` ${errorCount} error(s): Not found in database (${sampleErrors}${errorCount > 3 ? '...' : ''}).`;
         }
         messageType = 'success';
         regnos = '';
-        // Refresh company rounds & companies list to reflect updated counts and rounds
+        // Refresh company rounds, companies & roles list to reflect updated data
         if (selectedCompanyId) {
           await onCompanySelect(selectedCompanyId);
           await loadCompanies();
+          await loadRoles();
         }
       } else if (errorCount > 0) {
         const sampleErrors = result.errors.slice(0, 3).map((e: any) => e.identifier).join(', ');
@@ -218,7 +248,7 @@
         <input 
           id="company-search"
           type="text" 
-          placeholder="🔍 Type to search company by name, CTC, or round name..."
+          placeholder="🔍 Type to search company by name, CTC, role, or round name..."
           bind:value={companySearchTerm}
           class="w-full px-4 py-2 border-2 border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
         />
@@ -230,7 +260,7 @@
           <option value="">-- Select a company ({filteredCompanies.length} available) --</option>
           {#each filteredCompanies as company}
             <option value={company.id}>
-              {company.name} {company.ctc ? `(${company.ctc})` : ''} {company.latest_round_name ? `• Latest: ${company.latest_round_name} (Round ${company.latest_round_number})` : ''}
+              {company.name} {company.role ? `[Role: ${company.role}]` : ''} {company.ctc ? `(${company.ctc})` : ''} {company.latest_round_name ? `• Latest: ${company.latest_round_name} (Round ${company.latest_round_number})` : ''}
             </option>
           {/each}
         </select>
@@ -239,6 +269,68 @@
         </p>
       </div>
     </div>
+
+    <!-- Job Role / Profile Selection -->
+    <div class="mb-6 bg-slate-50 dark:bg-slate-900/60 p-5 rounded-xl border border-slate-200 dark:border-slate-700">
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <label for="role-select" class="block text-sm font-bold text-gray-800 dark:text-slate-200">
+          💼 Shortlist Job Role / Profile
+        </label>
+        <button
+          type="button"
+          class="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer"
+          on:click={() => { isCustomRole = !isCustomRole; }}
+        >
+          {isCustomRole ? '← Choose from standard roles' : '➕ Type new custom role'}
+        </button>
+      </div>
+
+      {#if isCustomRole}
+        <div class="space-y-2">
+          <input
+            id="custom-role-input"
+            type="text"
+            bind:value={customRoleName}
+            placeholder="e.g. Associate Software Engineer, AI Research Intern, Cloud Specialist"
+            class="w-full px-4 py-2.5 border-2 border-purple-300 dark:border-purple-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 text-sm font-medium"
+          />
+          <p class="text-xs text-gray-500 dark:text-slate-400">
+            This new role will be automatically saved to your master roles database for future selection and analytics.
+          </p>
+        </div>
+      {:else}
+        <div class="space-y-3">
+          <select
+            id="role-select"
+            bind:value={selectedRole}
+            class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 text-sm font-medium"
+          >
+            <option value="">-- General / No Specific Role --</option>
+            {#each availableRoles as role}
+              <option value={role.name}>
+                {role.name} {role.category ? `(${role.category})` : ''}
+              </option>
+            {/each}
+          </select>
+
+          <!-- Quick Select Role Pills -->
+          {#if availableRoles.length > 0}
+            <div class="flex flex-wrap gap-1.5 pt-1">
+              {#each availableRoles.slice(0, 8) as role}
+                <button
+                  type="button"
+                  class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border {selectedRole === role.name ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-purple-300'}"
+                  on:click={() => { selectedRole = role.name; isCustomRole = false; }}
+                >
+                  {role.name}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
+
 
     <!-- Shortlist Round / Stage Selection -->
     <div class="mb-6 bg-purple-50/70 dark:bg-purple-900/30 dark:bg-indigo-950/40 p-5 rounded-xl border border-purple-200 dark:border-indigo-800/80">

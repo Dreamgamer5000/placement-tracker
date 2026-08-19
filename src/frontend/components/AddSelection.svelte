@@ -9,6 +9,12 @@
   let message = '';
   let messageType: 'success' | 'error' = 'success';
 
+  let availableRoles: any[] = [];
+  let selectedRole = '';
+  let customRoleName = '';
+  let isCustomRole = false;
+  let previousCompanyId = '';
+
   $: filteredCompanies = Array.isArray(companies) ? companies.filter(c => {
     if (!companySearchTerm || !companySearchTerm.trim()) return true;
     
@@ -16,6 +22,7 @@
     const combinedText = [
       c.name,
       c.ctc,
+      c.role,
       c.notes,
       c.round_details,
       c.experience_required,
@@ -26,9 +33,35 @@
     return tokens.every(token => combinedText.includes(token));
   }) : [];
 
+  $: if (selectedCompanyId !== previousCompanyId) {
+    previousCompanyId = selectedCompanyId;
+    if (selectedCompanyId) {
+      const comp = companies.find(c => String(c.id) === String(selectedCompanyId));
+      if (comp && comp.role) {
+        selectedRole = comp.role;
+        isCustomRole = false;
+      }
+    } else {
+      selectedRole = '';
+      customRoleName = '';
+      isCustomRole = false;
+    }
+  }
+
   onMount(async () => {
-    await loadCompanies();
+    await Promise.all([loadCompanies(), loadRoles()]);
   });
+
+  async function loadRoles() {
+    try {
+      const response = await fetch('/api/roles');
+      if (response.ok) {
+        availableRoles = await response.json();
+      }
+    } catch (error) {
+      console.error('Error loading roles:', error);
+    }
+  }
 
   async function loadCompanies() {
     try {
@@ -82,13 +115,16 @@
       return;
     }
 
+    const finalRole = isCustomRole ? (customRoleName.trim() || null) : (selectedRole.trim() || null);
+
     try {
       const response = await fetch(`/api/companies/${selectedCompanyId}/selections`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           regnos: regnoList,
-          status: offerStatus
+          status: offerStatus,
+          role: finalRole
         })
       });
 
@@ -114,14 +150,16 @@
       const errorCount = result.errors ? result.errors.length : 0;
       
       const statusLabel = offerStatus === 'intern' ? 'Intern' : 'Placed (Full-Time)';
+      const roleLabel = finalRole ? ` as "${finalRole}"` : '';
       if (successCount > 0) {
-        message = `Successfully added ${successCount} student(s) to final selections as "${statusLabel}".`;
+        message = `Successfully added ${successCount} student(s) to final selections as "${statusLabel}"${roleLabel}.`;
         if (errorCount > 0) {
           const sampleErrors = result.errors.slice(0, 3).map((e: any) => e.identifier).join(', ');
           message += ` ${errorCount} error(s): Not found in database (${sampleErrors}${errorCount > 3 ? '...' : ''}).`;
         }
         messageType = 'success';
         regnos = '';
+        await loadRoles();
       } else if (errorCount > 0) {
         const sampleErrors = result.errors.slice(0, 3).map((e: any) => e.identifier).join(', ');
         message = `Failed to add students. ${errorCount} registration number(s) / Neo ID(s) not found in database: (${sampleErrors}${errorCount > 3 ? '...' : ''}).`;
@@ -141,6 +179,7 @@
     }, 6000);
   }
 </script>
+
 
 <div class="p-8 max-w-[1600px] mx-auto space-y-8">
   <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-300 dark:text-slate-200">✅ Add Final Selections</h2>
@@ -211,6 +250,68 @@
         </button>
       </div>
     </div>
+
+    <!-- Job Role / Profile Selection -->
+    <div class="mb-6 bg-slate-50 dark:bg-slate-900/60 p-5 rounded-xl border border-slate-200 dark:border-slate-700">
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <label for="role-select" class="block text-sm font-bold text-gray-800 dark:text-slate-200">
+          💼 Offered Job Role / Profile
+        </label>
+        <button
+          type="button"
+          class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+          on:click={() => { isCustomRole = !isCustomRole; }}
+        >
+          {isCustomRole ? '← Choose from standard roles' : '➕ Type new custom role'}
+        </button>
+      </div>
+
+      {#if isCustomRole}
+        <div class="space-y-2">
+          <input
+            id="custom-role-input"
+            type="text"
+            bind:value={customRoleName}
+            placeholder="e.g. Software Engineer, SDE Intern, Data Analyst"
+            class="w-full px-4 py-2.5 border-2 border-blue-300 dark:border-blue-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 text-sm font-medium"
+          />
+          <p class="text-xs text-gray-500 dark:text-slate-400">
+            This new role will be saved to your master roles list and recorded for this placement.
+          </p>
+        </div>
+      {:else}
+        <div class="space-y-3">
+          <select
+            id="role-select"
+            bind:value={selectedRole}
+            class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 text-sm font-medium"
+          >
+            <option value="">-- General / No Specific Role --</option>
+            {#each availableRoles as role}
+              <option value={role.name}>
+                {role.name} {role.category ? `(${role.category})` : ''}
+              </option>
+            {/each}
+          </select>
+
+          <!-- Quick Select Role Pills -->
+          {#if availableRoles.length > 0}
+            <div class="flex flex-wrap gap-1.5 pt-1">
+              {#each availableRoles.slice(0, 8) as role}
+                <button
+                  type="button"
+                  class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border {selectedRole === role.name ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-blue-300'}"
+                  on:click={() => { selectedRole = role.name; isCustomRole = false; }}
+                >
+                  {role.name}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
+
 
     <div class="mb-6">
       <label for="regnos" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 dark:text-slate-300 mb-2">

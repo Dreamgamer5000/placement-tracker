@@ -42,10 +42,22 @@
   let sortBy: 'default' | 'shortlists' | 'placed' = 'default';
   let recalculating = false;
   let syncMessage = '';
+  let availableRoles: any[] = [];
 
   onMount(async () => {
-    await loadStudents();
+    await Promise.all([loadStudents(), loadRoles()]);
   });
+
+  async function loadRoles() {
+    try {
+      const response = await fetch('/api/roles');
+      if (response.ok) {
+        availableRoles = await response.json();
+      }
+    } catch (error) {
+      console.error('Error loading roles in StudentList:', error);
+    }
+  }
 
   async function recalculateStudentAnalytics() {
     if (recalculating) return;
@@ -336,9 +348,23 @@
               </td>
               <td>
                 {#if student.status === 'placed'}
-                  <span class="status placed">✓ Placed</span>
+                  <div class="flex flex-col gap-1 items-start">
+                    <span class="status placed">✓ Placed</span>
+                    {#if student.role}
+                      <span class="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700">
+                        💼 {student.role}
+                      </span>
+                    {/if}
+                  </div>
                 {:else if student.status === 'intern'}
-                  <span class="status intern">💼 Intern</span>
+                  <div class="flex flex-col gap-1 items-start">
+                    <span class="status intern">💼 Intern</span>
+                    {#if student.role}
+                      <span class="text-xs font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700">
+                        💼 {student.role}
+                      </span>
+                    {/if}
+                  </div>
                 {:else if student.status === 'masters'}
                   <span class="status masters">🎓 Masters</span>
                 {:else}
@@ -440,11 +466,18 @@
               {#each selectedStudent.shortlists as company}
                 <div class="flex items-center justify-between p-3 rounded-xl bg-purple-50/70 dark:bg-indigo-950/40 border border-purple-100 dark:border-indigo-900/50 hover:border-purple-200 transition-all">
                   <div class="font-semibold text-gray-800 dark:text-gray-300 text-sm">{company.name}</div>
-                  {#if company.round_name || company.round_number}
-                    <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-purple-200 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200">
-                      {company.round_name || `Round ${company.round_number}`}
-                    </span>
-                  {/if}
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    {#if company.round_name || company.round_number}
+                      <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-purple-200 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200">
+                        {company.round_name || `Round ${company.round_number}`}
+                      </span>
+                    {/if}
+                    {#if company.shortlist_role || company.role}
+                      <span class="text-xs font-bold px-2 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-950/80 text-purple-900 dark:text-purple-200 border border-purple-300 dark:border-purple-700">
+                        💼 {company.shortlist_role || company.role}
+                      </span>
+                    {/if}
+                  </div>
                 </div>
               {/each}
             </div>
@@ -468,9 +501,16 @@
                       <div class="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Package: {selection.ctc_lpa || selection.package_lpa} LPA</div>
                     {/if}
                   </div>
-                  <span class="text-xs font-bold px-2.5 py-1 rounded-lg {selection.offer_type === 'intern' ? 'bg-indigo-600 text-white' : 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-emerald-950'} shadow-xs">
-                    {selection.offer_type === 'intern' ? '💼 Intern Offer' : '✓ Full-Time Placed'}
-                  </span>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    {#if selection.selection_role || selection.role}
+                      <span class="text-xs font-bold px-2 py-0.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700">
+                        💼 {selection.selection_role || selection.role}
+                      </span>
+                    {/if}
+                    <span class="text-xs font-bold px-2.5 py-1 rounded-lg {selection.offer_type === 'intern' ? 'bg-indigo-600 text-white' : 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-emerald-950'} shadow-xs">
+                      {selection.offer_type === 'intern' ? '💼 Intern Offer' : '✓ Full-Time Placed'}
+                    </span>
+                  </div>
                 </div>
               {/each}
             </div>
@@ -488,6 +528,9 @@
                 <h4 class="text-lg font-extrabold m-0 text-white">
                   Interned at {selectedStudent.finalCompany.name}
                 </h4>
+                {#if selectedStudent.role}
+                  <span class="block text-xs font-semibold text-white/95 mt-0.5">Role: {selectedStudent.role}</span>
+                {/if}
               </div>
               {#if selectedStudent.finalCompany.ctc_lpa}
                 <span class="text-sm font-extrabold bg-white/20 dark:bg-slate-800/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/30">
@@ -502,6 +545,9 @@
                 <h4 class="text-lg font-extrabold m-0 text-white">
                   Placed at {selectedStudent.finalCompany.name}
                 </h4>
+                {#if selectedStudent.role}
+                  <span class="block text-xs font-semibold text-white/95 mt-0.5">Role: {selectedStudent.role}</span>
+                {/if}
               </div>
               {#if selectedStudent.finalCompany.ctc_lpa}
                 <span class="text-sm font-extrabold bg-white/20 dark:bg-slate-800/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/30">
@@ -566,6 +612,16 @@
           <div class="form-group full-width">
             <label for="edit-twelfth">12th Marks (%)</label>
             <input id="edit-twelfth" type="number" step="0.01" min="0" max="100" bind:value={editingStudent.twelfth_marks} placeholder="e.g. 95.0" />
+          </div>
+
+          <div class="form-group full-width">
+            <label for="edit-role">Job Role / Profile</label>
+            <input id="edit-role" type="text" list="student-roles-list" bind:value={editingStudent.role} placeholder="e.g. Software Engineer, Data Analyst" />
+            <datalist id="student-roles-list">
+              {#each availableRoles as role}
+                <option value={role.name}>{role.category ? `${role.name} (${role.category})` : role.name}</option>
+              {/each}
+            </datalist>
           </div>
 
           <div class="form-group full-width bg-indigo-50/80 dark:bg-indigo-950/70 p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800/60 shadow-xs">

@@ -232,7 +232,42 @@ export function initDatabase() {
     )
   `);
 
-  // Temp interns selected table
+  // Roles table for standardized job role tracking and analytics
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS roles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL COLLATE NOCASE,
+      category TEXT DEFAULT 'Engineering',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Seed default industry roles if not present
+  const seedRoles = [
+    { name: 'Software Engineer', category: 'Engineering' },
+    { name: 'Full Stack Developer', category: 'Engineering' },
+    { name: 'Frontend Developer', category: 'Engineering' },
+    { name: 'Backend Developer', category: 'Engineering' },
+    { name: 'DevOps / Cloud Engineer', category: 'Engineering' },
+    { name: 'Cybersecurity Analyst', category: 'Engineering' },
+    { name: 'QA / Automation Engineer', category: 'Engineering' },
+    { name: 'Data Analyst', category: 'Data & AI' },
+    { name: 'Data Scientist', category: 'Data & AI' },
+    { name: 'AI / ML Engineer', category: 'Data & AI' },
+    { name: 'Business Analyst', category: 'Data & AI' },
+    { name: 'Embedded / IoT Engineer', category: 'Core & Hardware' },
+    { name: 'VLSI / Hardware Engineer', category: 'Core & Hardware' },
+    { name: 'Product Manager', category: 'Management & Consulting' },
+    { name: 'Associate Consultant', category: 'Management & Consulting' },
+    { name: 'Management Trainee', category: 'Management & Consulting' }
+  ];
+
+  const insertRoleStmt = db.prepare('INSERT OR IGNORE INTO roles (name, category) VALUES (?, ?)');
+  for (const r of seedRoles) {
+    insertRoleStmt.run(r.name, r.category);
+  }
+
+  // Temp students table
   db.exec(`
     CREATE TABLE IF NOT EXISTS temp_students (
       regno TEXT PRIMARY KEY NOT NULL,
@@ -253,14 +288,18 @@ export function initDatabase() {
       dob TEXT,
       masters BOOLEAN DEFAULT 0,
       status TEXT DEFAULT 'not_placed',
-      topcoder BOOLEAN DEFAULT 0
+      topcoder BOOLEAN DEFAULT 0,
+      role TEXT
     )
   `);
 
-  // Ensure dob column exists in temp_students if DB was created earlier
+  // Ensure dob and role columns exist in temp_students if DB was created earlier
   const tempStudentCols = (db.pragma('table_info(temp_students)') as { name: string }[]).map(c => c.name);
   if (!tempStudentCols.includes('dob')) {
     db.exec(`ALTER TABLE temp_students ADD COLUMN dob TEXT`);
+  }
+  if (!tempStudentCols.includes('role')) {
+    db.exec(`ALTER TABLE temp_students ADD COLUMN role TEXT`);
   }
 
   db.exec(`
@@ -280,10 +319,17 @@ export function initDatabase() {
       company_id INTEGER NOT NULL,
       round_number INTEGER DEFAULT 1,
       round_name TEXT DEFAULT 'Shortlist 1',
+      role TEXT,
       shortlisted_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (company_id) REFERENCES companies(id)
     )
   `);
+
+  // Ensure role column exists in temp_shortlists
+  const tempShortlistCols = (db.pragma('table_info(temp_shortlists)') as { name: string }[]).map(c => c.name);
+  if (!tempShortlistCols.includes('role')) {
+    db.exec(`ALTER TABLE temp_shortlists ADD COLUMN role TEXT`);
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS temp_interns_selected (
@@ -291,12 +337,19 @@ export function initDatabase() {
       regno TEXT,
       neo_id TEXT,
       company_id INTEGER NOT NULL,
+      role TEXT,
       selected_at TEXT DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(regno, company_id),
       UNIQUE(neo_id, company_id),
       FOREIGN KEY (company_id) REFERENCES companies(id)
     )
   `);
+
+  // Ensure role column exists in temp_interns_selected
+  const tempInternCols = (db.pragma('table_info(temp_interns_selected)') as { name: string }[]).map(c => c.name);
+  if (!tempInternCols.includes('role')) {
+    db.exec(`ALTER TABLE temp_interns_selected ADD COLUMN role TEXT`);
+  }
 
   // Temp final selection table
   db.exec(`
@@ -305,6 +358,7 @@ export function initDatabase() {
       regno TEXT,
       neo_id TEXT,
       company_id INTEGER NOT NULL,
+      role TEXT,
       selected_at TEXT DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(regno, company_id),
       UNIQUE(neo_id, company_id),
@@ -312,19 +366,29 @@ export function initDatabase() {
     )
   `);
 
+  // Ensure role column exists in temp_final_selection
+  const tempFinalCols = (db.pragma('table_info(temp_final_selection)') as { name: string }[]).map(c => c.name);
+  if (!tempFinalCols.includes('role')) {
+    db.exec(`ALTER TABLE temp_final_selection ADD COLUMN role TEXT`);
+  }
+
   // Performance Indexes for instant shortlist/selection queries (400x speedup)
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_temp_shortlists_company ON temp_shortlists(company_id);
     CREATE INDEX IF NOT EXISTS idx_temp_shortlists_regno ON temp_shortlists(regno);
     CREATE INDEX IF NOT EXISTS idx_temp_shortlists_neoid ON temp_shortlists(neo_id);
+    CREATE INDEX IF NOT EXISTS idx_temp_shortlists_role ON temp_shortlists(role);
     CREATE INDEX IF NOT EXISTS idx_temp_interns_company ON temp_interns_selected(company_id);
     CREATE INDEX IF NOT EXISTS idx_temp_interns_regno ON temp_interns_selected(regno);
     CREATE INDEX IF NOT EXISTS idx_temp_interns_neoid ON temp_interns_selected(neo_id);
+    CREATE INDEX IF NOT EXISTS idx_temp_interns_role ON temp_interns_selected(role);
     CREATE INDEX IF NOT EXISTS idx_temp_finals_company ON temp_final_selection(company_id);
     CREATE INDEX IF NOT EXISTS idx_temp_finals_regno ON temp_final_selection(regno);
     CREATE INDEX IF NOT EXISTS idx_temp_finals_neoid ON temp_final_selection(neo_id);
+    CREATE INDEX IF NOT EXISTS idx_temp_finals_role ON temp_final_selection(role);
     CREATE INDEX IF NOT EXISTS idx_temp_students_regno ON temp_students(regno);
     CREATE INDEX IF NOT EXISTS idx_temp_students_neoid ON temp_students(neo_id);
+    CREATE INDEX IF NOT EXISTS idx_temp_students_role ON temp_students(role);
     CREATE INDEX IF NOT EXISTS idx_temp_neoid_neoid ON temp_neoid_table(neoid);
     CREATE INDEX IF NOT EXISTS idx_temp_neoid_regno ON temp_neoid_table(regno);
 
@@ -345,3 +409,4 @@ export function getDb() {
 }
 
 export default db;
+

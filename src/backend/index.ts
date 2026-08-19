@@ -161,6 +161,41 @@ app.get('/api/health', (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// Roles API — Master registry of standardized job roles
+// ---------------------------------------------------------------------------
+function ensureRoleExists(roleName?: string | null, category: string = 'Engineering') {
+  if (!roleName || !roleName.trim()) return null;
+  const clean = roleName.trim();
+  db.prepare('INSERT OR IGNORE INTO roles (name, category) VALUES (?, ?)').run(clean, category);
+  return clean;
+}
+
+app.get('/api/roles', (c) => {
+  try {
+    const roles = db.prepare('SELECT * FROM roles ORDER BY category ASC, name ASC').all();
+    return c.json(roles);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+app.post('/api/roles', async (c) => {
+  try {
+    const body = await c.req.json();
+    const name = String(body.name || '').trim();
+    const category = String(body.category || 'Engineering').trim();
+    if (!name) {
+      return c.json({ error: 'Role name is required' }, 400);
+    }
+    db.prepare('INSERT OR IGNORE INTO roles (name, category) VALUES (?, ?)').run(name, category);
+    const role = db.prepare('SELECT * FROM roles WHERE name = ? COLLATE NOCASE').get(name);
+    return c.json(role);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+// ---------------------------------------------------------------------------
 // GET /api/students — paginated, searchable from temp_students
 // ---------------------------------------------------------------------------
 app.get('/api/students', (c) => {
@@ -324,7 +359,7 @@ app.get('/api/students/:regno', (c) => {
   
   // Get shortlisted companies (temp_shortlists)
   const shortlists = db.prepare(`
-    SELECT co.*, sl.shortlisted_at, sl.round_number, sl.round_name
+    SELECT co.*, sl.shortlisted_at, sl.round_number, sl.round_name, sl.role as shortlist_role, sl.role
     FROM companies co
     JOIN temp_shortlists sl ON co.id = sl.company_id
     WHERE (sl.regno IS NOT NULL AND UPPER(sl.regno) = ?)
@@ -335,7 +370,7 @@ app.get('/api/students/:regno', (c) => {
 
   // Get intern selections (temp_interns_selected)
   const internSelections = db.prepare(`
-    SELECT co.*, sel.selected_at, 'intern' as offer_type
+    SELECT co.*, sel.selected_at, sel.role as selection_role, sel.role, 'intern' as offer_type
     FROM companies co
     JOIN temp_interns_selected sel ON co.id = sel.company_id
     WHERE (sel.regno IS NOT NULL AND UPPER(sel.regno) = ?)
@@ -346,7 +381,7 @@ app.get('/api/students/:regno', (c) => {
 
   // Get final placements (temp_final_selection)
   const finalSelections = db.prepare(`
-    SELECT co.*, fin.selected_at, 'placed' as offer_type
+    SELECT co.*, fin.selected_at, fin.role as selection_role, fin.role, 'placed' as offer_type
     FROM companies co
     JOIN temp_final_selection fin ON co.id = fin.company_id
     WHERE (fin.regno IS NOT NULL AND UPPER(fin.regno) = ?)
@@ -395,7 +430,8 @@ app.put('/api/students/:regno', async (c) => {
     placed,
     masters,
     status,
-    topcoder
+    topcoder,
+    role
   } = body;
 
   const targetRegno = existing?.regno || regno || param;
@@ -413,6 +449,8 @@ app.put('/api/students/:regno', async (c) => {
   const isPlaced = status === 'placed' || status === 'intern';
   const isMasters = status === 'masters';
   const isTopcoder = topcoder ? 1 : 0;
+  const cleanRole = role ? String(role).trim() : null;
+  if (cleanRole) ensureRoleExists(cleanRole);
 
   if (existing) {
     db.prepare(`
@@ -432,7 +470,8 @@ app.put('/api/students/:regno', async (c) => {
           placed = ?,
           masters = ?,
           status = ?,
-          topcoder = ?
+          topcoder = ?,
+          role = ?
       WHERE UPPER(regno) = ?
     `).run(
       name,
@@ -451,6 +490,7 @@ app.put('/api/students/:regno', async (c) => {
       isMasters ? 1 : 0,
       status,
       isTopcoder,
+      cleanRole,
       targetRegno.toUpperCase()
     );
   }
@@ -842,6 +882,13 @@ app.post('/api/students/recalculate-analytics', (c) => {
             WHERE UPPER(fin.regno) = UPPER(temp_students.regno)
                OR (fin.neo_id IS NOT NULL AND fin.neo_id != '' AND UPPER(fin.neo_id) = UPPER(temp_students.neo_id))
             LIMIT 1
+          ),
+          role = (
+            SELECT fin.role FROM temp_final_selection fin
+            WHERE (UPPER(fin.regno) = UPPER(temp_students.regno)
+               OR (fin.neo_id IS NOT NULL AND fin.neo_id != '' AND UPPER(fin.neo_id) = UPPER(temp_students.neo_id)))
+               AND fin.role IS NOT NULL AND fin.role != ''
+            LIMIT 1
           )
       WHERE regno IN (SELECT fin2.regno FROM temp_final_selection fin2 WHERE fin2.regno IS NOT NULL)
          OR (neo_id IS NOT NULL AND neo_id != '' AND neo_id IN (SELECT fin3.neo_id FROM temp_final_selection fin3 WHERE fin3.neo_id IS NOT NULL));
@@ -857,6 +904,13 @@ app.post('/api/students/recalculate-analytics', (c) => {
             WHERE UPPER(sel.regno) = UPPER(temp_students.regno)
                OR (sel.neo_id IS NOT NULL AND sel.neo_id != '' AND UPPER(sel.neo_id) = UPPER(temp_students.neo_id))
             LIMIT 1
+          ),
+          role = (
+            SELECT sel.role FROM temp_interns_selected sel
+            WHERE (UPPER(sel.regno) = UPPER(temp_students.regno)
+               OR (sel.neo_id IS NOT NULL AND sel.neo_id != '' AND UPPER(sel.neo_id) = UPPER(temp_students.neo_id)))
+               AND sel.role IS NOT NULL AND sel.role != ''
+            LIMIT 1
           )
       WHERE (regno IN (SELECT sel2.regno FROM temp_interns_selected sel2 WHERE sel2.regno IS NOT NULL)
          OR (neo_id IS NOT NULL AND neo_id != '' AND neo_id IN (SELECT sel3.neo_id FROM temp_interns_selected sel3 WHERE sel3.neo_id IS NOT NULL)))
@@ -868,7 +922,8 @@ app.post('/api/students/recalculate-analytics', (c) => {
       UPDATE temp_students
       SET placed = 0,
           status = 'not_placed',
-          final_company_id = NULL
+          final_company_id = NULL,
+          role = NULL
       WHERE status != 'masters'
         AND regno NOT IN (
           SELECT regno FROM temp_final_selection WHERE regno IS NOT NULL
@@ -978,7 +1033,7 @@ app.get('/api/companies/:id', (c) => {
     // Shortlisted students — Optimized prioritized LEFT JOINs with NOCASE indexes
     const shortlisted = db.prepare(`
       WITH company_sl AS (
-        SELECT id, company_id, regno, neo_id, round_number, round_name, shortlisted_at
+        SELECT id, company_id, regno, neo_id, round_number, round_name, role, shortlisted_at
         FROM temp_shortlists
         WHERE company_id = ?
       )
@@ -987,6 +1042,7 @@ app.get('/api/companies/:id', (c) => {
         sl.shortlisted_at,
         sl.round_number,
         sl.round_name,
+        sl.role,
         COALESCE(s1.regno, s2.regno, s3.regno, sl.regno, n.regno) as regno,
         COALESCE(s1.name, s2.name, s3.name, CASE WHEN COALESCE(sl.neo_id, s1.neo_id, s2.neo_id, s3.neo_id, n.neoid) IS NOT NULL THEN 'Student (' || COALESCE(sl.neo_id, s1.neo_id, s2.neo_id, s3.neo_id, n.neoid) || ')' ELSE 'Student (' || COALESCE(sl.regno, 'Unmapped') || ')' END) as name,
         COALESCE(s1.email, s2.email, s3.email, '') as email,
@@ -1090,13 +1146,14 @@ app.get('/api/companies/:id', (c) => {
     // Intern students (temp_interns_selected)
     const interns = db.prepare(`
       WITH company_sel AS (
-        SELECT id, company_id, regno, neo_id, selected_at
+        SELECT id, company_id, regno, neo_id, role, selected_at
         FROM temp_interns_selected
         WHERE company_id = ?
       )
       SELECT
         sel.id as selection_entry_id,
         sel.selected_at,
+        sel.role,
         'intern' as offer_type,
         COALESCE(s1.regno, s2.regno, s3.regno, sel.regno, n.regno) as regno,
         COALESCE(s1.name, s2.name, s3.name, CASE WHEN COALESCE(sel.neo_id, s1.neo_id, s2.neo_id, s3.neo_id, n.neoid) IS NOT NULL THEN 'Student (' || COALESCE(sel.neo_id, s1.neo_id, s2.neo_id, s3.neo_id, n.neoid) || ')' ELSE 'Student (' || COALESCE(sel.regno, 'Unmapped') || ')' END) as name,
@@ -1134,13 +1191,14 @@ app.get('/api/companies/:id', (c) => {
     // Finally placed students (temp_final_selection)
     const finals = db.prepare(`
       WITH company_fin AS (
-        SELECT id, company_id, regno, neo_id, selected_at
+        SELECT id, company_id, regno, neo_id, role, selected_at
         FROM temp_final_selection
         WHERE company_id = ?
       )
       SELECT
         fin.id as selection_entry_id,
         fin.selected_at,
+        fin.role,
         'placed' as offer_type,
         COALESCE(s1.regno, s2.regno, s3.regno, fin.regno, n.regno) as regno,
         COALESCE(s1.name, s2.name, s3.name, CASE WHEN COALESCE(fin.neo_id, s1.neo_id, s2.neo_id, s3.neo_id, n.neoid) IS NOT NULL THEN 'Student (' || COALESCE(fin.neo_id, s1.neo_id, s2.neo_id, s3.neo_id, n.neoid) || ')' ELSE 'Student (' || COALESCE(fin.regno, 'Unmapped') || ')' END) as name,
@@ -1392,13 +1450,15 @@ function resolveTempToken(token: string) {
   };
 }
 
-// Add students to company shortlist (accepts RegNo or NeoID & round info)
+// Add students to company shortlist (accepts RegNo or NeoID, round info & role)
 app.post('/api/companies/:id/shortlist', async (c) => {
   try {
     const companyId = c.req.param('id');
     const body = await c.req.json();
     const rawInput = body.regnos || body.identifiers || [];
     const roundNumber = body.round_number ? parseInt(body.round_number) : 1;
+    const role = body.role ? String(body.role).trim() : null;
+    if (role) ensureRoleExists(role);
 
     // Check if there is an existing custom round_name for this company and round_number
     let roundName = body.round_name ? String(body.round_name).trim() : '';
@@ -1452,6 +1512,7 @@ app.post('/api/companies/:id/shortlist', async (c) => {
               regno: resolved.regno,
               neo_id: resolved.neo_id,
               round: roundName,
+              role: role,
               success: true,
               isDuplicate: true,
               note: 'Already shortlisted for this round'
@@ -1460,14 +1521,14 @@ app.post('/api/companies/:id/shortlist', async (c) => {
           }
 
           const insertResult = db.prepare(`
-            INSERT OR IGNORE INTO temp_shortlists (regno, neo_id, company_id, round_number, round_name)
-            VALUES (?, ?, ?, ?, ?)
-          `).run(resolved.regno || null, resolved.neo_id || null, companyId, roundNumber, roundName);
+            INSERT OR IGNORE INTO temp_shortlists (regno, neo_id, company_id, round_number, round_name, role)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `).run(resolved.regno || null, resolved.neo_id || null, companyId, roundNumber, roundName, role || null);
 
           if (insertResult.changes > 0) {
-            results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, round: roundName, success: true });
+            results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, round: roundName, role: role, success: true });
           } else {
-            results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, round: roundName, success: true, note: 'Already shortlisted for this round' });
+            results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, round: roundName, role: role, success: true, note: 'Already shortlisted for this round' });
           }
         } catch (error: any) {
           errors.push({ identifier: item, error: error.message });
@@ -1545,13 +1606,15 @@ app.delete('/api/companies/:id/shortlist-round/:roundNumber', async (c) => {
   }
 });
 
-// Add students to company selections (final selection, accepts RegNo or NeoID)
+// Add students to company selections (final selection, accepts RegNo or NeoID & role)
 app.post('/api/companies/:id/selections', async (c) => {
   try {
     const companyId = c.req.param('id');
     const body = await c.req.json();
     const rawInput = body.regnos || body.identifiers || [];
     const selectionStatus = body.status === 'intern' ? 'intern' : 'placed';
+    const role = body.role ? String(body.role).trim() : null;
+    if (role) ensureRoleExists(role);
 
     const tokens = extractCleanTokens(rawInput);
     if (tokens.length === 0) {
@@ -1576,36 +1639,36 @@ app.post('/api/companies/:id/selections', async (c) => {
           let insertResult;
           if (selectionStatus === 'placed') {
             insertResult = db.prepare(`
-              INSERT OR IGNORE INTO temp_final_selection (regno, neo_id, company_id)
-              VALUES (?, ?, ?)
-            `).run(resolved.regno || null, resolved.neo_id || null, companyId);
+              INSERT OR IGNORE INTO temp_final_selection (regno, neo_id, company_id, role)
+              VALUES (?, ?, ?, ?)
+            `).run(resolved.regno || null, resolved.neo_id || null, companyId, role || null);
           } else {
             insertResult = db.prepare(`
-              INSERT OR IGNORE INTO temp_interns_selected (regno, neo_id, company_id)
-              VALUES (?, ?, ?)
-            `).run(resolved.regno || null, resolved.neo_id || null, companyId);
+              INSERT OR IGNORE INTO temp_interns_selected (regno, neo_id, company_id, role)
+              VALUES (?, ?, ?, ?)
+            `).run(resolved.regno || null, resolved.neo_id || null, companyId, role || null);
           }
 
-          // Update temp_students status
+          // Update temp_students status and role
           if (resolved.regno) {
             db.prepare(`
               UPDATE temp_students
-              SET placed = 1, status = ?, final_company_id = ?
+              SET placed = 1, status = ?, final_company_id = ?, role = COALESCE(?, role)
               WHERE UPPER(regno) = UPPER(?)
-            `).run(selectionStatus, companyId, resolved.regno);
+            `).run(selectionStatus, companyId, role || null, resolved.regno);
           }
           if (resolved.neo_id) {
             db.prepare(`
               UPDATE temp_students
-              SET placed = 1, status = ?, final_company_id = ?
+              SET placed = 1, status = ?, final_company_id = ?, role = COALESCE(?, role)
               WHERE neo_id IS NOT NULL AND UPPER(neo_id) = UPPER(?)
-            `).run(selectionStatus, companyId, resolved.neo_id);
+            `).run(selectionStatus, companyId, role || null, resolved.neo_id);
           }
 
           if (insertResult.changes > 0) {
-            results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, success: true });
+            results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, role: role, success: true });
           } else {
-            results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, success: true, note: 'Already selected' });
+            results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, role: role, success: true, note: 'Already selected' });
           }
         } catch (error: any) {
           errors.push({ identifier: item, error: error.message });
@@ -1624,7 +1687,7 @@ app.post('/api/companies/:id/selections', async (c) => {
       }
     }, 0);
 
-    return c.json({ results, errors, status: selectionStatus });
+    return c.json({ results, errors, status: selectionStatus, role });
   } catch (error: any) {
     console.error('Error in selections endpoint:', error);
     return c.json({ error: 'Internal server error', details: error.message }, 500);
@@ -1635,12 +1698,14 @@ app.post('/api/companies/:id/selections', async (c) => {
 app.post('/api/students/:id/place', async (c) => {
   const studentId = c.req.param('id');
   const body = await c.req.json();
-  const { companyId } = body;
+  const { companyId, role } = body;
+  const cleanRole = role ? String(role).trim() : null;
+  if (cleanRole) ensureRoleExists(cleanRole);
   
   try {
     db.prepare(
-      'UPDATE temp_students SET placed = 1, final_company_id = ? WHERE UPPER(regno) = UPPER(?) OR UPPER(neo_id) = UPPER(?)'
-    ).run(companyId, studentId, studentId);
+      'UPDATE temp_students SET placed = 1, final_company_id = ?, role = COALESCE(?, role) WHERE UPPER(regno) = UPPER(?) OR UPPER(neo_id) = UPPER(?)'
+    ).run(companyId, cleanRole, studentId, studentId);
     
     return c.json({ success: true });
   } catch (error: any) {

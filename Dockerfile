@@ -1,21 +1,26 @@
-FROM node:24-slim
+# 1. Builder Stage (node:22 comes with python3, make, g++ pre-installed)
+FROM node:22 AS builder
 
 WORKDIR /app
 
-# Install system libs (better-sqlite3 requirement)
-RUN apt-get update && apt-get install -y python3 g++ make && rm -rf /var/lib/apt/lists/*
-
-# Install deps first (cache layer)
 COPY package*.json ./
 RUN npm install
 
-# Copy source
 COPY . .
-
-# Build the project (frontend and backend)
 RUN npm run build
 
-# Expose port
+# 2. Production Stage (minimal slim runtime)
+FROM node:22-slim
+
+WORKDIR /app
+
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+
 EXPOSE 3001
 
 CMD ["node", "dist/backend/index.js"]
+
+
+

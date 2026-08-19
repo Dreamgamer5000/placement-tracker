@@ -902,10 +902,68 @@ app.post('/api/students/recalculate-analytics', (c) => {
   }
 });
 
-// Get all companies
+// Get all companies (with latest shortlist info)
 app.get('/api/companies', (c) => {
-  const companies = db.prepare('SELECT * FROM companies ORDER BY name').all();
+  const companies = db.prepare(`
+    SELECT 
+      c.*,
+      (
+        SELECT round_number 
+        FROM temp_shortlists 
+        WHERE company_id = c.id 
+        ORDER BY round_number DESC, shortlisted_at DESC 
+        LIMIT 1
+      ) as latest_round_number,
+      (
+        SELECT round_name 
+        FROM temp_shortlists 
+        WHERE company_id = c.id 
+        ORDER BY round_number DESC, shortlisted_at DESC 
+        LIMIT 1
+      ) as latest_round_name,
+      (
+        SELECT COUNT(DISTINCT round_number)
+        FROM temp_shortlists
+        WHERE company_id = c.id
+      ) as total_shortlist_rounds,
+      (
+        SELECT COUNT(*)
+        FROM temp_shortlists
+        WHERE company_id = c.id
+      ) as total_shortlisted_count
+    FROM companies c
+    ORDER BY c.name
+  `).all();
   return c.json(companies);
+});
+
+// Get shortlist rounds summary for a company
+app.get('/api/companies/:id/shortlist-rounds', (c) => {
+  try {
+    const id = c.req.param('id');
+    const rounds = db.prepare(`
+      SELECT 
+        round_number, 
+        round_name, 
+        COUNT(*) as student_count,
+        MAX(shortlisted_at) as latest_shortlisted_at
+      FROM temp_shortlists
+      WHERE company_id = ?
+      GROUP BY round_number, round_name
+      ORDER BY round_number ASC
+    `).all(id) as any[];
+
+    const latestRound = rounds.length > 0 ? rounds[rounds.length - 1] : null;
+
+    return c.json({
+      rounds,
+      latestRound,
+      suggestedNextRoundNumber: latestRound ? (latestRound.round_number + 1) : 1
+    });
+  } catch (error: any) {
+    console.error('Error fetching shortlist rounds:', error);
+    return c.json({ error: 'Failed to fetch shortlist rounds', details: error.message }, 500);
+  }
 });
 
 // Get company by ID with analytics, shortlists, intern selections, and final placements

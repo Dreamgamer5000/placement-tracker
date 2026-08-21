@@ -799,8 +799,8 @@
             {/if}
           </div>
 
-          <div class="pt-3 border-t border-gray-100 dark:border-slate-700 flex items-center justify-between gap-1.5 text-xs text-gray-500 dark:text-slate-400">
-            <div class="flex flex-wrap gap-1.5">
+          {#if company.stipend || company.total_rounds || company.rounds || company.experience_required}
+            <div class="pt-3 border-t border-gray-100 dark:border-slate-700 flex flex-wrap gap-1.5 text-xs text-gray-500 dark:text-slate-400">
               {#if company.stipend}
                 <span class="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 rounded font-semibold text-[11px]">
                   💵 Stipend: {company.stipend}
@@ -817,15 +817,7 @@
                 </span>
               {/if}
             </div>
-            <button 
-              type="button" 
-              class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
-              title={`Delete ${company.name}`}
-              on:click|stopPropagation={() => initiateDeleteCompany(company)}
-            >
-              🗑️
-            </button>
-          </div>
+          {/if}
         </div>
       {/each}
     </div>

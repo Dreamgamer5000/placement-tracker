@@ -22,7 +22,7 @@ function getApiKey(): string | undefined {
           process.loadEnvFile(envPath);
         }
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   let key = process.env.GEMINI_API_KEY?.trim();
@@ -37,10 +37,12 @@ function getApiKey(): string | undefined {
 
 const SYSTEM_INSTRUCTION = `You are an accurate, strict placement email information extraction assistant. Your task is to extract structured details from placement cell notifications and company announcements.
 
-CRITICAL EXTRACTION RULES:
-1. Extract ONLY information that is explicitly stated in the provided text.
-2. If any field is missing, not mentioned, or cannot be found directly in the text, return an empty string "" for that field. DO NOT invent, guess, assume, or extrapolate any values.
-3. Do not pull facts from pre-trained knowledge about the company (e.g. do not guess the company website, typical salary, or headquarters if not written in the email).
+CRITICAL EXTRACTION & CATEGORIZATION RULES:
+1. Extract information accurately from the provided text.
+2. If any field is missing, not mentioned, or cannot be found directly in the text, return an empty string "" for that field (unless specified by CTC category rules below). DO NOT invent or assume external company facts.
+3. CATEGORY DETERMINATION RULES (MANDATORY):
+   - If full-time CTC is greater than or equal to 10 LPA, the category MUST be set to "Super Dream".
+   - If full-time CTC is less than 10 LPA, use the category explicitly mentioned in the email (e.g. "Dream", "Regular", "Internship"), or leave empty "" if not specified.
 4. Format fields cleanly:
    - name: Company Name (e.g., "Google", "Saviynt", "Oracle")
    - category: Tier or category if mentioned (e.g. "Super Dream", "Dream", "Internship + FTE", "Regular")
@@ -143,7 +145,7 @@ export async function parsePlacementEmail(emailText: string): Promise<CompanyPar
       if (parsedErr.error?.message) {
         errorMsg = `Gemini API: ${parsedErr.error.message}`;
       }
-    } catch (_) {}
+    } catch (_) { }
     throw new Error(errorMsg);
   }
 

@@ -386,6 +386,39 @@
     }
   }
 
+  function initiateDeleteCompany(company: any) {
+    if (!company) return;
+    passwordModalTitle = 'Delete Company';
+    passwordModalMessage = `Enter admin password to permanently delete "${company.name}" and all its shortlists/selections.`;
+    pendingAction = (pwd: string) => executeDeleteCompany(company.id, company.name, pwd);
+    showPasswordModal = true;
+  }
+
+  async function executeDeleteCompany(companyId: number, companyName: string, pwd = '') {
+    try {
+      const response = await fetch(`/api/companies/${companyId}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Admin-Password': pwd
+        }
+      });
+
+      if (response.ok) {
+        if (selectedCompany && selectedCompany.id === companyId) {
+          selectedCompany = null;
+          editingCompany = null;
+        }
+        await loadCompanies();
+      } else {
+        const err = await response.json();
+        alert(err.error || 'Failed to delete company');
+      }
+    } catch (error) {
+      console.error('Error deleting company:', error);
+      alert('Failed to delete company due to network error.');
+    }
+  }
+
   async function recalculateAnalytics() {
     if (recalculatingAnalytics) return;
     
@@ -766,22 +799,32 @@
             {/if}
           </div>
 
-          <div class="pt-3 border-t border-gray-100 dark:border-slate-700 flex flex-wrap gap-1.5 text-xs text-gray-500 dark:text-slate-400">
-            {#if company.stipend}
-              <span class="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 rounded font-semibold text-[11px]">
-                💵 Stipend: {company.stipend}
-              </span>
-            {/if}
-            {#if company.total_rounds || company.rounds}
-              <span class="px-2 py-0.5 bg-purple-50 dark:bg-purple-900/40 dark:bg-indigo-950/40 text-purple-700 dark:text-purple-300 rounded font-semibold text-[11px]">
-                📝 {company.total_rounds || company.rounds} Rounds
-              </span>
-            {/if}
-            {#if company.experience_required}
-              <span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-900/40 dark:bg-slate-700 text-gray-700 dark:text-gray-300 dark:text-slate-300 rounded font-medium text-[11px]">
-                🎓 {company.experience_required}
-              </span>
-            {/if}
+          <div class="pt-3 border-t border-gray-100 dark:border-slate-700 flex items-center justify-between gap-1.5 text-xs text-gray-500 dark:text-slate-400">
+            <div class="flex flex-wrap gap-1.5">
+              {#if company.stipend}
+                <span class="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 rounded font-semibold text-[11px]">
+                  💵 Stipend: {company.stipend}
+                </span>
+              {/if}
+              {#if company.total_rounds || company.rounds}
+                <span class="px-2 py-0.5 bg-purple-50 dark:bg-purple-900/40 dark:bg-indigo-950/40 text-purple-700 dark:text-purple-300 rounded font-semibold text-[11px]">
+                  📝 {company.total_rounds || company.rounds} Rounds
+                </span>
+              {/if}
+              {#if company.experience_required}
+                <span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-900/40 dark:bg-slate-700 text-gray-700 dark:text-gray-300 dark:text-slate-300 rounded font-medium text-[11px]">
+                  🎓 {company.experience_required}
+                </span>
+              {/if}
+            </div>
+            <button 
+              type="button" 
+              class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+              title={`Delete ${company.name}`}
+              on:click|stopPropagation={() => initiateDeleteCompany(company)}
+            >
+              🗑️
+            </button>
           </div>
         </div>
       {/each}
@@ -862,12 +905,23 @@
           </div>
         </div>
 
-        <button 
-          on:click={() => openEditCompany(selectedCompany)}
-          class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-all shadow-sm flex items-center gap-2"
-        >
-          ✏️ Edit Company Details
-        </button>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button 
+            type="button"
+            on:click={() => openEditCompany(selectedCompany)}
+            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+          >
+            ✏️ Edit Details
+          </button>
+          <button 
+            type="button"
+            on:click={() => initiateDeleteCompany(selectedCompany)}
+            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+            title="Delete this company"
+          >
+            🗑️ Delete Company
+          </button>
+        </div>
       </div>
 
       <!-- Editable Form inside Modal if Editing -->

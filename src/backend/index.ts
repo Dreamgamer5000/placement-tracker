@@ -1373,6 +1373,47 @@ app.put('/api/companies/:id', async (c) => {
   }
 });
 
+// Delete company
+app.delete('/api/companies/:id', async (c) => {
+  if (!verifyAdminPassword(c)) {
+    return c.json({ error: 'Unauthorized: Invalid admin password' }, 401);
+  }
+  const id = c.req.param('id');
+  const companyId = parseInt(id, 10);
+  if (isNaN(companyId)) {
+    return c.json({ error: 'Invalid company ID' }, 400);
+  }
+
+  try {
+    const company: any = db.prepare('SELECT * FROM companies WHERE id = ?').get(companyId);
+    if (!company) {
+      return c.json({ error: 'Company not found' }, 404);
+    }
+
+    const deleteTransaction = db.transaction(() => {
+      // Clean up records in dependent tables
+      db.prepare('DELETE FROM temp_shortlists WHERE company_id = ?').run(companyId);
+      db.prepare('DELETE FROM temp_interns_selected WHERE company_id = ?').run(companyId);
+      db.prepare('DELETE FROM temp_final_selection WHERE company_id = ?').run(companyId);
+      db.prepare('DELETE FROM shortlists WHERE company_id = ?').run(companyId);
+      db.prepare('DELETE FROM selections WHERE company_id = ?').run(companyId);
+      db.prepare('DELETE FROM company_analytics WHERE company_id = ?').run(companyId);
+      db.prepare('UPDATE students SET final_company_id = NULL WHERE final_company_id = ?').run(companyId);
+      
+      // Delete the company record itself
+      db.prepare('DELETE FROM companies WHERE id = ?').run(companyId);
+    });
+
+    deleteTransaction();
+    cachedAnalyticsSummary = null;
+
+    return c.json({ success: true, message: `Company "${company.name}" deleted successfully.` });
+  } catch (error: any) {
+    console.error('[DELETE /api/companies/:id] Error:', error);
+    return c.json({ error: 'Failed to delete company', details: error.message }, 500);
+  }
+});
+
 // Recalculate analytics for all companies
 app.post('/api/companies/recalculate-analytics', async (c) => {
   try {

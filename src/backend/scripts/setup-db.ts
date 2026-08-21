@@ -1,5 +1,5 @@
-import { initDatabase } from '../db/index.js';
-import db from '../db/index.js';
+import { initDatabase } from '../db/database.js';
+import db from '../db/database.js';
 
 // Check and add neo_id column to students table if missing
 const studentTableInfo = db.pragma('table_info(students)') as { name: string }[];

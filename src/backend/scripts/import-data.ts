@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import Papa from 'papaparse';
-import db from '../db/index.js';
-import { extractBranch, normalizeRegNo, parseMarks } from '../utils.js';
+import db from '../db/database.js';
+import { extractBranch, normalizeRegNo, parseMarks } from '../utils/string.utils.js';
 
 interface IOERow {
   regno: string;

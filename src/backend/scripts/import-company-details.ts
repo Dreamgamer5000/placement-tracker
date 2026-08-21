@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import db from '../db/index.js';
+import db from '../db/database.js';
 
 interface ParsedCompany {
   name: string;

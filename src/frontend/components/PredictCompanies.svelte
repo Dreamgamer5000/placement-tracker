@@ -34,19 +34,19 @@
   }
 </script>
 
-<div class="p-8 max-w-[1600px] mx-auto space-y-8">
+<div class="px-3 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-5xl mx-auto space-y-6">
   <!-- Header -->
   <div>
-    <h2 class="text-3xl font-bold text-gray-900 dark:text-gray-300 dark:text-slate-100 flex items-center gap-2">
+    <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-300 dark:text-slate-100 flex items-center gap-2">
       🔮 Predict Eligible Companies
     </h2>
-    <p class="text-gray-500 dark:text-slate-400 text-sm mt-1">
+    <p class="text-gray-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
       Analyze candidate academic profiles against historical cutoff thresholds to predict placement eligibility.
     </p>
   </div>
 
   <!-- Form Card -->
-  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md p-6 border border-purple-100 dark:border-indigo-900/50 space-y-6">
+  <div class="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-purple-100 dark:border-indigo-900/50 space-y-6">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div>
         <label for="cgpa" class="block text-xs font-bold text-gray-700 dark:text-gray-300 dark:text-slate-300 uppercase mb-1">Cumulative CGPA (0 - 10) *</label>

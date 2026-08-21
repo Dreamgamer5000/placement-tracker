@@ -462,21 +462,42 @@
 
 <style>
   .analytics {
-    padding: 1.5rem 2rem;
+    padding: 0.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  @media (min-width: 640px) {
+    .analytics {
+      padding: 1.5rem;
+    }
   }
 
   .header {
     display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+  @media (min-width: 640px) {
+    .header {
+      flex-direction: row;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
   }
 
   h2 {
-    color: #1e293b;
     margin: 0;
-    font-size: 1.75rem;
-    font-weight: 700;
+    color: #1e293b;
+    font-size: 1.35rem;
+    font-weight: 800;
+  }
+  @media (min-width: 640px) {
+    h2 {
+      font-size: 1.75rem;
+    }
   }
 
   .btn-refresh {
@@ -484,9 +505,10 @@
     color: white;
     border: none;
     padding: 0.5rem 1rem;
-    border-radius: 6px;
-    font-weight: 600;
+    border-radius: 8px;
     cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
     transition: background 0.2s;
   }
 
@@ -502,9 +524,9 @@
   .loading,
   .error-box {
     text-align: center;
-    padding: 3rem;
+    padding: 2.5rem 1rem;
     color: #64748b;
-    font-size: 1.1rem;
+    font-size: 1rem;
   }
 
   .error-box {
@@ -516,19 +538,33 @@
 
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1.25rem;
-    margin-bottom: 2rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (min-width: 768px) {
+    .stats-grid {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
   }
 
   .stat-card {
     background: white;
-    padding: 1.5rem;
-    border-radius: 16px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+    padding: 1rem 0.85rem;
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
     border: 1px solid #e2e8f0;
     text-align: left;
     transition: all 0.2s ease;
+  }
+  @media (min-width: 640px) {
+    .stat-card {
+      padding: 1.5rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+    }
   }
 
   .stat-card:hover {
@@ -537,54 +573,78 @@
   }
 
   .stat-card.primary {
-    border-left: 5px solid #6366f1;
+    border-left: 4px solid #6366f1;
     background: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);
   }
   .stat-card.success {
-    border-left: 5px solid #10b981;
+    border-left: 4px solid #10b981;
     background: linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%);
   }
   .stat-card.chennai-highlight {
-    border-left: 5px solid #8b5cf6;
+    border-left: 4px solid #8b5cf6;
     background: linear-gradient(135deg, #ffffff 0%, #f3e8ff 100%);
   }
   .stat-card.warning {
-    border-left: 5px solid #f59e0b;
+    border-left: 4px solid #f59e0b;
     background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
   }
   .stat-card.dark {
-    border-left: 5px solid #3b82f6;
+    border-left: 4px solid #3b82f6;
     background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
   }
 
   .stat-value {
-    font-size: 2.5rem;
+    font-size: 1.6rem;
     font-weight: 800;
     color: #0f172a;
     line-height: 1.1;
     letter-spacing: -0.02em;
   }
+  @media (min-width: 640px) {
+    .stat-value {
+      font-size: 2.5rem;
+    }
+  }
 
   .stat-label {
     color: #334155;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 700;
-    margin-top: 0.4rem;
+    margin-top: 0.35rem;
+  }
+  @media (min-width: 640px) {
+    .stat-label {
+      font-size: 0.9rem;
+      margin-top: 0.4rem;
+    }
   }
 
   .stat-sub {
     color: #64748b;
-    font-size: 0.8rem;
-    margin-top: 0.25rem;
+    font-size: 0.72rem;
+    margin-top: 0.2rem;
+  }
+  @media (min-width: 640px) {
+    .stat-sub {
+      font-size: 0.8rem;
+      margin-top: 0.25rem;
+    }
   }
 
   /* Section Containers */
   .section-container {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
+    border-radius: 12px;
+    padding: 0.85rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (min-width: 640px) {
+    .section-container {
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
   }
 
   .placement-section {

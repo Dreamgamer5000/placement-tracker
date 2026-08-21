@@ -3,9 +3,22 @@ import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { getCookie, setCookie } from 'hono/cookie';
+import fs from 'fs';
+import { join } from 'path';
 import db from './db/index.js';
 import { extractCleanTokens } from './utils.js';
+import { parsePlacementEmail } from './services/gemini.service.js';
 import crypto from 'crypto';
+
+// Load .env configuration
+try {
+  if (typeof process.loadEnvFile === 'function') {
+    const envPath = join(process.cwd(), '.env');
+    if (fs.existsSync(envPath)) {
+      process.loadEnvFile(envPath);
+    }
+  }
+} catch (_) {}
 
 const app = new Hono();
 
@@ -163,18 +176,32 @@ app.get('/api/health', (c) => {
 // ---------------------------------------------------------------------------
 // Roles API — Master registry of standardized job roles
 // ---------------------------------------------------------------------------
+function ensureRolesTableReady() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS roles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL COLLATE NOCASE,
+      category TEXT DEFAULT 'Engineering',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+}
+
 function ensureRoleExists(roleName?: string | null, category: string = 'Engineering') {
   if (!roleName || !roleName.trim()) return null;
   const clean = roleName.trim();
+  ensureRolesTableReady();
   db.prepare('INSERT OR IGNORE INTO roles (name, category) VALUES (?, ?)').run(clean, category);
   return clean;
 }
 
 app.get('/api/roles', (c) => {
   try {
+    ensureRolesTableReady();
     const roles = db.prepare('SELECT * FROM roles ORDER BY category ASC, name ASC').all();
     return c.json(roles);
   } catch (err: any) {
+    console.error('Error in GET /api/roles:', err);
     return c.json({ error: err.message }, 500);
   }
 });
@@ -1237,6 +1264,22 @@ app.get('/api/companies/:id', (c) => {
   } catch (err: any) {
     console.error('[GET /api/companies/:id] Error:', err);
     return c.json({ error: 'Internal server error', details: err?.message }, 500);
+  }
+});
+
+// AI Parse Placement Email
+app.post('/api/companies/parse-email', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const emailText = body.emailText;
+    if (!emailText || !emailText.trim()) {
+      return c.json({ error: 'Please provide email text to parse.' }, 400);
+    }
+    const data = await parsePlacementEmail(emailText);
+    return c.json({ success: true, data });
+  } catch (err: any) {
+    console.error('[POST /api/companies/parse-email] Error:', err);
+    return c.json({ error: err.message || 'Failed to parse email with Gemini AI' }, 500);
   }
 });
 

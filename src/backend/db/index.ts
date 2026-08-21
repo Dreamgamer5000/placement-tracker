@@ -404,6 +404,9 @@ export function initDatabase() {
   console.log('Database initialized successfully');
 }
 
+// Auto-run schema migrations and initialization on load
+initDatabase();
+
 export function getDb() {
   return db;
 }

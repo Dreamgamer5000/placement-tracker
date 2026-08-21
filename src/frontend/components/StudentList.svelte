@@ -235,35 +235,35 @@
       <h2>👥 Student Directory</h2>
       <p class="text-xs text-gray-500 mt-1">Manage students, Neo IDs, placement statuses, and company shortlists.</p>
     </div>
-    <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+    <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
       <button 
         type="button"
-        class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 flex-grow sm:flex-grow-0 text-center {!filterUnmappedChennai ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 dark:text-gray-300 border-gray-300 hover:border-purple-400'}"
+        class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 text-center {!filterUnmappedChennai ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 dark:text-gray-300 border-gray-300 hover:border-purple-400'}"
         on:click={() => { if (filterUnmappedChennai) { filterUnmappedChennai = false; page = 1; loadStudents(); } }}
       >
-        All Students ({filterUnmappedChennai ? 'Show All' : totalCount})
+        All ({filterUnmappedChennai ? 'Show All' : totalCount})
       </button>
       <button 
         type="button"
-        class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 flex-grow sm:flex-grow-0 text-center {filterUnmappedChennai ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-amber-50 dark:bg-amber-900/40 text-amber-900 dark:text-amber-300 border-amber-300 hover:bg-amber-100 dark:bg-amber-900/40'}"
+        class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 text-center {filterUnmappedChennai ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-amber-50 dark:bg-amber-900/40 text-amber-900 dark:text-amber-300 border-amber-300 hover:bg-amber-100 dark:bg-amber-900/40'}"
         on:click={toggleUnmappedChennaiFilter}
       >
-        ⚠️ Unmapped Chennai NeoIDs ({unmappedChennaiCount})
+        ⚠️ Unmapped ({unmappedChennaiCount})
       </button>
       <button 
         type="button"
-        class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 flex-grow sm:flex-grow-0 text-center {filterMasters ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-900 dark:text-indigo-300 border-indigo-300 hover:bg-indigo-100 dark:bg-indigo-900/40'}"
+        class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 text-center {filterMasters ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-900 dark:text-indigo-300 border-indigo-300 hover:bg-indigo-100 dark:bg-indigo-900/40'}"
         on:click={toggleMastersFilter}
       >
         🎓 Masters ({mastersCount})
       </button>
       <button 
         type="button"
-        class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 flex-grow sm:flex-grow-0 text-center bg-emerald-600 text-white border-emerald-600 shadow-sm hover:bg-emerald-700 disabled:opacity-50"
+        class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 text-center bg-emerald-600 text-white border-emerald-600 shadow-sm hover:bg-emerald-700 disabled:opacity-50"
         disabled={recalculating}
         on:click={recalculateStudentAnalytics}
       >
-        {recalculating ? 'Syncing...' : '🔄 Sync Student Data'}
+        {recalculating ? 'Syncing...' : '🔄 Sync Data'}
       </button>
     </div>
   </div>
@@ -464,7 +464,7 @@
           {#if selectedStudent.shortlists && selectedStudent.shortlists.length > 0}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               {#each selectedStudent.shortlists as company}
-                <div class="flex items-center justify-between p-3 rounded-xl bg-purple-50/70 dark:bg-indigo-950/40 border border-purple-100 dark:border-indigo-900/50 hover:border-purple-200 transition-all">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 rounded-xl bg-purple-50/70 dark:bg-indigo-950/40 border border-purple-100 dark:border-indigo-900/50 hover:border-purple-200 transition-all">
                   <div class="font-semibold text-gray-800 dark:text-gray-300 text-sm">{company.name}</div>
                   <div class="flex items-center gap-1.5 flex-wrap">
                     {#if company.round_name || company.round_number}
@@ -494,7 +494,7 @@
           {#if selectedStudent.selections && selectedStudent.selections.length > 0}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               {#each selectedStudent.selections as selection}
-                <div class="flex items-center justify-between p-3 rounded-xl bg-emerald-50/80 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50 hover:border-emerald-300 transition-all">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 rounded-xl bg-emerald-50/80 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50 hover:border-emerald-300 transition-all">
                   <div>
                     <div class="font-bold text-emerald-950 dark:text-emerald-100 text-sm">{selection.name}</div>
                     {#if selection.ctc_lpa || selection.package_lpa}
@@ -522,10 +522,10 @@
         <!-- Final Placed / Interned Company Banner -->
         {#if selectedStudent.finalCompany}
           {#if selectedStudent.status === 'intern' || selectedStudent.status?.toLowerCase().includes('intern')}
-            <div class="mt-6 p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-md flex items-center justify-between">
+            <div class="mt-6 p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <span class="text-xs uppercase font-bold tracking-wider opacity-90">Internship Record</span>
-                <h4 class="text-lg font-extrabold m-0 text-white">
+                <h4 class="text-base sm:text-lg font-extrabold m-0 text-white">
                   Interned at {selectedStudent.finalCompany.name}
                 </h4>
                 {#if selectedStudent.role}
@@ -539,10 +539,10 @@
               {/if}
             </div>
           {:else}
-            <div class="mt-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md flex items-center justify-between">
+            <div class="mt-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <span class="text-xs uppercase font-bold tracking-wider opacity-90">Official Placement</span>
-                <h4 class="text-lg font-extrabold m-0 text-white">
+                <h4 class="text-base sm:text-lg font-extrabold m-0 text-white">
                   Placed at {selectedStudent.finalCompany.name}
                 </h4>
                 {#if selectedStudent.role}
@@ -669,13 +669,13 @@
 
 <style>
   .student-list {
-    padding: 1rem;
+    padding: 0.5rem;
     max-width: 1400px;
     margin: 0 auto;
   }
   @media (min-width: 640px) {
     .student-list {
-      padding: 2rem;
+      padding: 1.5rem;
     }
   }
 
@@ -684,48 +684,53 @@
     flex-direction: column;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    gap: 0.85rem;
+    margin-bottom: 1rem;
   }
   @media (min-width: 640px) {
     .header-row {
       flex-direction: row;
       align-items: center;
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
     }
   }
 
   h2 {
     color: #1e293b;
-    font-size: 1.875rem;
+    font-size: 1.4rem;
     font-weight: 700;
     margin: 0;
   }
+  @media (min-width: 640px) {
+    h2 {
+      font-size: 1.875rem;
+    }
+  }
 
   .search-container {
-    margin-bottom: 2rem;
+    margin-bottom: 1.25rem;
   }
 
   .search-box {
     width: 100%;
-    padding: 1.1rem 1.5rem;
+    padding: 0.75rem 1rem;
     border: 2px solid #e2e8f0;
     border-radius: 12px;
-    font-size: 1.05rem;
+    font-size: 0.95rem;
     background: #ffffff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
     transition: all 0.2s ease-in-out;
   }
-
-  .search-box:focus {
-    outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+  @media (min-width: 640px) {
+    .search-box {
+      padding: 1rem 1.25rem;
+      font-size: 1.05rem;
+    }
   }
 
   .loading, .empty-state {
     text-align: center;
-    padding: 4rem 2rem;
+    padding: 3rem 1.5rem;
     background: #ffffff;
     border-radius: 16px;
     color: #64748b;
@@ -748,37 +753,52 @@
 
   .table-container {
     background: white;
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
     overflow-x: auto;
     border: 1px solid #f1f5f9;
+    -webkit-overflow-scrolling: touch;
   }
 
   table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
+    min-width: 620px;
   }
 
   th {
     background: #f8fafc;
     font-weight: 700;
     color: #475569;
-    padding: 1.25rem 1.5rem;
+    padding: 0.75rem 0.85rem;
     text-align: left;
     border-bottom: 2px solid #e2e8f0;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  @media (min-width: 640px) {
+    th {
+      padding: 1.1rem 1.25rem;
+      font-size: 0.85rem;
+    }
   }
 
   td {
-    padding: 1.25rem 1.5rem;
+    padding: 0.75rem 0.85rem;
     text-align: left;
     border-bottom: 1px solid #f1f5f9;
     color: #334155;
-    font-size: 0.975rem;
+    font-size: 0.875rem;
     vertical-align: middle;
+  }
+  @media (min-width: 640px) {
+    td {
+      padding: 1.1rem 1.25rem;
+      font-size: 0.95rem;
+    }
   }
 
   tbody tr {
@@ -922,36 +942,61 @@
 
   .pagination-bar {
     display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem 2rem;
+    padding: 1rem;
     background: #ffffff;
-    border-radius: 16px;
-    margin-top: 1.5rem;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    border-radius: 14px;
+    margin-top: 1.25rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
     border: 1px solid #f1f5f9;
+  }
+  @media (min-width: 640px) {
+    .pagination-bar {
+      flex-direction: row;
+      padding: 1.25rem 1.75rem;
+    }
   }
 
   .pagination-info {
     color: #64748b;
-    font-size: 0.95rem;
+    font-size: 0.875rem;
+    text-align: center;
   }
 
   .pagination-controls {
     display: flex;
     align-items: center;
-    gap: 1.25rem;
+    gap: 0.75rem;
+    justify-content: center;
+    width: 100%;
+  }
+  @media (min-width: 640px) {
+    .pagination-controls {
+      width: auto;
+      gap: 1.25rem;
+    }
   }
 
   .btn-page {
-    padding: 0.6rem 1.25rem;
+    padding: 0.45rem 0.9rem;
     background: #ffffff;
     border: 1.5px solid #cbd5e1;
-    border-radius: 10px;
+    border-radius: 8px;
     font-weight: 600;
+    font-size: 0.85rem;
     color: #334155;
     cursor: pointer;
     transition: all 0.2s;
+  }
+  @media (min-width: 640px) {
+    .btn-page {
+      padding: 0.6rem 1.25rem;
+      border-radius: 10px;
+      font-size: 0.95rem;
+    }
   }
 
   .btn-page:hover:not(:disabled) {
@@ -968,7 +1013,7 @@
   .page-indicator {
     font-weight: 700;
     color: #1e293b;
-    font-size: 0.95rem;
+    font-size: 0.875rem;
   }
 
   /* Modals */
@@ -984,16 +1029,21 @@
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    padding: 1.5rem;
+    padding: 0.5rem;
+  }
+  @media (min-width: 640px) {
+    .modal {
+      padding: 1.5rem;
+    }
   }
 
   .modal-content {
     background: white;
-    padding: 1.25rem;
-    border-radius: 20px;
+    padding: 1.25rem 1rem;
+    border-radius: 16px;
     max-width: 850px;
     width: 100%;
-    max-height: 90vh;
+    max-height: 94vh;
     overflow-y: auto;
     position: relative;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
@@ -1001,24 +1051,34 @@
   @media (min-width: 640px) {
     .modal-content {
       padding: 2.5rem;
+      border-radius: 20px;
     }
   }
 
   .close-btn {
     position: absolute;
-    top: 1.5rem;
-    right: 1.5rem;
+    top: 1rem;
+    right: 1rem;
     background: #f1f5f9;
     border: none;
-    font-size: 1.5rem;
-    width: 2.5rem;
-    height: 2.5rem;
+    font-size: 1.25rem;
+    width: 2.2rem;
+    height: 2.2rem;
     border-radius: 50%;
     cursor: pointer;
     color: #64748b;
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  @media (min-width: 640px) {
+    .close-btn {
+      top: 1.5rem;
+      right: 1.5rem;
+      font-size: 1.5rem;
+      width: 2.5rem;
+      height: 2.5rem;
+    }
   }
 
   .close-btn:hover {
@@ -1030,46 +1090,73 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
-    padding-right: 3rem;
+    margin-bottom: 1rem;
+    padding-right: 2.5rem;
+  }
+  @media (min-width: 640px) {
+    .modal-header {
+      margin-bottom: 1.5rem;
+      padding-right: 3rem;
+    }
   }
 
   .modal-header h3 {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     color: #0f172a;
+  }
+  @media (min-width: 640px) {
+    .modal-header h3 {
+      font-size: 1.5rem;
+    }
   }
 
   .details-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 1.75rem;
-    margin: 2rem 0;
-    padding: 1.5rem;
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+    margin: 1.25rem 0;
+    padding: 1rem;
     background: #f8fafc;
-    border-radius: 14px;
+    border-radius: 12px;
     border: 1px solid #f1f5f9;
+  }
+  @media (min-width: 640px) {
+    .details-grid {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+      margin: 2rem 0;
+      padding: 1.5rem;
+      border-radius: 14px;
+    }
   }
 
   .detail-item {
-    font-size: 0.975rem;
+    font-size: 0.9rem;
     color: #334155;
   }
 
   .detail-item strong {
     display: block;
     color: #64748b;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.2rem;
   }
 
   .form-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 1.5rem;
-    margin-top: 1.5rem;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  @media (min-width: 640px) {
+    .form-grid {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
   }
 
   .form-group {

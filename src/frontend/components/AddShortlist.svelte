@@ -236,11 +236,11 @@
   }
 </script>
 
-<div class="p-8 max-w-[1600px] mx-auto space-y-8">
-  <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-300 dark:text-slate-200">📝 Add Students to Company Shortlist</h2>
+<div class="px-3 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-4xl mx-auto space-y-6">
+  <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-300 dark:text-slate-200">📝 Add Students to Company Shortlist</h2>
   
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-6">
-    <div class="mb-6">
+  <div class="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 mb-6">
+    <div class="mb-5 sm:mb-6">
       <label for="company-search" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 dark:text-slate-300 mb-2">
         Select Company *
       </label>

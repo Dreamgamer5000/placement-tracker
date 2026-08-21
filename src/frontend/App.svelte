@@ -51,32 +51,32 @@
 
 <main class="min-h-screen bg-slate-50/80 dark:bg-slate-950 transition-colors duration-300">
   <!-- Glassmorphic Premium Navbar -->
-  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 text-white shadow-xl">
-    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex items-center justify-between h-20">
+  <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-white shadow-xl">
+    <div class="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16 sm:h-20">
         
         <!-- Brand Logo -->
-        <div class="flex items-center gap-3">
-          <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-blue-500 flex items-center justify-center text-2xl shadow-lg shadow-purple-500/20">
+        <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-blue-500 flex items-center justify-center text-xl sm:text-2xl shadow-lg shadow-purple-500/20 shrink-0">
             🎓
           </div>
-          <div>
-            <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-purple-200 bg-clip-text text-transparent">
+          <div class="truncate">
+            <span class="text-base sm:text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-purple-200 bg-clip-text text-transparent truncate block">
               Placement Tracker
             </span>
-            <span class="hidden sm:inline-block ml-2.5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-purple-500/20 border border-purple-500/30 text-purple-300 rounded-full">
+            <span class="hidden sm:inline-block px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-purple-500/20 border border-purple-500/30 text-purple-300 rounded-full">
               2027 Batch
             </span>
           </div>
         </div>
 
         <!-- Desktop Navigation Tabs & Dark Mode Toggle -->
-        <div class="hidden md:flex items-center gap-4">
-          <nav class="flex items-center gap-1.5 bg-slate-800/70 p-1.5 rounded-2xl border border-slate-700/60 shadow-inner">
+        <div class="hidden md:flex items-center gap-3 lg:gap-4">
+          <nav class="flex items-center gap-1 bg-slate-800/70 p-1.5 rounded-2xl border border-slate-700/60 shadow-inner">
             {#each navItems as item}
               <button 
                 on:click={() => navigate(item.id)}
-                class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 {currentView === item.id ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-900/30' : 'text-slate-300 hover:text-white hover:bg-slate-700/50'}"
+                class="px-3 lg:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 {currentView === item.id ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-900/30' : 'text-slate-300 hover:text-white hover:bg-slate-700/50'}"
               >
                 <span>{item.icon}</span>
                 <span>{item.label}</span>
@@ -86,7 +86,7 @@
           
           <button 
             on:click={toggleDarkMode} 
-            class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center justify-center border border-slate-700/60"
+            class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center justify-center border border-slate-700/60 shrink-0"
             title="Toggle Dark Mode"
             aria-label="Toggle Dark Mode"
           >
@@ -98,11 +98,11 @@
           </button>
         </div>
 
-        <!-- Mobile Menu Toggle Button -->
-        <div class="flex items-center gap-2 md:hidden">
+        <!-- Mobile Menu Toggle Button & Dark Mode -->
+        <div class="flex items-center gap-1.5 md:hidden shrink-0">
           <button 
             on:click={toggleDarkMode} 
-            class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+            class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors text-base"
             aria-label="Toggle Dark Mode"
           >
             {#if isDarkMode}☀️{:else}🌙{/if}
@@ -110,29 +110,29 @@
           
           <button 
             on:click={() => mobileMenuOpen = !mobileMenuOpen}
-            class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+            class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
             aria-label="Toggle navigation menu"
           >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {#if mobileMenuOpen}
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            {:else}
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-            {/if}
-          </svg>
-        </button>
+            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {#if mobileMenuOpen}
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              {:else}
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+              {/if}
+            </svg>
+          </button>
         </div>
       </div>
 
       <!-- Mobile Navigation Drawer -->
       {#if mobileMenuOpen}
-        <div class="md:hidden py-4 border-t border-slate-800 space-y-2">
+        <div class="md:hidden py-3 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-[70vh] overflow-y-auto">
           {#each navItems as item}
             <button 
               on:click={() => navigate(item.id)}
-              class="w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all flex items-center gap-3 {currentView === item.id ? 'bg-purple-600 text-white' : 'text-slate-300 hover:bg-slate-800'}"
+              class="w-full px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-3 {currentView === item.id ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800 active:bg-slate-700'}"
             >
-              <span>{item.icon}</span>
+              <span class="text-base">{item.icon}</span>
               <span>{item.label}</span>
             </button>
           {/each}
@@ -142,7 +142,7 @@
   </header>
 
   <!-- Main View Container -->
-  <div class="py-6">
+  <div class="py-3 sm:py-6 overflow-x-hidden">
     {#if currentView === 'analytics'}
       <Analytics />
     {:else if currentView === 'students'}
@@ -160,3 +160,4 @@
     {/if}
   </div>
 </main>
+

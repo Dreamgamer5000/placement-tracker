@@ -46,68 +46,52 @@
 
   let emailRawText = '';
   let emailParseSuccessMsg = '';
+  let emailParseErrorMsg = '';
+  let isParsingEmail = false;
 
-  function autoParseEmail() {
-    if (!emailRawText || !emailRawText.trim()) return;
-
-    const lines = emailRawText.split('\n');
-    let currentKey = '';
-    const map: Record<string, string[]> = {};
-
-    for (let line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-
-      const lower = trimmed.toLowerCase();
-      let matchedKey = '';
-
-      if (lower.includes('name of the company') || lower.includes('company name')) {
-        matchedKey = 'name';
-      } else if (lower.startsWith('category')) {
-        matchedKey = 'category';
-      } else if (lower.includes('eligible branches')) {
-        matchedKey = 'eligible_branches';
-      } else if (lower.includes('eligibility criteria') || lower.startsWith('eligibility')) {
-        matchedKey = 'eligibility_criteria';
-      } else if (lower.startsWith('ctc')) {
-        matchedKey = 'ctc';
-      } else if (lower.startsWith('stipend')) {
-        matchedKey = 'stipend';
-      } else if (lower.startsWith('website')) {
-        matchedKey = 'website';
-      } else if (lower.includes('job location') || lower.startsWith('location')) {
-        matchedKey = 'job_location';
-      } else if (lower.includes('job profile') || lower.includes('job role') || lower.startsWith('role')) {
-        matchedKey = 'role';
-      }
-
-      if (matchedKey) {
-        currentKey = matchedKey;
-        if (!map[currentKey]) map[currentKey] = [];
-        const colonIdx = trimmed.indexOf(':');
-        if (colonIdx !== -1) {
-          const valAfterColon = trimmed.substring(colonIdx + 1).trim();
-          if (valAfterColon) {
-            map[currentKey].push(valAfterColon);
-          }
-        }
-      } else if (currentKey) {
-        map[currentKey].push(trimmed);
-      }
+  async function parseEmailWithAI() {
+    if (!emailRawText || !emailRawText.trim()) {
+      emailParseErrorMsg = 'Please paste the email text first.';
+      emailParseSuccessMsg = '';
+      setTimeout(() => { emailParseErrorMsg = ''; }, 4000);
+      return;
     }
 
-    if (map['name'] && map['name'].length > 0) newCompany.name = map['name'].join(' ');
-    if (map['category'] && map['category'].length > 0) newCompany.category = map['category'].join(' ');
-    if (map['eligible_branches'] && map['eligible_branches'].length > 0) newCompany.eligible_branches = map['eligible_branches'].join(' ');
-    if (map['eligibility_criteria'] && map['eligibility_criteria'].length > 0) newCompany.eligibility_criteria = map['eligibility_criteria'].join('\n');
-    if (map['ctc'] && map['ctc'].length > 0) newCompany.ctc = map['ctc'].join(' ');
-    if (map['stipend'] && map['stipend'].length > 0) newCompany.stipend = map['stipend'].join(' ');
-    if (map['website'] && map['website'].length > 0) newCompany.website = map['website'].join(' ');
-    if (map['job_location'] && map['job_location'].length > 0) newCompany.job_location = map['job_location'].join(' ');
-    if (map['role'] && map['role'].length > 0) newCompany.role = map['role'].join(' / ');
+    isParsingEmail = true;
+    emailParseErrorMsg = '';
+    emailParseSuccessMsg = '';
 
-    emailParseSuccessMsg = '✨ Email parsed successfully! Form fields populated below.';
-    setTimeout(() => { emailParseSuccessMsg = ''; }, 4000);
+    try {
+      const response = await fetch('/api/companies/parse-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailText: emailRawText })
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to parse email with Gemini AI');
+      }
+
+      const parsed = result.data;
+      if (parsed.name) newCompany.name = parsed.name;
+      if (parsed.category) newCompany.category = parsed.category;
+      if (parsed.role) newCompany.role = parsed.role;
+      if (parsed.ctc) newCompany.ctc = parsed.ctc;
+      if (parsed.stipend) newCompany.stipend = parsed.stipend;
+      if (parsed.job_location) newCompany.job_location = parsed.job_location;
+      if (parsed.eligible_branches) newCompany.eligible_branches = parsed.eligible_branches;
+      if (parsed.eligibility_criteria) newCompany.eligibility_criteria = parsed.eligibility_criteria;
+      if (parsed.website) newCompany.website = parsed.website;
+
+      emailParseSuccessMsg = '✨ Email parsed successfully with Gemini AI! Please review the populated fields below.';
+      setTimeout(() => { emailParseSuccessMsg = ''; }, 6000);
+    } catch (err: any) {
+      console.error('Email parse error:', err);
+      emailParseErrorMsg = `${err.message || 'Error occurred while parsing email'}`;
+    } finally {
+      isParsingEmail = false;
+    }
   }
 
   let recalculatingAnalytics = false;
@@ -334,6 +318,8 @@
           round_details: ''
         };
         emailRawText = '';
+        emailParseSuccessMsg = '';
+        emailParseErrorMsg = '';
         showAddForm = false;
         await loadCompanies();
       } else {
@@ -463,17 +449,17 @@
   }) : [];
 </script>
 
-<div class="p-8 max-w-[1600px] mx-auto">
+<div class="px-3 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-[1600px] mx-auto">
   <!-- Top Bar -->
-  <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
     <div>
-      <h2 class="text-3xl font-bold text-gray-900 dark:text-gray-300 dark:text-slate-100">🏢 Company Profiles</h2>
-      <p class="text-gray-500 dark:text-slate-400 text-sm mt-1">Explore job opportunities, CTC details, selection ratios, and round information.</p>
+      <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-300 dark:text-slate-100">🏢 Company Profiles</h2>
+      <p class="text-gray-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">Explore job opportunities, CTC details, selection ratios, and round information.</p>
     </div>
     
-    <div class="flex flex-wrap gap-3">
+    <div class="flex flex-wrap gap-2 w-full sm:w-auto">
       <button 
-        class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-sm flex items-center gap-2"
+        class="px-3.5 sm:px-5 py-2 sm:py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 shadow-sm flex items-center gap-1.5 flex-1 sm:flex-initial justify-center"
         on:click={recalculateAnalytics}
         disabled={recalculatingAnalytics}
       >
@@ -488,7 +474,7 @@
         {/if}
       </button>
       <button 
-        class="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-sm"
+        class="px-3.5 sm:px-5 py-2 sm:py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 shadow-sm flex-1 sm:flex-initial text-center"
         on:click={() => showAddForm = !showAddForm}
       >
         {showAddForm ? 'Cancel' : '+ Add Company'}
@@ -520,29 +506,47 @@
       </div>
 
       <!-- Quick Email Parser Box -->
-      <div class="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 dark:border-indigo-800 rounded-2xl p-5">
+      <div class="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/30 border border-purple-200 dark:border-indigo-800 rounded-2xl p-5">
         <div class="flex justify-between items-center mb-2">
           <label for="email-quick-parser" class="text-sm font-bold text-purple-900 dark:text-purple-300 dark:text-indigo-200 flex items-center gap-2">
-            📋 Quick Auto-Fill from Placement Email
+            ✨ AI Auto-Fill from Placement Email
           </label>
           <button 
             type="button"
-            on:click={autoParseEmail}
-            class="px-4 py-1.5 bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+            on:click={parseEmailWithAI}
+            disabled={isParsingEmail}
+            class="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
           >
-            ⚡ Parse & Fill Fields
+            {#if isParsingEmail}
+              <svg class="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Extracting with Gemini...</span>
+            {:else}
+              <span>✨ Parse & Auto-Fill</span>
+            {/if}
           </button>
         </div>
         <p class="text-xs text-purple-700 dark:text-purple-300 mb-2">Paste raw placement cell notification text (Company Name, Category, Eligible Branches, Eligibility Criteria, CTC, Stipend, Location, Role, Website):</p>
         <textarea 
           id="email-quick-parser"
           bind:value={emailRawText}
-          placeholder="Paste email text here... then click 'Parse & Fill Fields'"
+          disabled={isParsingEmail}
+          placeholder="Paste email text here... then click '✨ Parse & Auto-Fill'"
           rows="4"
-          class="w-full px-3.5 py-2.5 border border-purple-200 dark:border-indigo-800 rounded-xl bg-white dark:bg-slate-800 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500"
+          class="w-full px-3.5 py-2.5 border border-purple-200 dark:border-indigo-800 rounded-xl bg-white dark:bg-slate-800 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 dark:disabled:bg-slate-900"
         />
         {#if emailParseSuccessMsg}
-          <p class="text-xs font-bold text-emerald-700 mt-2 flex items-center gap-1">{emailParseSuccessMsg}</p>
+          <div class="p-2.5 mt-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center gap-2">
+            <span class="text-emerald-700 dark:text-emerald-300 text-xs font-bold">{emailParseSuccessMsg}</span>
+          </div>
+        {/if}
+        {#if emailParseErrorMsg}
+          <div class="p-2.5 mt-2 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl flex items-center justify-between gap-2">
+            <span class="text-red-700 dark:text-red-300 text-xs font-medium">{emailParseErrorMsg}</span>
+            <button type="button" on:click={() => emailParseErrorMsg = ''} class="text-xs text-red-500 hover:text-red-700 font-bold ml-2">Dismiss</button>
+          </div>
         {/if}
       </div>
 
@@ -762,7 +766,7 @@
             {/if}
           </div>
 
-          <div class="pt-3 border-t border-gray-100 flex flex-wrap gap-1.5 text-xs text-gray-500 dark:text-slate-400">
+          <div class="pt-3 border-t border-gray-100 dark:border-slate-700 flex flex-wrap gap-1.5 text-xs text-gray-500 dark:text-slate-400">
             {#if company.stipend}
               <span class="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 rounded font-semibold text-[11px]">
                 💵 Stipend: {company.stipend}
@@ -790,29 +794,29 @@
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div 
-    class="fixed inset-0 bg-[rgba(15,23,42,0.6)] backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    class="fixed inset-0 bg-[rgba(15,23,42,0.6)] backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
     on:click={() => { selectedCompany = null; editingCompany = null; }}
   >
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div 
-      class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] overflow-y-auto relative p-4 sm:p-8"
+      class="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-2xl max-w-5xl w-full max-h-[94vh] overflow-y-auto relative p-3.5 sm:p-8"
       on:click|stopPropagation
     >
       <button 
-        class="absolute top-5 right-5 w-10 h-10 bg-gray-100 dark:bg-gray-900/40 dark:bg-slate-700 hover:bg-gray-200 text-gray-600 dark:text-slate-400 rounded-full flex items-center justify-center text-xl font-bold transition-colors z-10"
+        class="absolute top-3 right-3 sm:top-5 sm:right-5 w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 dark:bg-gray-900/40 dark:bg-slate-700 hover:bg-gray-200 text-gray-600 dark:text-slate-400 rounded-full flex items-center justify-center text-lg sm:text-xl font-bold transition-colors z-10"
         on:click={() => { selectedCompany = null; editingCompany = null; }}
       >
         ×
       </button>
 
       <!-- Modal Header & Actions -->
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pr-12">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6 pr-10">
         <div>
-          <div class="flex items-center gap-3">
-            <h3 class="text-3xl font-bold text-gray-900 dark:text-gray-300 dark:text-slate-100">{selectedCompany.name}</h3>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h3 class="text-xl sm:text-3xl font-bold text-gray-900 dark:text-gray-300 dark:text-slate-100">{selectedCompany.name}</h3>
             {#if selectedCompany.category}
-              <span class="px-3 py-1 bg-purple-100 dark:bg-purple-900/40 dark:bg-indigo-900/40 text-purple-900 dark:text-purple-300 dark:text-indigo-200 text-xs font-bold rounded-full">
+              <span class="px-2.5 py-0.5 sm:px-3 sm:py-1 bg-purple-100 dark:bg-purple-900/40 dark:bg-indigo-900/40 text-purple-900 dark:text-purple-300 dark:text-indigo-200 text-[11px] sm:text-xs font-bold rounded-full">
                 🌟 {selectedCompany.category}
               </span>
             {/if}

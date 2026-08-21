@@ -10,24 +10,33 @@ import { extractCleanTokens } from './utils.js';
 import { parsePlacementEmail } from './services/gemini.service.js';
 import crypto from 'crypto';
 
-// Load .env configuration
+// Load .env configuration 
 try {
-  if (typeof process.loadEnvFile === 'function') {
-    const envPath = join(process.cwd(), '.env');
-    if (fs.existsSync(envPath)) {
-      process.loadEnvFile(envPath);
-    }
+  const envPath = join(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    process.loadEnvFile(envPath);
   }
-} catch (_) {}
+} catch (_) { }
 
 const app = new Hono();
 
-const ADMIN_PASSWORD_HASH = '30fde358b34772de141e11ba599e28f9f44aa80ae89aaf243b73e6b9b9ebc896'; // SHA-256 of "dream"
+function getAdminPassword(): string {
+  let pwd = process.env.ADMIN_PASSWORD;
+  if (!pwd) return '';
+  if ((pwd.startsWith('"') && pwd.endsWith('"')) || (pwd.startsWith("'") && pwd.endsWith("'"))) {
+    pwd = pwd.slice(1, -1);
+  }
+  return pwd.trim();
+}
+
+function getAdminPasswordHash(): string {
+  return crypto.createHash('sha256').update(getAdminPassword()).digest('hex');
+}
 
 function verifyAdminPassword(c: any) {
   const pwd = c.req.header('X-Admin-Password') || '';
   const hash = crypto.createHash('sha256').update(pwd).digest('hex');
-  return hash === ADMIN_PASSWORD_HASH;
+  return hash === getAdminPasswordHash();
 }
 
 app.use('/*', cors());
@@ -39,27 +48,27 @@ app.post('/api/login', async (c) => {
   const ip = c.req.header('x-forwarded-for') || 'unknown';
   const now = Date.now();
   const attemptData = loginAttempts.get(ip) || { lastAttempt: 0, failures: 0 };
-  
+
   // Calculate exponential backoff: 0s, 2s, 4s, 8s, 16s...
   const waitTimeMs = attemptData.failures > 0 ? (2 ** attemptData.failures) * 1000 : 0;
-  
+
   if (now - attemptData.lastAttempt < waitTimeMs) {
     const remainingSeconds = Math.ceil((waitTimeMs - (now - attemptData.lastAttempt)) / 1000);
     await new Promise(resolve => setTimeout(resolve, 1000));
     return c.json({ error: `Too many attempts. Please wait ${remainingSeconds} seconds.` }, 429);
   }
-  
+
   attemptData.lastAttempt = now;
   loginAttempts.set(ip, attemptData);
 
   const body = await c.req.json().catch(() => ({}));
   const password = body.password || '';
   const hash = crypto.createHash('sha256').update(password).digest('hex');
-  
-  if (hash === ADMIN_PASSWORD_HASH) {
+
+  if (hash === getAdminPasswordHash()) {
     // Reset on success
     loginAttempts.delete(ip);
-    
+
     setCookie(c, SESSION_COOKIE_NAME, 'authenticated', {
       maxAge: 60 * 60 * 24, // 1 day
       httpOnly: true,
@@ -69,28 +78,28 @@ app.post('/api/login', async (c) => {
     });
     return c.json({ success: true });
   }
-  
+
   // Increment failures on wrong password
   attemptData.failures += 1;
   loginAttempts.set(ip, attemptData);
-  
+
   return c.json({ error: 'Invalid password' }, 401);
 });
 
 app.use('*', async (c, next) => {
   const path = c.req.path;
-  
+
   // Allow login endpoint
   if (path === '/api/login') {
     return next();
   }
-  
+
   // Allow static assets (js, css, images) to load so the frontend doesn't break
   const isAsset = path.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff|woff2|ttf|eot)$/);
   if (isAsset) {
     return next();
   }
-  
+
   const authCookie = getCookie(c, SESSION_COOKIE_NAME);
   if (authCookie === 'authenticated') {
     return next();
@@ -320,7 +329,7 @@ app.get('/api/students/by-shortlists', (c) => {
     ORDER BY shortlist_count DESC, s.name ASC
     LIMIT 50
   `).all();
-  
+
   return c.json({
     students,
     totalCount: students.length,
@@ -334,29 +343,29 @@ app.get('/api/students/by-shortlists', (c) => {
 app.get('/api/students/search/:regno', (c) => {
   const regno = c.req.param('regno').toUpperCase();
   const student = db.prepare('SELECT * FROM temp_students WHERE UPPER(regno) = ? OR UPPER(neo_id) = ?').get(regno, regno);
-  
+
   if (!student) {
     return c.json({ error: 'Student not found' }, 404);
   }
-  
+
   return c.json(student);
 });
 
 // Get student by Regno / NeoID with full shortlists & selections
 app.get('/api/students/:regno', (c) => {
   const param = c.req.param('regno').trim().toUpperCase();
-  
+
   // 1. Try temp_students first
   let student = db.prepare(
     'SELECT * FROM temp_students WHERE UPPER(regno) = ? OR UPPER(neo_id) = ?'
   ).get(param, param) as any;
-  
+
   // 2. Fallback to temp_neoid_table if not directly in temp_students
   if (!student) {
     const neoRec = db.prepare(
       'SELECT * FROM temp_neoid_table WHERE UPPER(neoid) = ? OR UPPER(regno) = ?'
     ).get(param, param) as any;
-    
+
     if (neoRec) {
       if (neoRec.regno) {
         student = db.prepare('SELECT * FROM temp_students WHERE UPPER(regno) = ?').get(neoRec.regno.toUpperCase());
@@ -383,7 +392,7 @@ app.get('/api/students/:regno', (c) => {
 
   const lookupRegno = student.regno ? student.regno.toUpperCase() : null;
   const lookupNeoid = student.neo_id ? student.neo_id.toUpperCase() : (param !== lookupRegno ? param : null);
-  
+
   // Get shortlisted companies (temp_shortlists)
   const shortlists = db.prepare(`
     SELECT co.*, sl.shortlisted_at, sl.round_number, sl.round_name, sl.role as shortlist_role, sl.role
@@ -584,7 +593,7 @@ app.post('/api/neo-ids/batch-lookup', async (c) => {
   try {
     const body = await c.req.json();
     const neoids = body.neoids || [];
-    
+
     if (!Array.isArray(neoids)) {
       return c.json({ error: 'Expected an array of neoids' }, 400);
     }
@@ -592,7 +601,7 @@ app.post('/api/neo-ids/batch-lookup', async (c) => {
     const uniqueNeoids = [...new Set(neoids.map((n: string) => n.trim().toUpperCase()).filter(Boolean))];
 
     const results = [];
-    
+
     const stmt = db.prepare(`
       SELECT n.*, s.name as studentName 
       FROM temp_neoid_table n 
@@ -602,7 +611,7 @@ app.post('/api/neo-ids/batch-lookup', async (c) => {
 
     for (const id of uniqueNeoids) {
       const record = stmt.get(id) as { neoid: string; campus: string; regno: string | null; topcoder: number; studentName: string | null } | undefined;
-      
+
       if (record) {
         results.push({
           found: true,
@@ -619,7 +628,7 @@ app.post('/api/neo-ids/batch-lookup', async (c) => {
         });
       }
     }
-    
+
     return c.json({ results });
   } catch (err: any) {
     console.error('[POST /api/neo-ids/batch-lookup] Error:', err);
@@ -1290,7 +1299,7 @@ app.post('/api/companies', async (c) => {
     name, notes, rounds, ctc, total_rounds, round_details, experience_required,
     role, category, stipend, job_location, eligible_branches, eligibility_criteria, website
   } = body;
-  
+
   try {
     const result = db.prepare(
       `INSERT INTO companies (
@@ -1313,12 +1322,12 @@ app.post('/api/companies', async (c) => {
       eligibility_criteria || null,
       website || null
     );
-    
+
     // Initialize analytics
     db.prepare(
       'INSERT INTO company_analytics (company_id) VALUES (?)'
     ).run(result.lastInsertRowid);
-    
+
     const created = db.prepare('SELECT * FROM companies WHERE id = ?').get(result.lastInsertRowid);
     return c.json(created);
   } catch (error: any) {
@@ -1341,7 +1350,7 @@ app.put('/api/companies/:id', async (c) => {
     name, notes, rounds, ctc, total_rounds, round_details, experience_required,
     role, category, stipend, job_location, eligible_branches, eligibility_criteria, website
   } = body;
-  
+
   try {
     db.prepare(
       `UPDATE companies SET 
@@ -1365,7 +1374,7 @@ app.put('/api/companies/:id', async (c) => {
       website || null,
       id
     );
-    
+
     const updated = db.prepare('SELECT * FROM companies WHERE id = ?').get(id);
     return c.json(updated);
   } catch (error: any) {
@@ -1399,7 +1408,7 @@ app.delete('/api/companies/:id', async (c) => {
       db.prepare('DELETE FROM selections WHERE company_id = ?').run(companyId);
       db.prepare('DELETE FROM company_analytics WHERE company_id = ?').run(companyId);
       db.prepare('UPDATE students SET final_company_id = NULL WHERE final_company_id = ?').run(companyId);
-      
+
       // Delete the company record itself
       db.prepare('DELETE FROM companies WHERE id = ?').run(companyId);
     });
@@ -1419,11 +1428,11 @@ app.post('/api/companies/recalculate-analytics', async (c) => {
   try {
     console.log('Recalculating analytics for all companies...');
     const companies = db.prepare('SELECT id, name FROM companies').all() as Array<{ id: number; name: string }>;
-    
+
     let successCount = 0;
     let errorCount = 0;
     const errors: any[] = [];
-    
+
     for (const company of companies) {
       try {
         console.log(`Recalculating analytics for ${company.name} (ID: ${company.id})`);
@@ -1435,10 +1444,10 @@ app.post('/api/companies/recalculate-analytics', async (c) => {
         errors.push({ companyId: company.id, companyName: company.name, error: error.message });
       }
     }
-    
+
     console.log(`Analytics recalculation complete: ${successCount} success, ${errorCount} errors`);
-    return c.json({ 
-      success: true, 
+    return c.json({
+      success: true,
       message: `Recalculated analytics for ${successCount} companies`,
       successCount,
       errorCount,
@@ -1785,12 +1794,12 @@ app.post('/api/students/:id/place', async (c) => {
   const { companyId, role } = body;
   const cleanRole = role ? String(role).trim() : null;
   if (cleanRole) ensureRoleExists(cleanRole);
-  
+
   try {
     db.prepare(
       'UPDATE temp_students SET placed = 1, final_company_id = ?, role = COALESCE(?, role) WHERE UPPER(regno) = UPPER(?) OR UPPER(neo_id) = UPPER(?)'
     ).run(companyId, cleanRole, studentId, studentId);
-    
+
     return c.json({ success: true });
   } catch (error: any) {
     return c.json({ error: error.message }, 400);
@@ -1801,7 +1810,7 @@ app.post('/api/students/:id/place', async (c) => {
 app.post('/api/predict-companies', async (c) => {
   const body = await c.req.json();
   const { cgpa, tenth, twelfth } = body;
-  
+
   const eligibleCompanies = db.prepare(`
     SELECT c.*, ca.*
     FROM companies c
@@ -2061,7 +2070,7 @@ function updateCompanyAnalytics(companyId: number) {
     )
     WHERE sl.company_id = ?
   `).get(companyId) as any;
-  
+
   // Get selection statistics from active temp tables (final selections + intern selections)
   const selectionStats = db.prepare(`
     SELECT 
@@ -2086,18 +2095,18 @@ function updateCompanyAnalytics(companyId: number) {
       OR (n.regno IS NOT NULL AND s.regno = n.regno COLLATE NOCASE)
     )
   `).get(companyId, companyId) as any;
-  
+
   const totalShortlisted = shortlistStats?.total_shortlisted || 0;
   const totalSelected = selectionStats?.total_selected || 0;
   const selectionRatio = totalShortlisted > 0 ? (totalSelected / totalShortlisted) * 100 : 0;
-  
-  const genderRatioShortlist = totalShortlisted > 0 
-    ? `${shortlistStats.male_count || 0}:${shortlistStats.female_count || 0}` 
+
+  const genderRatioShortlist = totalShortlisted > 0
+    ? `${shortlistStats.male_count || 0}:${shortlistStats.female_count || 0}`
     : null;
-  const genderRatioSelected = totalSelected > 0 
-    ? `${selectionStats.male_count || 0}:${selectionStats.female_count || 0}` 
+  const genderRatioSelected = totalSelected > 0
+    ? `${selectionStats.male_count || 0}:${selectionStats.female_count || 0}`
     : null;
-  
+
   db.prepare(`
     INSERT INTO company_analytics (
       company_id,

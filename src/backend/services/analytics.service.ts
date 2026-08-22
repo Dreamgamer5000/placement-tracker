@@ -1,4 +1,5 @@
 import db from '../db/database.js';
+import { StudentsService } from './students.service.js';
 
 let cachedAnalyticsSummary: any = null;
 
@@ -9,6 +10,13 @@ export class AnalyticsService {
 
   static getAnalyticsSummary(forceRecalculate: boolean = false) {
     if (forceRecalculate || !cachedAnalyticsSummary) {
+      if (forceRecalculate) {
+        try {
+          StudentsService.recalculateStudentAnalytics();
+        } catch (e) {
+          console.error('Error during auto-recalculation in getAnalyticsSummary:', e);
+        }
+      }
       cachedAnalyticsSummary = this.computeAnalyticsSummary();
     }
     return cachedAnalyticsSummary;

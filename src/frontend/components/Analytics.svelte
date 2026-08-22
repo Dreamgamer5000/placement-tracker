@@ -130,7 +130,7 @@
   <div class="header">
     <h2>📊 Placement & Internship Analytics</h2>
     <button class="btn-refresh" on:click={() => loadSummary(true)} disabled={loading}>
-      {loading ? 'Refreshing...' : '🔄 Refresh Data'}
+      {loading ? 'Recalculating...' : '🔄 Recalculate Analytics'}
     </button>
   </div>
   
@@ -184,7 +184,7 @@
     <div class="section-container placement-section">
       <div class="section-header">
         <h3>🎓 Final Placement Metrics (temp_final_selection)</h3>
-        <span class="badge badge-success">Full-Time Offers</span>
+        <span class="badge badge-success">Placement Offer / Likely Internship to Conversion</span>
       </div>
 
       <div class="charts-grid">
@@ -308,8 +308,8 @@
         <div class="chart-card featured">
           <div class="card-title-row">
             <div>
-              <h4>🏆 All Companies Final Offers</h4>
-              <p class="chart-desc">Companies with at least 1 final placement offer</p>
+              <h4>🏆 All Companies Placement Offers</h4>
+              <p class="chart-desc">Companies with at least 1 placement offer / likely internship to conversion</p>
             </div>
             <div class="search-box">
               <input

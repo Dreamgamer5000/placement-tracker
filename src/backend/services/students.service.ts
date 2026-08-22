@@ -408,6 +408,17 @@ export class StudentsService {
       WHERE neo_id IS NOT NULL AND TRIM(neo_id) != '' AND (masters = 1 OR status = 'masters');
     `).run();
 
+    // 1.8 Standardize branch codes from registration numbers (e.g. 'Computer Science and Engineering' -> 'BCE')
+    db.prepare(`
+      UPDATE temp_students
+      SET branch = UPPER(SUBSTR(regno, 3, 3))
+      WHERE regno IS NOT NULL
+        AND LENGTH(regno) >= 5
+        AND SUBSTR(regno, 1, 2) GLOB '[0-9][0-9]'
+        AND SUBSTR(regno, 3, 3) GLOB '[A-Za-z][A-Za-z][A-Za-z]'
+        AND (branch != UPPER(SUBSTR(regno, 3, 3)) OR branch IS NULL OR branch = '');
+    `).run();
+
     // 2. Sync Final Placement Status (temp_final_selection -> temp_students)
     const syncFinalsResult = db.prepare(`
       UPDATE temp_students

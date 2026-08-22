@@ -14,6 +14,10 @@
     "setup:db": "tsx src/backend/scripts/setup-db.ts",
     "import:data": "tsx src/backend/scripts/import-data.ts",
     "import:company-details": "tsx src/backend/scripts/import-company-details.ts",
+    "match:neoids": "tsx src/backend/scripts/match-names-neoids.ts",
+    "review:unmatched": "tsx src/backend/scripts/review-unmatched.ts",
+    "sync:neoids": "tsx src/backend/scripts/sync-matched-neoids.ts",
+    "update:masters": "tsx src/backend/scripts/update-masters-batch.ts",
     "update-tracker-db": "bash ./update-tracker-db.sh",
     "docker:test": "bash ./test-docker.sh",
     "docker:compose": "docker compose up --build"

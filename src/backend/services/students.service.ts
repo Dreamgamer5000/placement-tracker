@@ -400,6 +400,14 @@ export class StudentsService {
       ) AND (neo_id IS NULL OR neo_id = '' OR neo_id != (SELECT neoid FROM temp_neoid_table n3 WHERE UPPER(n3.regno) = UPPER(temp_students.regno) LIMIT 1));
     `).run();
 
+    // 1.5 Remove masters flag/status for any student who has a NeoID (they are in placement pool)
+    const removeMastersResult = db.prepare(`
+      UPDATE temp_students
+      SET masters = 0,
+          status = CASE WHEN status = 'masters' THEN 'not_placed' ELSE status END
+      WHERE neo_id IS NOT NULL AND TRIM(neo_id) != '' AND (masters = 1 OR status = 'masters');
+    `).run();
+
     // 2. Sync Final Placement Status (temp_final_selection -> temp_students)
     const syncFinalsResult = db.prepare(`
       UPDATE temp_students

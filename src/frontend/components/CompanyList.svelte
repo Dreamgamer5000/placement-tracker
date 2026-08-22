@@ -83,6 +83,10 @@
       if (parsed.eligible_branches) newCompany.eligible_branches = parsed.eligible_branches;
       if (parsed.eligibility_criteria) newCompany.eligibility_criteria = parsed.eligibility_criteria;
       if (parsed.website) newCompany.website = parsed.website;
+      if (parsed.total_rounds) newCompany.total_rounds = parsed.total_rounds;
+      if (parsed.round_details) newCompany.round_details = parsed.round_details;
+      if (parsed.notes) newCompany.notes = parsed.notes;
+      if (parsed.experience_required) newCompany.experience_required = parsed.experience_required;
 
       emailParseSuccessMsg = '✨ Email parsed successfully with Gemini AI! Please review the populated fields below.';
       setTimeout(() => { emailParseSuccessMsg = ''; }, 6000);

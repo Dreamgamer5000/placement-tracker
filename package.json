@@ -14,7 +14,9 @@
     "setup:db": "tsx src/backend/scripts/setup-db.ts",
     "import:data": "tsx src/backend/scripts/import-data.ts",
     "import:company-details": "tsx src/backend/scripts/import-company-details.ts",
-    "update-tracker-db": "bash ./update-tracker-db.sh"
+    "update-tracker-db": "bash ./update-tracker-db.sh",
+    "docker:test": "bash ./test-docker.sh",
+    "docker:compose": "docker compose up --build"
   },
   "dependencies": {
     "@hono/node-server": "^1.12.2",

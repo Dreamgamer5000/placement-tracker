@@ -13,6 +13,17 @@ echo "========================================="
 docker build -t $IMAGE_NAME .
 
 echo ""
+echo "========================================================"
+echo "💡 Image built successfully!"
+echo "   You can test it locally anytime with: npm run docker:test"
+echo "========================================================"
+read -p "Proceed with pushing to Artifact Registry and updating VM? (y/N): " -r CONFIRM
+if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+    echo "❌ Deployment aborted. No changes pushed to production."
+    exit 0
+fi
+
+echo ""
 echo "========================================="
 echo "2. Pushing image to Google Artifact Registry..."
 echo "========================================="
@@ -25,6 +36,9 @@ echo "========================================="
 # Ensure app-data folder exists and copy configuration files
 gcloud compute ssh db-tracker --zone=us-west1-b --project=$PROJECT_ID --command="mkdir -p ~/app-data/data"
 gcloud compute scp vm-setup/docker-compose.yml vm-setup/Caddyfile db-tracker:~/app-data/ --zone=us-west1-b --project=$PROJECT_ID
+if [ -f .env ]; then
+    gcloud compute scp .env db-tracker:~/app-data/.env --zone=us-west1-b --project=$PROJECT_ID
+fi
 
 # Pull the latest image and restart the containers on the VM
 gcloud compute ssh db-tracker --zone=us-west1-b --project=$PROJECT_ID --command="gcloud auth configure-docker us-west1-docker.pkg.dev --quiet && cd ~/app-data && docker compose pull && docker compose up -d"

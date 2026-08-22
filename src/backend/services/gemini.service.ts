@@ -11,6 +11,10 @@ export interface CompanyParsedData {
   eligible_branches: string;
   eligibility_criteria: string;
   website: string;
+  total_rounds: string;
+  round_details: string;
+  notes: string;
+  experience_required: string;
 }
 
 function getApiKey(): string | undefined {
@@ -52,7 +56,11 @@ CRITICAL EXTRACTION & CATEGORIZATION RULES:
    - job_location: Job or training location (e.g. "Bangalore / Hyderabad", "Pan India", "Remote")
    - eligible_branches: Eligible engineering/degree streams (e.g. "B.Tech CSE, IT, ECE", "All B.Tech branches")
    - eligibility_criteria: Academic cutoff / CGPA / active backlogs / 10th/12th criteria (e.g. "CGPA >= 7.5, No standing arrears, 10th & 12th > 70%")
-   - website: Company website URL if mentioned in the email (e.g. "https://example.com")`;
+   - website: Company website URL if mentioned in the email (e.g. "https://example.com")
+   - total_rounds: Total number of selection rounds if mentioned (e.g. "3", "4", "2 rounds")
+   - round_details: Details or names of selection stages (e.g. "Round 1: Online Test, Round 2: Tech Interview, Round 3: HR Interview")
+   - notes: Important dates, deadlines, service bond, registration instructions, or general remarks
+   - experience_required: Required experience, graduation year, or batch eligibility (e.g. "2026 Batch", "Fresher")`;
 
 const RESPONSE_SCHEMA = {
   type: 'OBJECT',
@@ -65,7 +73,11 @@ const RESPONSE_SCHEMA = {
     job_location: { type: 'STRING', description: 'Work or posting location. Empty string if not mentioned.' },
     eligible_branches: { type: 'STRING', description: 'Eligible departments or branches. Empty string if not mentioned.' },
     eligibility_criteria: { type: 'STRING', description: 'CGPA, 10th/12th marks, backlog criteria. Empty string if not mentioned.' },
-    website: { type: 'STRING', description: 'Official website URL. Empty string if not mentioned.' }
+    website: { type: 'STRING', description: 'Official website URL. Empty string if not mentioned.' },
+    total_rounds: { type: 'STRING', description: 'Number of selection rounds. Empty string if not mentioned.' },
+    round_details: { type: 'STRING', description: 'Breakdown of selection rounds. Empty string if not mentioned.' },
+    notes: { type: 'STRING', description: 'General notes, deadlines, bond or special instructions. Empty string if not mentioned.' },
+    experience_required: { type: 'STRING', description: 'Batch or experience requirement. Empty string if not mentioned.' }
   },
   required: [
     'name',
@@ -76,7 +88,11 @@ const RESPONSE_SCHEMA = {
     'job_location',
     'eligible_branches',
     'eligibility_criteria',
-    'website'
+    'website',
+    'total_rounds',
+    'round_details',
+    'notes',
+    'experience_required'
   ]
 };
 
@@ -119,6 +135,7 @@ export async function parsePlacementEmail(emailText: string): Promise<CompanyPar
     },
     generationConfig: {
       temperature: 0.0,
+      maxOutputTokens: 4096,
       responseMimeType: 'application/json',
       responseSchema: RESPONSE_SCHEMA
     }
@@ -157,7 +174,24 @@ export async function parsePlacementEmail(emailText: string): Promise<CompanyPar
   }
 
   try {
-    const parsed: CompanyParsedData = JSON.parse(textContent);
+    let cleanText = textContent.trim();
+    if (cleanText.startsWith('```json')) {
+      cleanText = cleanText.replace(/^```json\s*/, '').replace(/```\s*$/, '');
+    } else if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```\s*/, '').replace(/```\s*$/, '');
+    }
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(cleanText);
+    } catch (_) {
+      // Fix unescaped literal newlines/tabs inside JSON string values
+      const fixedText = cleanText.replace(/"([^"\\]*(\\.[^"\\]*)*)"/gs, (match: string) => {
+        return match.replace(/\r?\n/g, '\\n').replace(/\t/g, '\\t');
+      });
+      parsed = JSON.parse(fixedText);
+    }
+
     return {
       name: parsed.name?.trim() || '',
       category: parsed.category?.trim() || '',
@@ -167,7 +201,11 @@ export async function parsePlacementEmail(emailText: string): Promise<CompanyPar
       job_location: parsed.job_location?.trim() || '',
       eligible_branches: parsed.eligible_branches?.trim() || '',
       eligibility_criteria: parsed.eligibility_criteria?.trim() || '',
-      website: parsed.website?.trim() || ''
+      website: parsed.website?.trim() || '',
+      total_rounds: parsed.total_rounds != null ? String(parsed.total_rounds).trim() : '',
+      round_details: parsed.round_details?.trim() || '',
+      notes: parsed.notes?.trim() || '',
+      experience_required: parsed.experience_required?.trim() || ''
     };
   } catch (jsonErr: any) {
     throw new Error(`Failed to parse structured response from Gemini: ${jsonErr.message}`);

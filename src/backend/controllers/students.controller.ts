@@ -25,11 +25,6 @@ export class StudentsController {
     return c.json(result);
   }
 
-  static getStudentsByShortlists(c: Context) {
-    const result = StudentsService.getStudentsByShortlists();
-    return c.json(result);
-  }
-
   static searchStudent(c: Context) {
     const regno = c.req.param('regno') || '';
     const student = StudentsService.searchStudentByRegno(regno);

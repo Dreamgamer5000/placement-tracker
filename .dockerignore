@@ -1,14 +1,40 @@
+# Dependencies & Build
 node_modules
 dist
 .git
 .gitignore
+
+# Database & SQL Files
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
 *.sql
+backup.sql
+
+# Environment Variables
 .env
 .env.*
+!.env.example
+
+# AI Agents & Skills
+.agents/
+.gemini/
+.claude/
+.cursor/
+skills-lock.json
+
+# Logs & Temp files
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 .DS_Store
+
+# Infrastructure Scripts
 vm-setup
+*.sh

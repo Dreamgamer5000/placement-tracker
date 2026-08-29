@@ -56,12 +56,77 @@ npm run dev
 - **Frontend App**: `http://localhost:5173`
 - **Backend API**: `http://localhost:3001`
 
-### Or Run with Docker 🐳
+### Or Run with Docker 🐳 (Local Testing)
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
-- App will be available at `http://localhost:3000`
+- App will be available at `http://localhost:3005` (mapped to container port 3001).
+
+---
+
+## 🐳 Production Deployment & Architecture
+
+The application is deployed on a Google Cloud Compute Engine VM (`db-tracker`) using Docker and a centralized **Caddy Reverse Proxy** running in `~/caddy/` on a shared Docker bridge network (`web_net`).
+
+```
+                    [ Internet (your-domain.com) ]
+                                   │
+                                   ▼  (Ports 80 & 443)
+               ┌───────────────────────────────────────┐
+               │    ~/caddy/ (Dedicated Caddy Ingress) │
+               └───────────────────┬───────────────────┘
+                                   │
+             ┌─────────────────────┴─────────────────────┐
+             │         Shared Docker Network: web_net    │
+             └───────────┬─────────────────┬─────────────┘
+                         │                 │
+                         ▼                 ▼
+          ┌──────────────────────┐  ┌──────────────────────┐
+          │     ~/app-data/      │  │     ~/soc-track/     │
+          │    (Placement App)   │  │   (Soc Track App)    │
+          │  container: tracker-app│ │ container: soc_track_app│
+          │     Port 3001        │  │     Port 3000        │
+          └──────────────────────┘  └──────────────────────┘
+```
+
+### 1. Central Caddy Configuration (`~/caddy/Caddyfile` on VM)
+Reverse proxying and automatic SSL are handled globally by Caddy:
+```caddyfile
+# Placement Tracker
+your-domain.com {
+    reverse_proxy tracker-app:3001
+}
+```
+
+### 2. One-Command Production Deployment
+Run the automated deployment script locally:
+```bash
+chmod +x deploy.sh
+./deploy.sh
+```
+
+This script:
+1. Builds the production Docker image locally.
+2. Pushes the image to Google Artifact Registry: `us-west1-docker.pkg.dev/your-gcp-project-id/tracker-repo/tracker-app:latest`.
+3. Sets up `~/app-data/` on the VM and uploads `vm-setup/docker-compose.yml` (attaches container `tracker-app` to `web_net`).
+4. Pulls the latest image and restarts the container on the VM.
+
+### 3. Database Sync Utilities
+- **Push database to VM**:
+  ```bash
+  chmod +x push-db-to-vm.sh
+  ./push-db-to-vm.sh
+  # or: npm run push:db
+  ```
+- **Pull database from VM**:
+  ```bash
+  chmod +x pull-db-from-vm.sh
+  ./pull-db-from-vm.sh
+  # or: npm run pull:db
+  ```
+
+
 
 ---
 

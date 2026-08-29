@@ -1,8 +1,51 @@
+# Dependencies
 node_modules
+.pnp
+.pnp.js
+
+# Build outputs
 dist
-*.db
-.DS_Store
-.env
-.vscode
-*.log
+build
+out
+.temp
 coverage
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+!.env.example
+
+# SQLite Databases & SQL Backups (Never commit runtime DBs or dumps)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sql
+backup.sql
+
+# AI Agents, Prompts & Local Skills (Prevent pushing agent configs)
+.agents/
+.gemini/
+.claude/
+.cursor/
+skills-lock.json
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE & OS Artifacts
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db

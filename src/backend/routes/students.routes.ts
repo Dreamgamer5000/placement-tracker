@@ -4,7 +4,6 @@ import { StudentsController } from '../controllers/students.controller.js';
 const studentsRoutes = new Hono();
 
 // Specific sub-routes (must be before /:regno)
-studentsRoutes.get('/by-shortlists', StudentsController.getStudentsByShortlists);
 studentsRoutes.get('/search/:regno', StudentsController.searchStudent);
 studentsRoutes.post('/batch-lookup-names', StudentsController.batchLookupNames);
 studentsRoutes.post('/recalculate-analytics', StudentsController.recalculateAnalytics);

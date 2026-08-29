@@ -97,26 +97,6 @@ export class StudentsService {
     };
   }
 
-  static getStudentsByShortlists() {
-    const students = db.prepare(`
-      SELECT s.*, 
-        COUNT(sl.id) as shortlist_count
-      FROM temp_students s
-      LEFT JOIN temp_shortlists sl ON (s.regno = sl.regno OR (sl.neo_id IS NOT NULL AND sl.neo_id != '' AND s.neo_id = sl.neo_id))
-      GROUP BY s.regno
-      ORDER BY shortlist_count DESC, s.name ASC
-      LIMIT 50
-    `).all();
-
-    return {
-      students,
-      totalCount: students.length,
-      page: 1,
-      limit: 50,
-      totalPages: 1
-    };
-  }
-
   static searchStudentByRegno(regnoParam: string) {
     const regno = regnoParam.toUpperCase();
     return db.prepare('SELECT * FROM temp_students WHERE UPPER(regno) = ? OR UPPER(neo_id) = ?').get(regno, regno);

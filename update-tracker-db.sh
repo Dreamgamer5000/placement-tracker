@@ -1,22 +1,7 @@
 #!/bin/bash
 set -e
 
-PROJECT_ID="your-gcp-project-id"
-ZONE="us-west1-b"
-VM_NAME="db-tracker"
+# [DEPRECATED] Please use pull-db-from-vm.sh instead.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+bash "$SCRIPT_DIR/pull-db-from-vm.sh" "$@"
 
-echo "========================================="
-echo "1. Downloading placement.db from VM..."
-echo "========================================="
-gcloud compute scp $VM_NAME:~/app-data/data/placement.db ./placement.db --zone=$ZONE --project=$PROJECT_ID
-
-echo ""
-echo "========================================="
-echo "2. Creating SQL backup (backup.sql)..."
-echo "========================================="
-sqlite3 placement.db .dump > backup.sql
-
-echo ""
-echo "========================================="
-echo "✅ Database updated locally and backup.sql created!"
-echo "========================================="

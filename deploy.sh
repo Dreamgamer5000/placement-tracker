@@ -35,7 +35,7 @@ echo "3. Updating VM..."
 echo "========================================="
 # Ensure app-data folder exists and copy configuration files
 gcloud compute ssh db-tracker --zone=us-west1-b --project=$PROJECT_ID --command="mkdir -p ~/app-data/data"
-gcloud compute scp vm-setup/docker-compose.yml vm-setup/Caddyfile db-tracker:~/app-data/ --zone=us-west1-b --project=$PROJECT_ID
+gcloud compute scp vm-setup/docker-compose.yml db-tracker:~/app-data/ --zone=us-west1-b --project=$PROJECT_ID
 if [ -f .env ]; then
     gcloud compute scp .env db-tracker:~/app-data/.env --zone=us-west1-b --project=$PROJECT_ID
 fi

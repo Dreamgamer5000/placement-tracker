@@ -1,3 +1,7 @@
-your-domain.com {
-    reverse_proxy app:3001
-}
+# [ARCHIVED / DEPRECATED]
+# Global reverse proxy routing is now centralized in ~/caddy/Caddyfile on the host VM
+# via the shared Docker external network `web_net`.
+#
+# your-domain.com {
+#     reverse_proxy tracker-app:3001
+# }

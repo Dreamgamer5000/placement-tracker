@@ -22,10 +22,10 @@ npm install
 
 ```bash
 # Initialize SQLite database schema
-npm run setup-db
+npm run setup:db
 
 # Ingest student CSV datasets (IOE.csv, fidelity.csv, placement_batch.csv, etc.)
-npm run import-data
+npm run import:data
 ```
 
 ### 3. Launch Server in Development Mode
@@ -38,12 +38,13 @@ npm run dev
 ### Or Run with Docker 🐳
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 Open your browser to:
-- 🌐 **Frontend App**: `http://localhost:5173` (or `http://localhost:3000` for Docker)
+- 🌐 **Frontend App**: `http://localhost:5173` (or `http://localhost:3005` for local Docker)
 - ⚙️ **Backend API**: `http://localhost:3001`
+
 
 ---
 

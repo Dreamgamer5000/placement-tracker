@@ -98,6 +98,65 @@
     }
   }
 
+  let editEmailRawText = '';
+  let isParsingEditEmail = false;
+  let editEmailParseSuccessMsg = '';
+  let editEmailParseErrorMsg = '';
+
+  async function parseEditEmailWithAI() {
+    if (!editEmailRawText || !editEmailRawText.trim()) {
+      editEmailParseErrorMsg = 'Please paste the email text first.';
+      editEmailParseSuccessMsg = '';
+      setTimeout(() => { editEmailParseErrorMsg = ''; }, 4000);
+      return;
+    }
+
+    isParsingEditEmail = true;
+    editEmailParseErrorMsg = '';
+    editEmailParseSuccessMsg = '';
+
+    try {
+      const response = await fetch('/api/companies/parse-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailText: editEmailRawText })
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to parse email with Gemini AI');
+      }
+
+      const parsed = result.data;
+      if (!editingCompany) return;
+
+      if (parsed.name) editingCompany.name = parsed.name;
+      if (parsed.category) editingCompany.category = parsed.category;
+      if (parsed.role) editingCompany.role = parsed.role;
+      if (parsed.ctc) editingCompany.ctc = parsed.ctc;
+      if (parsed.stipend) editingCompany.stipend = parsed.stipend;
+      if (parsed.job_location) editingCompany.job_location = parsed.job_location;
+      if (parsed.eligible_branches) editingCompany.eligible_branches = parsed.eligible_branches;
+      if (parsed.eligibility_criteria) editingCompany.eligibility_criteria = parsed.eligibility_criteria;
+      if (parsed.website) editingCompany.website = parsed.website;
+      if (parsed.total_rounds) editingCompany.total_rounds = parsed.total_rounds;
+      if (parsed.round_details) editingCompany.round_details = parsed.round_details;
+      if (parsed.notes) editingCompany.notes = parsed.notes;
+      if (parsed.experience_required) editingCompany.experience_required = parsed.experience_required;
+
+      // Trigger Svelte reactivity
+      editingCompany = { ...editingCompany };
+
+      editEmailParseSuccessMsg = '✨ Fields successfully updated from email! Review below and click "Save Changes".';
+      setTimeout(() => { editEmailParseSuccessMsg = ''; }, 6000);
+    } catch (err: any) {
+      console.error('Edit email parse error:', err);
+      editEmailParseErrorMsg = `${err.message || 'Error occurred while parsing email'}`;
+    } finally {
+      isParsingEditEmail = false;
+    }
+  }
+
   let recalculatingAnalytics = false;
   let analyticsMessage = '';
   let analyticsMessageType: 'success' | 'error' = 'success';
@@ -336,6 +395,9 @@
   }
 
   function openEditCompany(company: any) {
+    editEmailRawText = '';
+    editEmailParseSuccessMsg = '';
+    editEmailParseErrorMsg = '';
     editingCompany = {
       id: company.id,
       name: company.name || '',
@@ -923,7 +985,54 @@
       <!-- Editable Form inside Modal if Editing -->
       {#if editingCompany}
         <div class="bg-amber-50 dark:bg-amber-900/40 border-2 border-amber-200 rounded-2xl p-6 mb-8 space-y-4">
-          <h4 class="text-xl font-bold text-amber-900 dark:text-amber-300 mb-2">✏️ Edit Company Profile</h4>
+          <div class="flex justify-between items-center border-b border-amber-200/80 pb-3 mb-2">
+            <h4 class="text-xl font-bold text-amber-900 dark:text-amber-300">✏️ Edit Company Profile</h4>
+            <span class="text-xs font-semibold text-amber-800 bg-amber-100 dark:bg-amber-950/60 px-3 py-1 rounded-full">Manual Edit or Paste Email</span>
+          </div>
+
+          <!-- AI Email Parser Box for Edit Mode -->
+          <div class="bg-gradient-to-r from-amber-100/80 to-orange-100/80 dark:from-amber-950/50 dark:to-orange-950/50 border border-amber-300 dark:border-amber-700/80 rounded-2xl p-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
+              <label for="edit-email-parser" class="text-sm font-bold text-amber-950 dark:text-amber-200 flex items-center gap-2">
+                ✨ AI Auto-Fill / Update from Email Text
+              </label>
+              <button 
+                type="button"
+                on:click={parseEditEmailWithAI}
+                disabled={isParsingEditEmail}
+                class="px-4 py-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+              >
+                {#if isParsingEditEmail}
+                  <svg class="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Extracting with Gemini...</span>
+                {:else}
+                  <span>✨ Parse & Fill Fields</span>
+                {/if}
+              </button>
+            </div>
+            <p class="text-xs text-amber-800 dark:text-amber-300 mb-2">Paste raw placement email text to automatically extract and overwrite/fill the company fields below:</p>
+            <textarea 
+              id="edit-email-parser"
+              bind:value={editEmailRawText}
+              disabled={isParsingEditEmail}
+              placeholder="Paste updated placement email text here... then click '✨ Parse & Fill Fields'"
+              rows="3"
+              class="w-full px-3.5 py-2.5 border border-amber-300 dark:border-amber-700 rounded-xl bg-white dark:bg-slate-800 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-gray-100 dark:disabled:bg-slate-900"
+            />
+            {#if editEmailParseSuccessMsg}
+              <div class="p-2.5 mt-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center gap-2">
+                <span class="text-emerald-700 dark:text-emerald-300 text-xs font-bold">{editEmailParseSuccessMsg}</span>
+              </div>
+            {/if}
+            {#if editEmailParseErrorMsg}
+              <div class="p-2.5 mt-2 bg-red-50 dark:bg-red-900/40 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-2">
+                <span class="text-red-700 dark:text-red-300 text-xs font-bold">⚠️ {editEmailParseErrorMsg}</span>
+              </div>
+            {/if}
+          </div>
           
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>

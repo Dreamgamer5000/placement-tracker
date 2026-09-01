@@ -34,160 +34,180 @@
   }
 </script>
 
-<div class="px-3 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-5xl mx-auto space-y-6">
+<div class="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-200">
+  
   <!-- Header -->
-  <div>
-    <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-300 dark:text-slate-100 flex items-center gap-2">
-      🔮 Predict Eligible Companies
-    </h2>
-    <p class="text-gray-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
-      Analyze candidate academic profiles against historical cutoff thresholds to predict placement eligibility.
+  <div class="neon-card p-5 sm:p-6 space-y-1">
+    <div class="flex items-center justify-between">
+      <h1 class="text-xl sm:text-2xl font-display font-bold text-white tracking-tight">
+        Company Cutoff Predictor
+      </h1>
+      <span class="text-xs font-mono text-zinc-400">2027 Batch Intelligence</span>
+    </div>
+    <p class="text-xs sm:text-sm text-zinc-400 font-normal">
+      Evaluate company eligibility and shortlist cutoff thresholds based on your CGPA and 10th/12th academic percentages.
     </p>
   </div>
 
-  <!-- Form Card -->
-  <div class="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-purple-100 dark:border-indigo-900/50 space-y-6">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+  <!-- Form Input Card -->
+  <div class="neon-card p-5 sm:p-7 space-y-5">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <div>
-        <label for="cgpa" class="block text-xs font-bold text-gray-700 dark:text-gray-300 dark:text-slate-300 uppercase mb-1">Cumulative CGPA (0 - 10) *</label>
+        <label for="cgpa" class="block text-xs font-mono font-medium uppercase text-zinc-400 mb-1.5">
+          CGPA (0 - 10) *
+        </label>
         <input 
           id="cgpa"
           type="number" 
           step="0.01" 
           min="0" 
-          max="10"
+          max="10" 
           placeholder="e.g. 8.75" 
           bind:value={cgpa}
-          class="w-full px-4 py-3 border-2 border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base font-semibold"
+          class="w-full px-4 py-2.5 rounded-xl font-mono text-sm font-semibold text-white bg-zinc-900 border border-white/10 focus:border-[#a3e635] focus:outline-none"
         />
       </div>
 
       <div>
-        <label for="tenth" class="block text-xs font-bold text-gray-700 dark:text-gray-300 dark:text-slate-300 uppercase mb-1">10th Marks (%) *</label>
+        <label for="tenth" class="block text-xs font-mono font-medium uppercase text-zinc-400 mb-1.5">
+          10th Standard (%) *
+        </label>
         <input 
           id="tenth"
           type="number" 
           step="0.1" 
           min="0" 
-          max="100"
+          max="100" 
           placeholder="e.g. 92.5" 
           bind:value={tenth}
-          class="w-full px-4 py-3 border-2 border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base font-semibold"
+          class="w-full px-4 py-2.5 rounded-xl font-mono text-sm font-semibold text-white bg-zinc-900 border border-white/10 focus:border-[#a3e635] focus:outline-none"
         />
       </div>
 
       <div>
-        <label for="twelfth" class="block text-xs font-bold text-gray-700 dark:text-gray-300 dark:text-slate-300 uppercase mb-1">12th Marks (%) *</label>
+        <label for="twelfth" class="block text-xs font-mono font-medium uppercase text-zinc-400 mb-1.5">
+          12th / Diploma (%) *
+        </label>
         <input 
           id="twelfth"
           type="number" 
           step="0.1" 
           min="0" 
-          max="100"
+          max="100" 
           placeholder="e.g. 89.0" 
           bind:value={twelfth}
-          class="w-full px-4 py-3 border-2 border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base font-semibold"
+          class="w-full px-4 py-2.5 rounded-xl font-mono text-sm font-semibold text-white bg-zinc-900 border border-white/10 focus:border-[#a3e635] focus:outline-none"
         />
       </div>
     </div>
 
     <button 
-      class="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+      class="w-full neon-btn-primary py-3 rounded-xl text-xs sm:text-sm font-semibold uppercase tracking-wider touch-press min-h-[44px] disabled:opacity-50 cursor-pointer"
       on:click={predictCompanies}
       disabled={loading}
     >
-      {#if loading}
-        <span class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
-        Analyzing Cutoffs...
-      {:else}
-        ⚡ Calculate Eligible Companies
-      {/if}
+      {loading ? 'Evaluating Cutoffs…' : 'Calculate Company Eligibility'}
     </button>
   </div>
 
+  <!-- Results Section -->
   {#if loading}
-    <div class="text-center py-16 text-gray-600 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100">
-      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-      <p class="mt-4 text-base font-medium">Analyzing historical eligibility thresholds...</p>
+    <div class="neon-card p-12 text-center flex flex-col items-center justify-center gap-3">
+      <div class="w-10 h-10 rounded-full border-2 border-[#a3e635]/20 border-t-[#a3e635] animate-spin"></div>
+      <p class="text-xs font-mono text-zinc-400">Scanning recruitment dataset and cutoff thresholds…</p>
     </div>
   {:else if searched}
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md p-6 border border-gray-100 space-y-6">
-      <div class="flex justify-between items-center border-b border-gray-100 pb-4">
-        <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-300 dark:text-slate-100 flex items-center gap-2">
-          🎯 Matching Companies
-        </h3>
-        <span class="px-3 py-1 bg-purple-100 dark:bg-purple-900/40 dark:bg-indigo-900/40 text-purple-800 dark:text-purple-300 dark:text-indigo-300 text-xs font-bold rounded-full">
-          {eligibleCompanies.length} Companies Match
+    <div class="neon-card p-5 sm:p-7 space-y-5">
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <div>
+          <h2 class="text-base sm:text-lg font-display font-bold text-white flex items-center gap-2">
+            <span>🎯</span> Matched Opportunities
+          </h2>
+          <p class="text-xs text-zinc-400 mt-0.5">
+            Companies where your academic profile meets or exceeds historical cutoffs.
+          </p>
+        </div>
+        <span class="neon-badge-lime px-3 py-1 rounded-full text-xs font-mono font-semibold">
+          {eligibleCompanies.length} Drives Eligible
         </span>
       </div>
 
       {#if eligibleCompanies.length === 0}
-        <div class="py-12 text-center text-gray-500 dark:text-slate-400 space-y-2">
-          <p class="text-lg font-semibold">No companies found matching these academic cutoffs.</p>
-          <p class="text-sm">Try adjusting the CGPA or percentage parameters to expand candidate eligibility.</p>
+        <div class="py-12 text-center text-zinc-400 space-y-1">
+          <p class="text-sm font-semibold text-white">No historical drives match these specific academic cutoffs.</p>
+          <p class="text-xs text-zinc-500 font-mono">Adjust CGPA or percentage parameters to evaluate alternative tiers.</p>
         </div>
       {:else}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           {#each eligibleCompanies as company}
-            <div class="bg-slate-50/70 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-3 hover:border-purple-300 dark:hover:border-purple-500 transition-all hover:shadow-md">
-              <div class="flex justify-between items-start">
-                <h4 class="text-xl font-bold text-gray-900 dark:text-gray-300 dark:text-slate-100">{company.name}</h4>
+            <div class="bg-zinc-900/90 rounded-2xl border border-white/[0.08] p-5 space-y-3.5 hover:border-white/20 transition-all">
+              
+              <!-- Company Header & Tags -->
+              <div class="flex justify-between items-start gap-2">
+                <div>
+                  <h3 class="text-base font-display font-bold text-white tracking-tight">{company.name}</h3>
+                  {#if company.role}
+                    <p class="text-xs font-mono text-[#38bdf8] mt-0.5">{company.role}</p>
+                  {/if}
+                </div>
                 {#if company.ctc}
-                  <span class="px-2.5 py-1 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 text-xs font-bold rounded-full border border-emerald-200 dark:border-emerald-800/50">
+                  <span class="neon-badge-lime px-2.5 py-1 rounded-full text-[11px] font-mono font-bold whitespace-nowrap">
                     💰 {company.ctc}
                   </span>
                 {/if}
               </div>
 
-              {#if company.notes}
-                <p class="text-xs text-gray-600 dark:text-slate-400 line-clamp-2">{company.notes}</p>
+              <!-- Notes or Criteria Snippet -->
+              {#if company.eligibility_criteria}
+                <div class="text-xs bg-zinc-950/80 p-2.5 rounded-lg border border-white/[0.06] text-zinc-300 font-mono">
+                  <span class="text-[10px] text-zinc-500 uppercase block mb-0.5">Criteria</span>
+                  {company.eligibility_criteria}
+                </div>
+              {:else if company.notes}
+                <p class="text-xs text-zinc-400 line-clamp-2">{company.notes}</p>
               {/if}
 
-              <div class="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
-                <span class="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider block">Historical Cutoffs</span>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-                  {#if company.min_cgpa}
-                    <div class="bg-white dark:bg-slate-900/50 p-2 rounded-lg border border-slate-200 dark:border-slate-700">
-                      <span class="text-gray-500 dark:text-slate-400 block text-[10px]">Min CGPA</span>
-                      <span class="font-bold text-gray-900 dark:text-gray-300 dark:text-slate-100">{company.min_cgpa.toFixed(2)}</span>
-                    </div>
-                  {/if}
-                  {#if company.avg_cgpa}
-                    <div class="bg-white dark:bg-slate-900/50 p-2 rounded-lg border border-slate-200 dark:border-slate-700">
-                      <span class="text-gray-500 dark:text-slate-400 block text-[10px]">Avg CGPA</span>
-                      <span class="font-bold text-gray-900 dark:text-gray-300 dark:text-slate-100">{company.avg_cgpa.toFixed(2)}</span>
-                    </div>
-                  {/if}
-                  {#if company.min_tenth}
-                    <div class="bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200">
-                      <span class="text-gray-500 dark:text-slate-400 block text-[10px]">Min 10th</span>
-                      <span class="font-bold text-gray-900 dark:text-gray-300 dark:text-slate-100">{company.min_tenth.toFixed(1)}%</span>
-                    </div>
-                  {/if}
-                  {#if company.min_twelfth}
-                    <div class="bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200">
-                      <span class="text-gray-500 dark:text-slate-400 block text-[10px]">Min 12th</span>
-                      <span class="font-bold text-gray-900 dark:text-gray-300 dark:text-slate-100">{company.min_twelfth.toFixed(1)}%</span>
-                    </div>
-                  {/if}
-                  {#if company.total_shortlisted}
-                    <div class="bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200">
-                      <span class="text-gray-500 dark:text-slate-400 block text-[10px]">Shortlisted</span>
-                      <span class="font-bold text-purple-700 dark:text-purple-300">{company.total_shortlisted}</span>
-                    </div>
-                  {/if}
-                  {#if company.gender_ratio}
-                    <div class="bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200">
-                      <span class="text-gray-500 dark:text-slate-400 block text-[10px]">Gender (M:F)</span>
-                      <span class="font-bold text-gray-900 dark:text-gray-300 dark:text-slate-100">{company.gender_ratio}</span>
-                    </div>
-                  {/if}
+              <!-- Branches if available -->
+              {#if company.eligible_branches}
+                <div class="text-[11px] text-zinc-400">
+                  <span class="font-mono text-zinc-500 uppercase text-[10px]">Branches:</span> {company.eligible_branches}
+                </div>
+              {/if}
+
+              <!-- Computed Academic Thresholds -->
+              <div class="pt-2 border-t border-white/[0.06]">
+                <span class="text-[10px] font-mono font-semibold uppercase text-zinc-400 block mb-2">Calculated Academic Range</span>
+                <div class="grid grid-cols-4 gap-2 text-center font-mono text-xs">
+                  <div class="bg-zinc-950/70 p-2 rounded-xl border border-white/[0.06]">
+                    <span class="text-[9px] text-zinc-500 uppercase block">Min CGPA</span>
+                    <span class="font-bold text-[#a3e635] tabular-nums">
+                      {company.min_cgpa !== null && company.min_cgpa !== undefined ? company.min_cgpa.toFixed(2) : 'Open'}
+                    </span>
+                  </div>
+                  <div class="bg-zinc-950/70 p-2 rounded-xl border border-white/[0.06]">
+                    <span class="text-[9px] text-zinc-500 uppercase block">Avg CGPA</span>
+                    <span class="font-bold text-[#38bdf8] tabular-nums">
+                      {company.avg_cgpa !== null && company.avg_cgpa !== undefined ? company.avg_cgpa.toFixed(2) : '—'}
+                    </span>
+                  </div>
+                  <div class="bg-zinc-950/70 p-2 rounded-xl border border-white/[0.06]">
+                    <span class="text-[9px] text-zinc-500 uppercase block">Max CGPA</span>
+                    <span class="font-bold text-purple-300 tabular-nums">
+                      {company.max_cgpa !== null && company.max_cgpa !== undefined ? company.max_cgpa.toFixed(2) : '—'}
+                    </span>
+                  </div>
+                  <div class="bg-zinc-950/70 p-2 rounded-xl border border-white/[0.06]">
+                    <span class="text-[9px] text-zinc-500 uppercase block">Shortlisted</span>
+                    <span class="font-bold text-white tabular-nums">{company.total_shortlisted || 0}</span>
+                  </div>
                 </div>
               </div>
+
             </div>
           {/each}
         </div>
       {/if}
     </div>
   {/if}
+
 </div>

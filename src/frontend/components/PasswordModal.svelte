@@ -1,16 +1,18 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   const dispatch = createEventDispatcher();
 
   export let show = false;
+  export let isOpen = false;
   export let title = 'Authentication Required';
-  export let message = 'Please enter the admin password to proceed with this destructive action.';
+  export let message = 'Please enter the admin password to proceed.';
+
+  $: visible = show || isOpen;
 
   let password = '';
   let inputRef: HTMLInputElement;
 
-  $: if (show && inputRef) {
-    // Focus input automatically when modal is shown
+  $: if (visible && inputRef) {
     setTimeout(() => inputRef.focus(), 50);
   }
 
@@ -47,52 +49,56 @@
   }
 </script>
 
-{#if show}
+{#if visible}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div 
     use:portal
-    class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+    class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
     style="z-index: 9999;"
     on:click|self={handleCancel}
   >
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in duration-200">
+    <div class="bg-[#0F172A] rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-700 relative overflow-hidden">
       
-      <div class="flex items-center gap-3 mb-4 text-red-600 dark:text-red-400">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-        </svg>
-        <h3 class="text-lg font-bold text-slate-900 dark:text-white leading-tight">
-          {title}
-        </h3>
+      <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-[#BBF351] to-amber-500"></div>
+
+      <div class="flex items-center gap-3 mb-3 text-amber-400">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-lg">
+          🔒
+        </div>
+        <div>
+          <h3 class="text-base font-display font-bold text-white leading-tight">
+            {title}
+          </h3>
+          <span class="text-[10px] font-mono text-slate-400 uppercase">Admin Authorization</span>
+        </div>
       </div>
 
-      <p class="text-sm text-slate-600 dark:text-slate-300 mb-5 leading-relaxed">
+      <p class="text-xs text-slate-300 mb-5 leading-relaxed font-sans">
         {message}
       </p>
 
-      <div class="mb-6">
+      <div class="mb-5">
         <input 
           bind:this={inputRef}
           bind:value={password}
           on:keydown={handleKeydown}
           type="password" 
-          placeholder="Enter admin password..."
-          class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 font-mono"
+          placeholder="Enter authorization password..."
+          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-700 bg-[#080C14] text-white placeholder-slate-500 text-xs font-mono focus:border-[#BBF351]/60 focus:shadow-[0_0_16px_rgba(187,243,81,0.2)]"
         />
       </div>
 
-      <div class="flex justify-end gap-3">
+      <div class="flex justify-end gap-2.5">
         <button 
           on:click={handleCancel}
-          class="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
+          class="neon-btn-ghost px-4 py-2 text-xs font-semibold rounded-xl touch-press"
         >
           Cancel
         </button>
         <button 
           on:click={handleSubmit}
-          class="px-5 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 active:scale-95 rounded-xl transition-all shadow-sm"
+          class="neon-btn-primary px-4 py-2 text-xs font-bold rounded-xl touch-press"
         >
           Authorize & Proceed
         </button>

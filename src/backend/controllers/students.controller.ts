@@ -11,6 +11,9 @@ export class StudentsController {
     const unmappedChennai = c.req.query('unmappedChennai') === 'true';
     const masters = c.req.query('masters') === 'true';
     const sort = c.req.query('sort');
+    const statusFilter = c.req.query('statusFilter');
+    const topcoderFilter = c.req.query('topcoderFilter');
+    const campusFilter = c.req.query('campusFilter');
 
     const result = StudentsService.getStudents({
       search,
@@ -19,7 +22,10 @@ export class StudentsController {
       sortByShortlists,
       unmappedChennai,
       masters,
-      sort
+      sort,
+      statusFilter,
+      topcoderFilter,
+      campusFilter
     });
 
     return c.json(result);

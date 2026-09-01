@@ -9,6 +9,10 @@
   let finalSearchTerm = '';
   let internSearchTerm = '';
 
+  // Interactive Hover state for visual charts
+  let hoveredBranch: any = null;
+  let hoveredCtc: any = null;
+
   onMount(async () => {
     await loadSummary(false);
   });
@@ -40,26 +44,38 @@
     (c: any) => !internSearchTerm.trim() || c.name.toLowerCase().includes(internSearchTerm.toLowerCase().trim())
   );
 
-  // Pie chart computations
+  // High-Energy & Elegant Pie chart color palette
   const pieColors = [
-    '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6',
-    '#ec4899', '#14b8a6', '#f43f5e', '#6366f1',
-    '#0ea5e9', '#84cc16'
+    '#a3e635', // Lime
+    '#38bdf8', // Sky / Cyan
+    '#c084fc', // Purple
+    '#f59e0b', // Amber
+    '#fb7185', // Rose
+    '#34d399', // Emerald
+    '#818cf8', // Indigo
+    '#f472b6', // Pink
+    '#2dd4bf', // Teal
+    '#94a3b8'  // Slate
   ];
 
   $: branchChartData = (summary?.finalPlacement?.branchStats || [])
     .filter((s: any) => s.placed > 0)
-    .sort((a: any, b: any) => b.placed - a.placed);
+    .sort((a: any, b: any) => b.placed - a.placed)
+    .map((s: any, idx: number) => ({
+      ...s,
+      color: pieColors[idx % pieColors.length]
+    }));
 
   $: branchTotalPlaced = branchChartData.reduce((sum: number, s: any) => sum + s.placed, 0);
 
   $: branchConicGradient = branchChartData.length > 0
     ? (() => {
         let currentPercent = 0;
-        return branchChartData.map((s: any, i: number) => {
+        return branchChartData.map((s: any) => {
           const start = currentPercent;
-          currentPercent += (s.placed / branchTotalPlaced) * 100;
-          return `${pieColors[i % pieColors.length]} ${start}% ${currentPercent}%`;
+          const share = (s.placed / branchTotalPlaced) * 100;
+          currentPercent += share;
+          return `${s.color} ${start}% ${currentPercent}%`;
         }).join(', ');
       })()
     : 'transparent';
@@ -80,16 +96,15 @@
 
   $: ctcBuckets = (() => {
     const buckets = [
-      { label: '< 10 LPA', count: 0, color: '#f87171' },
-      { label: '10 - 15 LPA', count: 0, color: '#fbbf24' },
-      { label: '15 - 20 LPA', count: 0, color: '#34d399' },
-      { label: '20 - 30 LPA', count: 0, color: '#38bdf8' },
-      { label: '> 30 LPA', count: 0, color: '#818cf8' },
-      { label: 'Not Disclosed', count: 0, color: '#94a3b8' }
+      { label: '< 10 LPA', count: 0, color: '#fb7185' },
+      { label: '10 - 15 LPA', count: 0, color: '#f59e0b' },
+      { label: '15 - 20 LPA', count: 0, color: '#38bdf8' },
+      { label: '20 - 30 LPA', count: 0, color: '#a3e635' },
+      { label: '> 30 LPA', count: 0, color: '#c084fc' },
+      { label: 'Not Disclosed', count: 0, color: '#71717a' }
     ];
     
     (summary?.finalPlacement?.companiesBreakdown || []).forEach((c: any) => {
-      // Use the total selected students for this company to weight the CTC bucket
       const studentsSelected = c.total || 0;
       if (studentsSelected === 0) return;
 
@@ -126,257 +141,541 @@
     : 'transparent';
 </script>
 
-<div id="analytics-page" class="analytics">
-  <div class="header">
-    <h2>📊 Placement & Internship Analytics</h2>
-    <button class="btn-refresh" on:click={() => loadSummary(true)} disabled={loading}>
-      {loading ? 'Recalculating...' : '🔄 Recalculate Analytics'}
+<div class="space-y-6 sm:space-y-8 animate-in fade-in duration-200">
+  
+  <!-- Header with Refresh / Recalculate Trigger -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-900/80 border border-white/[0.08] p-5 sm:p-6 rounded-2xl backdrop-blur-xl relative overflow-hidden">
+    <div class="space-y-1">
+      <h1 class="text-2xl sm:text-3xl font-display font-bold tracking-tight text-white">
+        Placement Statistics & Insights
+      </h1>
+      <p class="text-xs sm:text-sm text-zinc-400 font-normal">
+        Real-time metrics for full-time offers and internships across branches, CTC tiers, and campuses.
+      </p>
+    </div>
+
+    <button 
+      class="neon-btn-ghost px-4 py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 shrink-0 touch-press min-h-[38px]"
+      on:click={() => loadSummary(true)} 
+      disabled={loading}
+    >
+      <span class={loading ? 'animate-spin' : ''}>↻</span>
+      <span>{loading ? 'Refreshing…' : 'Refresh data'}</span>
     </button>
   </div>
-  
+
   {#if loading}
-    <div class="loading">Loading analytics...</div>
+    <div class="neon-card p-16 text-center flex flex-col items-center justify-center gap-4">
+      <div class="w-8 h-8 rounded-full border-2 border-white/20 border-t-[#a3e635] animate-spin"></div>
+      <p class="text-sm font-mono text-zinc-400">Loading placement metrics…</p>
+    </div>
   {:else if errorMessage}
-    <div class="error-box">
-      <p>⚠️ Error loading analytics: {errorMessage}</p>
-      <button class="btn-refresh" on:click={() => loadSummary(true)}>Retry</button>
+    <div class="rounded-2xl border border-rose-500/40 bg-rose-950/30 p-6 backdrop-blur-md text-center space-y-3">
+      <div class="text-2xl text-rose-400 font-mono">⚠️</div>
+      <h3 class="text-base font-bold text-rose-300">Unable to Fetch Analytics</h3>
+      <p class="text-xs sm:text-sm text-rose-400 font-mono">{errorMessage}</p>
+      <button class="neon-btn-primary px-4 py-2 rounded-xl text-xs font-semibold" on:click={() => loadSummary(true)}>
+        Retry Sync
+      </button>
     </div>
   {:else if summary}
-    <!-- Top Summary Stat Cards -->
-    <div class="stats-grid">
-      <div class="stat-card primary">
-        <div class="stat-value">{summary.totalNeoIds || 0}</div>
-        <div class="stat-label">Total NeoID Students</div>
-        <div class="stat-sub">Master NeoID Directory</div>
-      </div>
 
-      <div class="stat-card success">
-        <div class="stat-value">{summary.totalPlacedNeoIds || 0}</div>
-        <div class="stat-label">Placed NeoIDs</div>
-        <div class="stat-sub">
-          <strong>{summary.totalPlacedNeoIds || 0} out of {summary.totalNeoIds || 0}</strong> ({summary.overallNeoIdPlacementRate || "0.00"}%)
-        </div>
-      </div>
-
-      <!-- HIGHLIGHTED CHENNAI NEOID PLACEMENT METRIC -->
-      <div class="stat-card chennai-highlight">
-        <div class="stat-value">{summary.chennaiNeoIdStats?.rate || "0.00"}%</div>
-        <div class="stat-label">Chennai NeoID Placement Rate</div>
-        <div class="stat-sub">
-          {summary.chennaiNeoIdStats?.placed || 0} placed out of {summary.chennaiNeoIdStats?.total || 0}
-        </div>
-      </div>
-
-      <div class="stat-card warning">
-        <div class="stat-value">{summary.internAnalytics?.totalInterns || 0}</div>
-        <div class="stat-label">Interns Selected</div>
-        <div class="stat-sub">from temp_interns_selected</div>
-      </div>
+    <!-- Top Bento Grid: High-Impact Metric Widgets -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
       
-      <div class="stat-card dark">
-        <div class="stat-value">{summary.totalCompanies || 0}</div>
-        <div class="stat-label">Recruiting Companies</div>
-        <div class="stat-sub">Active Drive Partners</div>
+      <!-- Total NeoID Candidates -->
+      <div class="neon-card p-4 sm:p-5 relative overflow-hidden flex flex-col justify-between group">
+        <div>
+          <span class="text-[11px] font-mono font-medium uppercase tracking-wider text-zinc-400">Total Registered</span>
+          <div class="mt-1.5 text-2xl sm:text-3xl font-bold font-mono text-white tracking-tight tabular-nums">
+            {summary.totalNeoIds || 0}
+          </div>
+        </div>
+        <div class="mt-3 text-[11px] text-zinc-400 flex items-center gap-1.5 font-mono">
+          <span class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span>
+          Master Directory Candidates
+        </div>
       </div>
+
+      <!-- Placed Candidates (Full-Time Offers / Internships) -->
+      <div class="neon-card p-4 sm:p-5 relative overflow-hidden flex flex-col justify-between group">
+        <div>
+          <span class="text-[11px] font-mono font-medium uppercase tracking-wider text-[#38bdf8]">Full-Time / Offers</span>
+          <div class="mt-1.5 text-2xl sm:text-3xl font-bold font-mono text-[#38bdf8] tracking-tight tabular-nums">
+            {summary.totalPlacedNeoIds || 0}
+          </div>
+        </div>
+        <div class="mt-3 text-[11px] text-zinc-300 flex items-center justify-between font-mono tabular-nums">
+          <span>{summary.overallNeoIdPlacementRate || "0.00"}% conversion</span>
+          <span class="text-zinc-500">{summary.totalPlacedNeoIds || 0}/{summary.totalNeoIds || 0}</span>
+        </div>
+      </div>
+
+      <!-- HIGHLIGHT SPOTLIGHT: CHENNAI PLACEMENT RATE -->
+      <div class="rounded-2xl border border-[#a3e635]/40 bg-zinc-900/90 p-4 sm:p-5 relative overflow-hidden flex flex-col justify-between shadow-sm group">
+        <div class="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#a3e635]/60 via-[#a3e635] to-[#a3e635]/60"></div>
+        <div>
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-mono font-medium uppercase tracking-wider text-[#a3e635]">Chennai Conversion</span>
+            <span class="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-[#a3e635]/15 text-[#a3e635] rounded-full border border-[#a3e635]/30">Key Metric</span>
+          </div>
+          <div class="mt-1.5 text-3xl sm:text-4xl font-bold font-mono text-[#a3e635] tracking-tight tabular-nums">
+            {summary.chennaiNeoIdStats?.rate || "0.00"}%
+          </div>
+        </div>
+        <div class="mt-3 text-[11px] text-zinc-300 font-mono flex items-center gap-1.5 tabular-nums">
+          <span>{summary.chennaiNeoIdStats?.placed || 0} offers / {summary.chennaiNeoIdStats?.total || 0} total</span>
+        </div>
+      </div>
+
+      <!-- Interns Selected -->
+      <div class="neon-card p-4 sm:p-5 relative overflow-hidden flex flex-col justify-between group">
+        <div>
+          <span class="text-[11px] font-mono font-medium uppercase tracking-wider text-amber-400">Internship Offers</span>
+          <div class="mt-1.5 text-2xl sm:text-3xl font-bold font-mono text-amber-300 tracking-tight tabular-nums">
+            {summary.internAnalytics?.totalInterns || 0}
+          </div>
+        </div>
+        <div class="mt-3 text-[11px] text-zinc-400 flex items-center gap-1.5 font-mono">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+          Chennai Tracked (Others Not Monitored)
+        </div>
+      </div>
+
+      <!-- Recruiting Companies -->
+      <div class="neon-card p-4 sm:p-5 relative overflow-hidden flex flex-col justify-between group">
+        <div>
+          <span class="text-[11px] font-mono font-medium uppercase tracking-wider text-purple-300">Recruiting Drives</span>
+          <div class="mt-1.5 text-2xl sm:text-3xl font-bold font-mono text-purple-200 tracking-tight tabular-nums">
+            {summary.totalCompanies || 0}
+          </div>
+        </div>
+        <div class="mt-3 text-[11px] text-zinc-400 flex items-center gap-1.5 font-mono">
+          <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+          Active Drive Profiles
+        </div>
+      </div>
+
     </div>
 
-    <!-- SECTION 1: FINAL PLACEMENT METRICS (ORDERED ABOVE INTERNS) -->
-    <div class="section-container placement-section">
-      <div class="section-header">
-        <h3>🎓 Final Placement Metrics (temp_final_selection)</h3>
-        <span class="badge badge-success">Placement Offer / Likely Internship to Conversion</span>
+    <!-- 📊 VISUAL SHARE & INTERACTIVE ANALYTICS (BIGGER CIRCLES + HOVER STATS) -->
+    <div class="space-y-4">
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-2.5">
+        <div>
+          <h2 class="text-base sm:text-lg font-display font-bold text-white tracking-tight">
+            Visual Distribution & Branch Analytics
+          </h2>
+          <p class="text-xs text-zinc-400">
+            Hover over any chart segment or branch row for real-time percentage and candidate count breakdowns.
+          </p>
+        </div>
+        <span class="neon-badge-lime px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium">
+          Interactive Charts
+        </span>
       </div>
 
-      <div class="charts-grid">
-        <!-- NeoID Campus Placement Metrics Table -->
-        <div class="chart-card featured">
-          <h4>🏫 NeoID Campus Placement Breakdown</h4>
-          <p class="chart-desc">Placement rate of NeoIDs campus-wise (Chennai, Vellore, Unknown)</p>
-          <div class="table-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th>Campus</th>
-                  <th>Total NeoIDs</th>
-                  <th>Placed NeoIDs</th>
-                  <th>Campus Placement Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each (summary.neoIdCampusStats || []) as stat}
-                  <tr>
-                    <td>
-                      <span class="campus-badge {stat.campus ? stat.campus.toLowerCase() : 'unknown'}">{stat.campus}</span>
-                    </td>
-                    <td><strong>{stat.total || 0}</strong></td>
-                    <td class="text-success"><strong>{stat.placed || 0}</strong></td>
-                    <td>
-                      <div class="rate-bar-container">
-                        <span class="rate-text">{stat.placedRate || "0.00"}%</span>
-                        <div class="rate-bar">
-                          <div
-                            class="rate-fill success-fill"
-                            style="width: {stat.placed > 0 ? Math.max(5, parseFloat(stat.placedRate || '0')) : 0}%"
-                          ></div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- 🎯 Chart 1: Branch Distribution with Large Interactive Donut & Percentages -->
+        <div class="neon-card p-5 sm:p-7 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-sm font-display font-bold text-white">Branch Hire Distribution</h3>
+                <span class="text-xs text-zinc-400">Proportional share of offers across academic branches</span>
+              </div>
+              <span class="text-xs font-mono text-zinc-400 bg-white/[0.04] px-2.5 py-1 rounded-lg border border-white/[0.06] tabular-nums">
+                Total: <strong class="text-white">{branchTotalPlaced}</strong> offers
+              </span>
+            </div>
+
+            <!-- Big Circle & Center Interactive Readout -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8 my-6">
+              
+              <!-- Large Interactive Donut (240px) -->
+              <div 
+                class="w-56 h-56 sm:w-60 sm:h-60 rounded-full flex items-center justify-center relative shadow-lg transition-transform duration-200 hover:scale-105 select-none shrink-0"
+                style="background: conic-gradient({branchConicGradient});"
+              >
+                <!-- Inner Donut Cutout with Live Center Readout -->
+                <div class="w-36 h-36 sm:w-40 sm:h-40 rounded-full bg-[#090a0f] border border-white/[0.08] flex flex-col items-center justify-center text-center p-3 z-10 shadow-inner">
+                  {#if hoveredBranch}
+                    <span 
+                      class="text-[10px] font-mono font-bold uppercase tracking-wider truncate max-w-[120px] px-2 py-0.5 rounded"
+                      style="color: {hoveredBranch.color}; background: {hoveredBranch.color}15;"
+                    >
+                      {hoveredBranch.branch}
+                    </span>
+                    <span class="text-2xl font-bold font-mono text-white mt-1 tabular-nums">
+                      {hoveredBranch.placed}
+                    </span>
+                    <span class="text-[11px] font-mono font-medium text-zinc-400 tabular-nums">
+                      {((hoveredBranch.placed / branchTotalPlaced) * 100).toFixed(1)}% share
+                    </span>
+                  {:else}
+                    <span class="text-[10px] font-mono uppercase text-zinc-400 tracking-wider">
+                      All Branches
+                    </span>
+                    <span class="text-2xl sm:text-3xl font-bold font-mono text-white mt-0.5 tabular-nums">
+                      {branchTotalPlaced}
+                    </span>
+                    <span class="text-[10px] font-mono text-[#a3e635] font-semibold mt-0.5">
+                      100% Total Hired
+                    </span>
+                  {/if}
+                </div>
+              </div>
+
+              <!-- Compact Top Branch Quick Legend -->
+              <div class="flex-1 w-full space-y-2">
+                <span class="text-[11px] font-mono uppercase text-zinc-400 block mb-1 font-semibold tracking-wider">
+                  Top Branches by Hires:
+                </span>
+                <div class="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                  {#each branchChartData.slice(0, 5) as branch}
+                    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+                    <!-- svelte-ignore a11y-no-static-element-interactions -->
+                    <div 
+                      class="p-2 rounded-xl transition-all flex items-center justify-between cursor-pointer border
+                        {hoveredBranch?.branch === branch.branch 
+                          ? 'bg-white/[0.08] border-white/20 shadow-sm' 
+                          : 'bg-white/[0.02] border-transparent hover:bg-white/[0.04]'}"
+                      on:mouseenter={() => hoveredBranch = branch}
+                      on:mouseleave={() => hoveredBranch = null}
+                    >
+                      <div class="flex items-center gap-2 min-w-0">
+                        <span class="w-3 h-3 rounded-full shrink-0" style="background-color: {branch.color};"></span>
+                        <span class="text-xs font-semibold text-zinc-200 truncate">{branch.branch}</span>
+                      </div>
+                      <div class="flex items-center gap-2 shrink-0 font-mono text-xs tabular-nums">
+                        <span class="font-bold text-white">{branch.placed}</span>
+                        <span class="text-zinc-400 text-[11px]">({((branch.placed / branchTotalPlaced) * 100).toFixed(1)}%)</span>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Complete Branch Table with Proportional Progress Bars -->
+            <div class="mt-4 pt-4 border-t border-white/[0.08] space-y-2">
+              <div class="flex items-center justify-between text-xs font-mono text-zinc-400 uppercase tracking-wider mb-2">
+                <span>All Branches Breakdown ({branchChartData.length} active)</span>
+                <span>Proportion / Rate</span>
+              </div>
+
+              <div class="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                {#each branchChartData as branch}
+                  <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+                  <!-- svelte-ignore a11y-no-static-element-interactions -->
+                  <div 
+                    class="p-2.5 rounded-xl border transition-all cursor-pointer space-y-1.5
+                      {hoveredBranch?.branch === branch.branch 
+                        ? 'bg-white/[0.08] border-white/20' 
+                        : 'bg-zinc-900/60 border-white/[0.04] hover:bg-white/[0.04]'}"
+                    on:mouseenter={() => hoveredBranch = branch}
+                    on:mouseleave={() => hoveredBranch = null}
+                  >
+                    <div class="flex items-center justify-between text-xs font-mono">
+                      <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full" style="background-color: {branch.color};"></span>
+                        <span class="font-semibold text-zinc-200">{branch.branch}</span>
+                      </div>
+                      <div class="flex items-center gap-3 tabular-nums">
+                        <span class="text-white font-bold">{branch.placed} offers</span>
+                        <span class="text-[#a3e635] font-semibold">{((branch.placed / branchTotalPlaced) * 100).toFixed(1)}%</span>
+                        {#if branch.total}
+                          <span class="text-zinc-500 text-[11px]">({((branch.placed / branch.total) * 100).toFixed(0)}% batch)</span>
+                        {/if}
+                      </div>
+                    </div>
+
+                    <!-- Visual Share Bar -->
+                    <div class="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div 
+                        class="h-full rounded-full transition-all duration-300"
+                        style="width: {((branch.placed / branchTotalPlaced) * 100).toFixed(1)}%; background-color: {branch.color};"
+                      ></div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 💼 Chart 2: CTC Tier Distribution with Interactive Donut -->
+        <div class="neon-card p-5 sm:p-7 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-sm font-display font-bold text-white">Compensation Package Tiers</h3>
+                <span class="text-xs text-zinc-400">Breakdown of offers across salary brackets</span>
+              </div>
+              <span class="text-xs font-mono text-zinc-400 bg-white/[0.04] px-2.5 py-1 rounded-lg border border-white/[0.06] tabular-nums">
+                Tiers: <strong class="text-white">{ctcTotalPlaced}</strong> placements
+              </span>
+            </div>
+
+            <!-- Big Circle & Center Interactive Readout -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8 my-6">
+              
+              <!-- Large Interactive Donut (240px) -->
+              <div 
+                class="w-56 h-56 sm:w-60 sm:h-60 rounded-full flex items-center justify-center relative shadow-lg transition-transform duration-200 hover:scale-105 select-none shrink-0"
+                style="background: conic-gradient({ctcConicGradient});"
+              >
+                <!-- Inner Donut Cutout with Live Center Readout -->
+                <div class="w-36 h-36 sm:w-40 sm:h-40 rounded-full bg-[#090a0f] border border-white/[0.08] flex flex-col items-center justify-center text-center p-3 z-10 shadow-inner">
+                  {#if hoveredCtc}
+                    <span 
+                      class="text-[10px] font-mono font-bold uppercase tracking-wider truncate max-w-[120px] px-2 py-0.5 rounded"
+                      style="color: {hoveredCtc.color}; background: {hoveredCtc.color}15;"
+                    >
+                      {hoveredCtc.label}
+                    </span>
+                    <span class="text-2xl font-bold font-mono text-white mt-1 tabular-nums">
+                      {hoveredCtc.count}
+                    </span>
+                    <span class="text-[11px] font-mono font-medium text-zinc-400 tabular-nums">
+                      {((hoveredCtc.count / ctcTotalPlaced) * 100).toFixed(1)}% share
+                    </span>
+                  {:else}
+                    <span class="text-[10px] font-mono uppercase text-zinc-400 tracking-wider">
+                      All Tiers
+                    </span>
+                    <span class="text-2xl sm:text-3xl font-bold font-mono text-white mt-0.5 tabular-nums">
+                      {ctcTotalPlaced}
+                    </span>
+                    <span class="text-[10px] font-mono text-[#38bdf8] font-semibold mt-0.5">
+                      Max: &gt; 30 LPA
+                    </span>
+                  {/if}
+                </div>
+              </div>
+
+              <!-- CTC Tiers Breakdown List -->
+              <div class="flex-1 w-full space-y-2">
+                <span class="text-[11px] font-mono uppercase text-zinc-400 block mb-1 font-semibold tracking-wider">
+                  Package Ranges:
+                </span>
+                <div class="space-y-2">
+                  {#each ctcBuckets as bucket}
+                    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+                    <!-- svelte-ignore a11y-no-static-element-interactions -->
+                    <div 
+                      class="p-2.5 rounded-xl border transition-all cursor-pointer space-y-1.5
+                        {hoveredCtc?.label === bucket.label 
+                          ? 'bg-white/[0.08] border-white/20' 
+                          : 'bg-zinc-900/60 border-white/[0.04] hover:bg-white/[0.04]'}"
+                      on:mouseenter={() => hoveredCtc = bucket}
+                      on:mouseleave={() => hoveredCtc = null}
+                    >
+                      <div class="flex items-center justify-between text-xs font-mono">
+                        <div class="flex items-center gap-2">
+                          <span class="w-2.5 h-2.5 rounded-full" style="background-color: {bucket.color};"></span>
+                          <span class="font-semibold text-zinc-200">{bucket.label}</span>
+                        </div>
+                        <div class="flex items-center gap-2 tabular-nums">
+                          <span class="text-white font-bold">{bucket.count}</span>
+                          <span class="text-zinc-400 text-[11px]">({((bucket.count / ctcTotalPlaced) * 100).toFixed(1)}%)</span>
                         </div>
                       </div>
-                    </td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        </div>
 
-        <!-- Known Student Branch-wise Placements & Pie Charts -->
-        <div class="chart-card featured">
-          <h4>📚 Placement Distribution</h4>
-          <p class="chart-desc">Branch & Campus level placement breakdown</p>
-          
-          <div class="distribution-grid">
-            <div class="table-container">
-              <h5>Branch-wise Details</h5>
-              <div class="table-responsive" style="max-height: 350px;">
-                <table class="compact-table">
-                  <thead>
-                    <tr>
-                      <th>Branch</th>
-                      <th>Registered</th>
-                      <th>Placed</th>
-                      <th class="hide-mobile">Placement Rate</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {#each (summary.finalPlacement?.branchStats || []) as stat}
-                      <tr>
-                        <td><strong>{stat.branch}</strong></td>
-                        <td>{stat.total || 0}</td>
-                        <td class="text-success"><strong>{stat.placed || 0}</strong></td>
-                        <td class="hide-mobile">{stat.total > 0 ? (((stat.placed || 0) / stat.total) * 100).toFixed(1) : '0.0'}%</td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="charts-container">
-              <div class="pie-card">
-                <h5>Selections by Branch</h5>
-                <p class="chart-desc" style="font-size: 0.75rem; margin-top: -0.5rem; margin-bottom: 1rem;">Pie chart showing the proportion of total hires contributed by each branch.</p>
-                {#if branchChartData.length > 0}
-                  <div class="pie-wrapper">
-                    <div class="pie-chart" style="background: conic-gradient({branchConicGradient})"></div>
-                    <div class="pie-legend">
-                      {#each branchChartData as s, i}
-                        <div class="legend-item">
-                          <span class="legend-color" style="background: {pieColors[i % pieColors.length]}"></span>
-                          <span class="legend-text">{s.branch} ({((s.placed / branchTotalPlaced) * 100).toFixed(1)}% of hires)</span>
-                        </div>
-                      {/each}
+                      <!-- Share Bar -->
+                      <div class="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                        <div 
+                          class="h-full rounded-full transition-all duration-300"
+                          style="width: {((bucket.count / ctcTotalPlaced) * 100).toFixed(1)}%; background-color: {bucket.color};"
+                        ></div>
+                      </div>
                     </div>
-                  </div>
-                {:else}
-                  <p class="empty-state">No data available</p>
-                {/if}
-              </div>
-
-              <div class="pie-card">
-                <h5>Salary Distribution (CTC)</h5>
-                <p class="chart-desc" style="font-size: 0.75rem; margin-top: -0.5rem; margin-bottom: 1rem;">Pie chart showing placed students grouped by their CTC (LPA) packages.</p>
-                {#if ctcBuckets.length > 0}
-                  <div class="pie-wrapper">
-                    <div class="pie-chart" style="background: conic-gradient({ctcConicGradient})"></div>
-                    <div class="pie-legend">
-                      {#each ctcBuckets as b}
-                        <div class="legend-item">
-                          <span class="legend-color" style="background: {b.color}"></span>
-                          <span class="legend-text">{b.label} ({((b.count / ctcTotalPlaced) * 100).toFixed(1)}%)</span>
-                        </div>
-                      {/each}
-                    </div>
-                  </div>
-                {:else}
-                  <p class="empty-state">No CTC data available</p>
-                {/if}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- All Companies Final Placements Table -->
-        <div class="chart-card featured">
-          <div class="card-title-row">
-            <div>
-              <h4>🏆 All Companies Placement Offers</h4>
-              <p class="chart-desc">Companies with at least 1 placement offer / likely internship to conversion</p>
-            </div>
-            <div class="search-box">
-              <input
-                type="text"
-                placeholder="🔍 Search company..."
-                bind:value={finalSearchTerm}
-                class="search-input"
-              />
-            </div>
-          </div>
-          <div class="table-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th>Company Name</th>
-                  <th>Total Placed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {#if filteredFinalCompanies.length === 0}
-                  <tr>
-                    <td colspan="2" class="empty-state">No placement offers found matching your search.</td>
-                  </tr>
-                {:else}
-                  {#each filteredFinalCompanies as company}
-                    <tr>
-                      <td><strong>{company.name}</strong></td>
-                      <td><span class="badge badge-success">{company.total || 0} Placed</span></td>
-                    </tr>
                   {/each}
-                {/if}
-              </tbody>
-            </table>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Context Footer -->
+            <div class="mt-4 pt-3.5 border-t border-white/[0.08] flex items-center justify-between text-xs font-mono text-zinc-400">
+              <span>Top Bracket: <strong class="text-purple-300">&gt; 30 LPA</strong></span>
+              <span>Median Band: <strong class="text-[#38bdf8]">15 - 20 LPA</strong></span>
+            </div>
+
           </div>
         </div>
+
       </div>
     </div>
 
-    <!-- SECTION 2: INTERN SELECTION METRICS (ORDERED BELOW SELECTION) -->
-    <div class="section-container intern-section">
-      <div class="section-header">
-        <h3>💼 Intern Selection Metrics (temp_interns_selected)</h3>
-        <span class="badge badge-warning">Internship Offers</span>
+    <!-- 🎓 SECTION 1: OFFERS & RECRUITMENT PARTNERS -->
+    <div class="space-y-4 pt-4">
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-2.5">
+        <div>
+          <h2 class="text-base sm:text-lg font-display font-bold text-white tracking-tight">
+            Full-Time Offers & Internships Breakdown
+          </h2>
+          <p class="text-xs text-zinc-400">
+            Confirmed offers, campus distributions, and hiring company metrics (including PPO tracks).
+          </p>
+        </div>
+        <span class="neon-badge-lime px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium">
+          Full-Time Offers / Internships
+        </span>
       </div>
 
-      <div class="charts-grid">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        
+        <!-- Campus Placement Breakdown Table -->
+        <div class="neon-card p-4 sm:p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <h3 class="text-sm font-display font-bold text-white">Campus-wise Offers & Rates</h3>
+              <span class="text-[10px] font-mono text-zinc-400">NeoID Dataset</span>
+            </div>
+            <p class="text-xs text-zinc-400 mb-4">Breakdown across Chennai, Vellore, and other campuses.</p>
+
+            <div class="table-responsive rounded-xl border border-white/[0.08] bg-zinc-900/60">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr class="border-b border-white/[0.08] bg-zinc-900 text-zinc-400 font-mono text-[10px] uppercase">
+                    <th class="py-2.5 px-3">Campus</th>
+                    <th class="py-2.5 px-2 text-right">Total</th>
+                    <th class="py-2.5 px-2 text-right">Offers</th>
+                    <th class="py-2.5 px-3 text-right">Rate</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-white/[0.06] font-mono">
+                  {#each (summary.neoIdCampusStats || []) as stat}
+                    <tr class="hover:bg-white/[0.03] transition-colors">
+                      <td class="py-2.5 px-3">
+                        {#if stat.campus?.toLowerCase() === 'chennai'}
+                          <span class="neon-badge-cyan px-2 py-0.5 rounded text-[10px] font-medium">Chennai</span>
+                        {:else if stat.campus?.toLowerCase() === 'vellore'}
+                          <span class="neon-badge-purple px-2 py-0.5 rounded text-[10px] font-medium">Vellore</span>
+                        {:else}
+                          <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-medium border border-white/[0.08]">Unknown</span>
+                        {/if}
+                      </td>
+                      <td class="py-2.5 px-2 text-right text-zinc-300 font-medium tabular-nums">{stat.total || 0}</td>
+                      <td class="py-2.5 px-2 text-right text-[#a3e635] font-bold tabular-nums">{stat.placed || 0}</td>
+                      <td class="py-2.5 px-3 text-right tabular-nums">
+                        <span class="text-xs font-bold {stat.placed > 0 ? 'text-[#a3e635]' : 'text-zinc-500'}">
+                          {stat.placedRate || "0.00"}%
+                        </span>
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Full Placement Companies Table -->
+        <div class="neon-card p-4 sm:p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 class="text-sm font-display font-bold text-white">
+                  Recruiting Partners & Offers
+                </h3>
+                <p class="text-xs text-zinc-400">Companies with verified candidate offers & PPO pipelines.</p>
+              </div>
+              
+              <div class="relative w-full sm:w-48">
+                <input
+                  type="text"
+                  placeholder="Search company…"
+                  bind:value={finalSearchTerm}
+                  class="w-full text-xs px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-white/10 text-white placeholder-zinc-500"
+                />
+              </div>
+            </div>
+
+            <div class="table-responsive rounded-xl border border-white/[0.08] bg-zinc-900/60 max-h-[240px] overflow-y-auto">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead class="sticky top-0 z-10">
+                  <tr class="border-b border-white/[0.08] bg-zinc-900 text-zinc-400 font-mono text-[10px] uppercase">
+                    <th class="py-2.5 px-4">Company Name</th>
+                    <th class="py-2.5 px-4 text-right">Offers / Selections</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-white/[0.06] font-mono">
+                  {#if filteredFinalCompanies.length === 0}
+                    <tr>
+                      <td colspan="2" class="py-8 text-center text-zinc-500">No company records match your search filter.</td>
+                    </tr>
+                  {:else}
+                    {#each filteredFinalCompanies as company}
+                      <tr class="hover:bg-white/[0.03] transition-colors">
+                        <td class="py-2.5 px-4 font-medium text-zinc-100 font-sans text-xs sm:text-sm">{company.name}</td>
+                        <td class="py-2.5 px-4 text-right tabular-nums">
+                          <span class="neon-badge-lime px-2.5 py-0.5 rounded-full text-xs font-semibold">
+                            {company.total || 0} Offers
+                          </span>
+                        </td>
+                      </tr>
+                    {/each}
+                  {/if}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 💼 SECTION 2: INTERN SELECTION METRICS -->
+    <div class="space-y-4 pt-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/[0.08] pb-2.5 gap-2">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-base sm:text-lg font-display font-bold text-white tracking-tight">
+              Internship Drive Metrics
+            </h2>
+            <span class="text-[10px] font-mono text-amber-400 bg-amber-400/10 border border-amber-400/25 px-2 py-0.5 rounded">
+              Chennai Focused
+            </span>
+          </div>
+          <p class="text-xs text-zinc-400 mt-0.5">
+            Internship tracking was conducted primarily for <strong>Chennai campus only</strong>. Vellore and other campus drives were not actively tracked.
+          </p>
+        </div>
+        <span class="neon-badge-amber px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium self-start sm:self-auto">
+          Internship Selections
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        
         <!-- Branch-wise Interns -->
-        <div class="chart-card">
-          <h4>📚 Branch-wise Intern Selections</h4>
-          <p class="chart-desc">Intern Candidates (temp_students)</p>
-          <div class="table-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th>Branch</th>
-                  <th>Registered</th>
-                  <th>Interned</th>
-                  <th>Intern Rate</th>
+        <div class="neon-card p-4 sm:p-5">
+          <h3 class="text-sm font-display font-bold text-white mb-1">Branch-wise Interns</h3>
+          <p class="text-xs text-zinc-400 mb-3">Selections across Chennai engineering branches.</p>
+
+          <div class="table-responsive rounded-xl border border-white/[0.08] bg-zinc-900/60 max-h-[220px] overflow-y-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead class="sticky top-0 z-10">
+                <tr class="border-b border-white/[0.08] bg-zinc-900 text-zinc-400 font-mono text-[10px] uppercase">
+                  <th class="py-2.5 px-3">Branch</th>
+                  <th class="py-2.5 px-2 text-right">Reg.</th>
+                  <th class="py-2.5 px-2 text-right">Interns</th>
+                  <th class="py-2.5 px-3 text-right">Rate</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody class="divide-y divide-white/[0.06] font-mono">
                 {#each (summary.internAnalytics?.branchStats || []) as stat}
-                  <tr>
-                    <td><strong>{stat.branch}</strong></td>
-                    <td>{stat.total || 0}</td>
-                    <td class="text-warning"><strong>{stat.interned || 0}</strong></td>
-                    <td>{stat.total > 0 ? (((stat.interned || 0) / stat.total) * 100).toFixed(1) : '0.0'}%</td>
+                  <tr class="hover:bg-white/[0.03] transition-colors">
+                    <td class="py-2 px-3 font-semibold text-zinc-200">{stat.branch}</td>
+                    <td class="py-2 px-2 text-right text-zinc-400 tabular-nums">{stat.total || 0}</td>
+                    <td class="py-2 px-2 text-right text-amber-300 font-bold tabular-nums">{stat.interned || 0}</td>
+                    <td class="py-2 px-3 text-right text-zinc-300 tabular-nums">
+                      {stat.total > 0 ? (((stat.interned || 0) / stat.total) * 100).toFixed(1) : '0.0'}%
+                    </td>
                   </tr>
                 {/each}
               </tbody>
@@ -385,28 +684,38 @@
         </div>
 
         <!-- Campus-wise Interns -->
-        <div class="chart-card">
-          <h4>🏫 Campus-wise Intern Selections</h4>
-          <p class="chart-desc">Intern Candidates by Campus</p>
-          <div class="table-responsive">
-            <table class="compact-table">
-              <thead>
-                <tr>
-                  <th>Campus</th>
-                  <th>Registered</th>
-                  <th>Interned</th>
-                  <th class="hide-mobile">Intern Rate</th>
+        <div class="neon-card p-4 sm:p-5">
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-sm font-display font-bold text-white">Campus-wise Interns</h3>
+            <span class="text-[10px] font-mono text-zinc-400">Total: {summary.internAnalytics?.totalInterns || 0}</span>
+          </div>
+          <p class="text-xs text-zinc-400 mb-3">Selections grouped by campus (mapped & NeoIDs).</p>
+
+          <div class="table-responsive rounded-xl border border-white/[0.08] bg-zinc-900/60 max-h-[220px] overflow-y-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead class="sticky top-0 z-10">
+                <tr class="border-b border-white/[0.08] bg-zinc-900 text-zinc-400 font-mono text-[10px] uppercase">
+                  <th class="py-2.5 px-3">Campus</th>
+                  <th class="py-2.5 px-3 text-right">Interns</th>
+                  <th class="py-2.5 px-3 text-right">Share</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody class="divide-y divide-white/[0.06] font-mono">
                 {#each (summary.internAnalytics?.campusStats || []) as stat}
-                  <tr>
-                    <td>
-                      <span class="campus-badge {stat.campus ? stat.campus.toLowerCase() : 'unknown'}">{stat.campus}</span>
+                  <tr class="hover:bg-white/[0.03] transition-colors">
+                    <td class="py-2 px-3">
+                      {#if stat.campus?.toLowerCase() === 'chennai'}
+                        <span class="neon-badge-cyan px-2 py-0.5 rounded text-[10px] font-medium">Chennai</span>
+                      {:else if stat.campus?.toLowerCase() === 'vellore'}
+                        <span class="neon-badge-purple px-2 py-0.5 rounded text-[10px] font-medium">Vellore</span>
+                      {:else}
+                        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-[10px] font-medium border border-white/[0.08]">Unknown / External</span>
+                      {/if}
                     </td>
-                    <td>{stat.total || 0}</td>
-                    <td class="text-warning"><strong>{stat.interned || 0}</strong></td>
-                    <td class="hide-mobile">{stat.total > 0 ? (((stat.interned || 0) / stat.total) * 100).toFixed(1) : '0.0'}%</td>
+                    <td class="py-2 px-3 text-right text-amber-300 font-bold tabular-nums">{stat.interned || 0}</td>
+                    <td class="py-2 px-3 text-right text-zinc-300 tabular-nums">
+                      {summary.internAnalytics?.totalInterns > 0 ? (((stat.interned || 0) / summary.internAnalytics.totalInterns) * 100).toFixed(1) : '0.0'}%
+                    </td>
                   </tr>
                 {/each}
               </tbody>
@@ -414,40 +723,42 @@
           </div>
         </div>
 
-        <!-- All Companies Intern Selections Table -->
-        <div class="chart-card featured">
-          <div class="card-title-row">
-            <div>
-              <h4>⭐ All Companies Intern Offers</h4>
-              <p class="chart-desc">Companies with at least 1 intern offer</p>
-            </div>
-            <div class="search-box">
+        <!-- All Companies Intern Offers -->
+        <div class="neon-card p-4 sm:p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-display font-bold text-white">Internship Partners</h3>
+            <div class="relative w-36">
               <input
                 type="text"
-                placeholder="🔍 Search company..."
+                placeholder="Search…"
                 bind:value={internSearchTerm}
-                class="search-input"
+                class="w-full text-xs px-2.5 py-1.5 rounded-lg bg-zinc-900/90 border border-white/10 text-white placeholder-zinc-500"
               />
             </div>
           </div>
-          <div class="table-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th>Company Name</th>
-                  <th>Total Interns</th>
+
+          <div class="table-responsive rounded-xl border border-white/[0.08] bg-zinc-900/60 max-h-[220px] overflow-y-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead class="sticky top-0 z-10">
+                <tr class="border-b border-white/[0.08] bg-zinc-900 text-zinc-400 font-mono text-[10px] uppercase">
+                  <th class="py-2.5 px-3">Company</th>
+                  <th class="py-2.5 px-3 text-right">Interns</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody class="divide-y divide-white/[0.06] font-mono">
                 {#if filteredInternCompanies.length === 0}
                   <tr>
-                    <td colspan="2" class="empty-state">No intern offers found matching your search.</td>
+                    <td colspan="2" class="py-6 text-center text-zinc-500">No internship records found.</td>
                   </tr>
                 {:else}
                   {#each filteredInternCompanies as company}
-                    <tr>
-                      <td><strong>{company.name}</strong></td>
-                      <td><span class="badge badge-warning">{company.total || 0} Interns</span></td>
+                    <tr class="hover:bg-white/[0.03] transition-colors">
+                      <td class="py-2 px-3 font-medium text-zinc-200 font-sans text-xs">{company.name}</td>
+                      <td class="py-2 px-3 text-right tabular-nums">
+                        <span class="neon-badge-amber px-2.5 py-0.5 rounded-full text-[10px] font-semibold">
+                          {company.total || 0} Interns
+                        </span>
+                      </td>
                     </tr>
                   {/each}
                 {/if}
@@ -455,616 +766,9 @@
             </table>
           </div>
         </div>
+
       </div>
     </div>
+
   {/if}
 </div>
-
-<style>
-  .analytics {
-    padding: 0.5rem;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-  @media (min-width: 640px) {
-    .analytics {
-      padding: 1.5rem;
-    }
-  }
-
-  .header {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 1.25rem;
-  }
-  @media (min-width: 640px) {
-    .header {
-      flex-direction: row;
-      align-items: center;
-      margin-bottom: 2rem;
-    }
-  }
-
-  h2 {
-    margin: 0;
-    color: #1e293b;
-    font-size: 1.35rem;
-    font-weight: 800;
-  }
-  @media (min-width: 640px) {
-    h2 {
-      font-size: 1.75rem;
-    }
-  }
-
-  .btn-refresh {
-    background: #4f46e5;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.85rem;
-    transition: background 0.2s;
-  }
-
-  .btn-refresh:hover {
-    background: #4338ca;
-  }
-
-  .btn-refresh:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .loading,
-  .error-box {
-    text-align: center;
-    padding: 2.5rem 1rem;
-    color: #64748b;
-    font-size: 1rem;
-  }
-
-  .error-box {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 10px;
-    color: #991b1b;
-  }
-
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-  }
-  @media (min-width: 768px) {
-    .stats-grid {
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1.25rem;
-      margin-bottom: 2rem;
-    }
-  }
-
-  .stat-card {
-    background: white;
-    padding: 1rem 0.85rem;
-    border-radius: 14px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-    border: 1px solid #e2e8f0;
-    text-align: left;
-    transition: all 0.2s ease;
-  }
-  @media (min-width: 640px) {
-    .stat-card {
-      padding: 1.5rem;
-      border-radius: 16px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
-    }
-  }
-
-  .stat-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-  }
-
-  .stat-card.primary {
-    border-left: 4px solid #6366f1;
-    background: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);
-  }
-  .stat-card.success {
-    border-left: 4px solid #10b981;
-    background: linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%);
-  }
-  .stat-card.chennai-highlight {
-    border-left: 4px solid #8b5cf6;
-    background: linear-gradient(135deg, #ffffff 0%, #f3e8ff 100%);
-  }
-  .stat-card.warning {
-    border-left: 4px solid #f59e0b;
-    background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
-  }
-  .stat-card.dark {
-    border-left: 4px solid #3b82f6;
-    background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
-  }
-
-  .stat-value {
-    font-size: 1.6rem;
-    font-weight: 800;
-    color: #0f172a;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-  }
-  @media (min-width: 640px) {
-    .stat-value {
-      font-size: 2.5rem;
-    }
-  }
-
-  .stat-label {
-    color: #334155;
-    font-size: 0.8rem;
-    font-weight: 700;
-    margin-top: 0.35rem;
-  }
-  @media (min-width: 640px) {
-    .stat-label {
-      font-size: 0.9rem;
-      margin-top: 0.4rem;
-    }
-  }
-
-  .stat-sub {
-    color: #64748b;
-    font-size: 0.72rem;
-    margin-top: 0.2rem;
-  }
-  @media (min-width: 640px) {
-    .stat-sub {
-      font-size: 0.8rem;
-      margin-top: 0.25rem;
-    }
-  }
-
-  /* Section Containers */
-  .section-container {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 0.85rem;
-    margin-bottom: 1.5rem;
-  }
-  @media (min-width: 640px) {
-    .section-container {
-      border-radius: 14px;
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-    }
-  }
-
-  .placement-section {
-    border-top: 4px solid #10b981;
-  }
-
-  .intern-section {
-    border-top: 4px solid #f59e0b;
-  }
-
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.25rem;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
-
-  .section-header h3 {
-    margin: 0;
-    font-size: 1.25rem;
-    color: #0f172a;
-  }
-
-  .charts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-    gap: 1.25rem;
-  }
-
-  .chart-card {
-    background: white;
-    padding: 1.25rem;
-    border-radius: 10px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
-    overflow: hidden;
-  }
-
-  .chart-card.featured {
-    grid-column: 1 / -1;
-  }
-
-  .card-title-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
-    flex-wrap: wrap;
-  }
-
-  .table-responsive {
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .card-title-row h4 {
-    margin: 0;
-  }
-
-  .card-title-row .chart-desc {
-    margin: 0.25rem 0 0 0;
-  }
-
-  .search-box {
-    min-width: 220px;
-  }
-
-  .search-input {
-    width: 100%;
-    padding: 0.45rem 0.75rem;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .search-input:focus {
-    border-color: #4f46e5;
-  }
-
-  .chart-card h4 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.15rem;
-    color: #1e293b;
-  }
-
-  .chart-desc {
-    margin: 0 0 1rem 0;
-    font-size: 0.85rem;
-    color: #64748b;
-  }
-
-  /* --- Distribution Layout & Pie Charts --- */
-  .distribution-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2rem;
-    margin-top: 1.5rem;
-  }
-
-  .distribution-grid > div {
-    min-width: 0;
-  }
-
-  @media (min-width: 1024px) {
-    .distribution-grid {
-      grid-template-columns: minmax(0, 5fr) minmax(0, 4fr);
-    }
-  }
-
-  .distribution-grid h5 {
-    margin: 0 0 1rem 0;
-    color: #334155;
-    font-size: 1rem;
-    border-bottom: 2px solid #e2e8f0;
-    padding-bottom: 0.5rem;
-  }
-
-  .charts-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .pie-card {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 1.25rem;
-  }
-
-  .pie-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    flex-direction: column;
-  }
-
-  @media (min-width: 640px) {
-    .pie-wrapper {
-      flex-direction: row;
-      align-items: flex-start;
-    }
-  }
-
-  .pie-chart {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05), inset 0 2px 5px rgba(255,255,255,0.5);
-    border: 4px solid white;
-  }
-  
-  @media (min-width: 640px) {
-    .pie-chart {
-      width: 140px;
-      height: 140px;
-    }
-  }
-
-  .pie-legend {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
-    max-height: 200px;
-    overflow-y: auto;
-    padding-right: 0.5rem;
-  }
-  
-  @media (min-width: 640px) {
-    .pie-legend {
-      flex: 1;
-      min-width: 160px;
-      max-height: 140px;
-      width: auto;
-    }
-  }
-
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8rem;
-    color: #475569;
-  }
-
-  .legend-color {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-    flex-shrink: 0;
-  }
-
-  .legend-color.bg-chennai { background: #3730a3; }
-  .legend-color.bg-vellore { background: #166534; }
-  .legend-color.bg-unknown { background: #4b5563; }
-  /* ---------------------------------------- */
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-  }
-
-  th,
-  td {
-    padding: 0.6rem 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid #f1f5f9;
-  }
-
-  .compact-table {
-    font-size: 0.75rem; /* slightly smaller for cramped spaces */
-  }
-
-  @media (max-width: 640px) {
-    .hide-mobile {
-      display: none;
-    }
-    .compact-table th, .compact-table td {
-      padding: 0.5rem 0.4rem; /* tighter padding on mobile */
-    }
-  }
-
-  th {
-    background: #f8fafc;
-    font-weight: 600;
-    color: #475569;
-  }
-
-  tbody tr:hover {
-    background: #f8fafc;
-  }
-
-  .empty-state {
-    text-align: center;
-    color: #94a3b8;
-    padding: 1.5rem;
-    font-style: italic;
-  }
-
-  .badge {
-    padding: 0.25rem 0.6rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-
-  .badge-success {
-    background: #d1fae5;
-    color: #065f46;
-  }
-  .badge-warning {
-    background: #fef3c7;
-    color: #92400e;
-  }
-
-  .campus-badge {
-    display: inline-block;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-    font-weight: 600;
-    font-size: 0.8rem;
-  }
-
-  .campus-badge.chennai {
-    background: #e0e7ff;
-    color: #3730a3;
-  }
-  .campus-badge.vellore {
-    background: #dcfce7;
-    color: #166534;
-  }
-  .campus-badge.unknown {
-    background: #f3f4f6;
-    color: #4b5563;
-  }
-
-  .text-success {
-    color: #10b981;
-  }
-  .text-warning {
-    color: #d97706;
-  }
-  .text-info {
-    color: #2563eb;
-  }
-  .text-muted {
-    color: #94a3b8;
-  }
-
-  .rate-bar-container {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .rate-text {
-    width: 55px;
-    font-weight: 600;
-  }
-
-  .rate-bar {
-    flex: 1;
-    height: 8px;
-    background: #e2e8f0;
-    border-radius: 4px;
-    overflow: hidden;
-  }
-
-  .rate-fill {
-    height: 100%;
-    border-radius: 4px;
-  }
-
-  .success-fill {
-    background: #10b981;
-  }
-
-  /* --- Dark Mode Overrides --- */
-  :global(.dark) #analytics-page h2,
-  :global(.dark) #analytics-page h3,
-  :global(.dark) #analytics-page h4 { color: #f8fafc; }
-  
-  :global(.dark) #analytics-page .stat-card {
-    background: #1e293b;
-    border-color: #334155;
-  }
-  :global(.dark) #analytics-page .stat-card.primary { background: linear-gradient(135deg, #1e293b 0%, #312e81 100%); }
-  :global(.dark) #analytics-page .stat-card.success { background: linear-gradient(135deg, #1e293b 0%, #064e3b 100%); }
-  :global(.dark) #analytics-page .stat-card.chennai-highlight { background: linear-gradient(135deg, #1e293b 0%, #4c1d95 100%); }
-  :global(.dark) #analytics-page .stat-card.warning { background: linear-gradient(135deg, #1e293b 0%, #78350f 100%); }
-  :global(.dark) #analytics-page .stat-card.dark { background: linear-gradient(135deg, #1e293b 0%, #1e3a8a 100%); }
-  
-  :global(.dark) #analytics-page .stat-value { color: #f8fafc; }
-  :global(.dark) #analytics-page .stat-label { color: #cbd5e1; }
-  :global(.dark) #analytics-page .stat-sub { color: #94a3b8; }
-
-  :global(.dark) #analytics-page .section-container {
-    background: #0f172a;
-    border-color: #334155;
-  }
-  
-  :global(.dark) #analytics-page .chart-card {
-    background: #1e293b;
-    border-color: #334155;
-  }
-  
-  :global(.dark) #analytics-page .search-input {
-    background: #0f172a;
-    border-color: #334155;
-    color: #f8fafc;
-  }
-  :global(.dark) #analytics-page .search-input::placeholder {
-    color: #94a3b8;
-  }
-  :global(.dark) #analytics-page .search-input:focus { border-color: #818cf8; }
-  
-  :global(.dark) #analytics-page .chart-desc { color: #94a3b8; }
-  
-  :global(.dark) #analytics-page th {
-    background: #0f172a;
-    color: #cbd5e1;
-    border-bottom-color: #334155;
-  }
-  
-  :global(.dark) #analytics-page td { 
-    border-bottom-color: #334155; 
-    color: #cbd5e1;
-  }
-  :global(.dark) #analytics-page tbody tr:hover { background: #334155; }
-  
-  :global(.dark) #analytics-page .badge-success {
-    background: #064e3b;
-    color: #34d399;
-  }
-  :global(.dark) #analytics-page .badge-warning {
-    background: #78350f;
-    color: #fbbf24;
-  }
-  
-  :global(.dark) #analytics-page .campus-badge.chennai {
-    background: #312e81;
-    color: #a5b4fc;
-  }
-  :global(.dark) #analytics-page .campus-badge.vellore {
-    background: #064e3b;
-    color: #6ee7b7;
-  }
-  :global(.dark) #analytics-page .campus-badge.unknown {
-    background: #334155;
-    color: #cbd5e1;
-  }
-  
-  :global(.dark) #analytics-page .distribution-grid h5 {
-    color: #f8fafc;
-    border-bottom-color: #334155;
-  }
-  
-  :global(.dark) #analytics-page .pie-card {
-    background: #1e293b;
-    border-color: #334155;
-  }
-  
-  :global(.dark) #analytics-page .pie-chart {
-    border-color: #0f172a;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-  }
-  
-  :global(.dark) #analytics-page .legend-item {
-    color: #cbd5e1;
-  }
-  
-  :global(.dark) #analytics-page .rate-bar { background: #334155; }
-</style>

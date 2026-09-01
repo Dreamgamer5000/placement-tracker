@@ -10,15 +10,15 @@
 
   let currentView = 'analytics';
   let mobileMenuOpen = false;
-  let isDarkMode = false;
+  let isDarkMode = true;
 
   onMount(() => {
-    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      isDarkMode = true;
-      document.documentElement.classList.add('dark');
-    } else {
+    if (localStorage.theme === 'light') {
       isDarkMode = false;
       document.documentElement.classList.remove('dark');
+    } else {
+      isDarkMode = true;
+      document.documentElement.classList.add('dark');
     }
   });
 
@@ -34,86 +34,94 @@
   }
 
   const navItems = [
-    { id: 'analytics', label: 'Analytics', icon: '📊' },
-    { id: 'students', label: 'Students', icon: '🎓' },
-    { id: 'companies', label: 'Companies', icon: '🏢' },
-    { id: 'shortlist', label: 'Add Shortlist', icon: '📝' },
-    { id: 'selection', label: 'Add Selection', icon: '✅' },
-    { id: 'predict', label: 'Predict Companies', icon: '🎯' },
-    { id: 'neoids', label: 'Neo ID Manager', icon: '🔗' }
+    { id: 'analytics', label: 'Analytics' },
+    { id: 'students', label: 'Students' },
+    { id: 'companies', label: 'Companies' },
+    { id: 'shortlist', label: 'Add Shortlist' },
+    { id: 'selection', label: 'Add Selection' },
+    { id: 'predict', label: 'Predictor' },
+    { id: 'neoids', label: 'Neo ID Map' }
   ];
   
   function navigate(view: string) {
     currentView = view;
     mobileMenuOpen = false;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 </script>
 
-<main class="min-h-screen bg-slate-50/80 dark:bg-slate-950 transition-colors duration-300">
-  <!-- Glassmorphic Premium Navbar -->
-  <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-white shadow-xl">
-    <div class="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8">
-      <div class="flex items-center justify-between h-16 sm:h-20">
+<main class="min-h-screen ambient-canvas text-zinc-100 relative selection:bg-[#a3e635]/20 selection:text-[#a3e635] pb-16 md:pb-10">
+  
+  <!-- Minimalist High-Craft Navbar -->
+  <header class="sticky top-0 z-40 bg-[#090a0f]/85 backdrop-blur-xl border-b border-white/[0.08]">
+    <div class="max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
+      <div class="flex items-center justify-between h-16 sm:h-18">
         
-        <!-- Brand Logo -->
-        <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
-          <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-blue-500 flex items-center justify-center text-xl sm:text-2xl shadow-lg shadow-purple-500/20 shrink-0">
-            🎓
+        <!-- Brand Logo & Live Pulse -->
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center font-display font-black text-sm sm:text-base text-[#a3e635] shadow-sm shrink-0">
+            PT
           </div>
-          <div class="truncate">
-            <span class="text-base sm:text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-purple-200 bg-clip-text text-transparent truncate block">
-              Placement Tracker
-            </span>
-            <span class="hidden sm:inline-block px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-purple-500/20 border border-purple-500/30 text-purple-300 rounded-full">
-              2027 Batch
-            </span>
+          <div class="truncate flex flex-col justify-center">
+            <div class="flex items-center gap-2">
+              <span class="text-base sm:text-lg font-display font-bold tracking-tight text-white">
+                Placement Tracker
+              </span>
+            </div>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#a3e635] opacity-60"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-[#a3e635]"></span>
+              </span>
+              <span class="text-[11px] font-mono font-medium text-zinc-400">
+                2027 Batch • Live
+              </span>
+            </div>
           </div>
         </div>
 
-        <!-- Desktop Navigation Tabs & Dark Mode Toggle -->
-        <div class="hidden md:flex items-center gap-3 lg:gap-4">
-          <nav class="flex items-center gap-1 bg-slate-800/70 p-1.5 rounded-2xl border border-slate-700/60 shadow-inner">
+        <!-- Desktop Navigation Tabs -->
+        <div class="hidden md:flex items-center gap-2 lg:gap-3">
+          <nav class="flex items-center gap-1 bg-zinc-900/90 p-1.5 rounded-2xl border border-white/[0.08] backdrop-blur-md">
             {#each navItems as item}
               <button 
                 on:click={() => navigate(item.id)}
-                class="px-3 lg:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 {currentView === item.id ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-900/30' : 'text-slate-300 hover:text-white hover:bg-slate-700/50'}"
+                class="px-3.5 lg:px-4 py-1.5 lg:py-2 rounded-xl text-xs lg:text-sm font-medium transition-all duration-150 touch-press min-h-[36px]
+                  {currentView === item.id 
+                    ? 'bg-white/10 text-white font-semibold shadow-sm border border-white/10' 
+                    : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.04]'}"
               >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
+                {item.label}
               </button>
             {/each}
           </nav>
           
           <button 
             on:click={toggleDarkMode} 
-            class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center justify-center border border-slate-700/60 shrink-0"
-            title="Toggle Dark Mode"
-            aria-label="Toggle Dark Mode"
+            class="w-9 h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 transition-colors flex items-center justify-center border border-white/[0.08] shrink-0 touch-press text-xs"
+            title="Toggle Visual Mode"
+            aria-label="Toggle Visual Mode"
           >
-            {#if isDarkMode}
-              ☀️
-            {:else}
-              🌙
-            {/if}
+            {#if isDarkMode}🌙{:else}☀️{/if}
           </button>
         </div>
 
-        <!-- Mobile Menu Toggle Button & Dark Mode -->
-        <div class="flex items-center gap-1.5 md:hidden shrink-0">
+        <!-- Mobile Controls -->
+        <div class="flex items-center gap-2 md:hidden shrink-0">
           <button 
             on:click={toggleDarkMode} 
-            class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors text-base"
+            class="w-9 h-9 min-w-[36px] min-h-[36px] rounded-xl bg-zinc-900 border border-white/10 text-zinc-300 transition-colors flex items-center justify-center touch-press text-xs"
             aria-label="Toggle Dark Mode"
           >
-            {#if isDarkMode}☀️{:else}🌙{/if}
+            {#if isDarkMode}🌙{:else}☀️{/if}
           </button>
           
           <button 
             on:click={() => mobileMenuOpen = !mobileMenuOpen}
-            class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+            class="w-9 h-9 min-w-[36px] min-h-[36px] rounded-xl bg-zinc-900 border border-white/10 text-zinc-200 transition-colors flex items-center justify-center touch-press"
             aria-label="Toggle navigation menu"
           >
-            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-[#a3e635]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {#if mobileMenuOpen}
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               {:else}
@@ -126,14 +134,16 @@
 
       <!-- Mobile Navigation Drawer -->
       {#if mobileMenuOpen}
-        <div class="md:hidden py-3 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-[70vh] overflow-y-auto">
+        <div class="md:hidden py-3 border-t border-white/[0.08] grid grid-cols-2 gap-1.5 max-h-[75vh] overflow-y-auto pb-3 animate-in fade-in duration-150">
           {#each navItems as item}
             <button 
               on:click={() => navigate(item.id)}
-              class="w-full px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-3 {currentView === item.id ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800 active:bg-slate-700'}"
+              class="w-full px-3.5 py-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center touch-press min-h-[44px]
+                {currentView === item.id 
+                  ? 'bg-white/10 text-white font-bold border border-white/15' 
+                  : 'bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800/80 border border-white/[0.06]'}"
             >
-              <span class="text-base">{item.icon}</span>
-              <span>{item.label}</span>
+              {item.label}
             </button>
           {/each}
         </div>
@@ -141,8 +151,8 @@
     </div>
   </header>
 
-  <!-- Main View Container -->
-  <div class="py-3 sm:py-6 overflow-x-hidden">
+  <!-- Main Showcase Container -->
+  <div class="py-6 sm:py-8 lg:py-10 max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
     {#if currentView === 'analytics'}
       <Analytics />
     {:else if currentView === 'students'}
@@ -160,4 +170,3 @@
     {/if}
   </div>
 </main>
-

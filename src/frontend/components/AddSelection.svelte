@@ -15,6 +15,8 @@
   let isCustomRole = false;
   let previousCompanyId = '';
 
+  $: selectedCompany = Array.isArray(companies) ? companies.find(c => String(c.id) === String(selectedCompanyId)) || null : null;
+
   $: filteredCompanies = Array.isArray(companies) ? companies.filter(c => {
     if (!companySearchTerm || !companySearchTerm.trim()) return true;
     
@@ -128,12 +130,11 @@
         })
       });
 
-      // Check if response is actually JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
         console.error('Non-JSON response:', text);
-        message = 'Server error: Expected JSON response but got something else';
+        message = 'Server error: Expected JSON response';
         messageType = 'error';
         return;
       }
@@ -149,228 +150,247 @@
       const successCount = result.results ? result.results.filter((r: any) => r.success).length : 0;
       const errorCount = result.errors ? result.errors.length : 0;
       
-      const statusLabel = offerStatus === 'intern' ? 'Intern' : 'Placed (Full-Time)';
+      const statusLabel = offerStatus === 'intern' ? 'Internship' : 'Full-Time Placed';
       const roleLabel = finalRole ? ` as "${finalRole}"` : '';
       if (successCount > 0) {
-        message = `Successfully added ${successCount} student(s) to final selections as "${statusLabel}"${roleLabel}.`;
+        message = `✅ Successfully added ${successCount} student(s) as "${statusLabel}"${roleLabel}.`;
         if (errorCount > 0) {
           const sampleErrors = result.errors.slice(0, 3).map((e: any) => e.identifier).join(', ');
-          message += ` ${errorCount} error(s): Not found in database (${sampleErrors}${errorCount > 3 ? '...' : ''}).`;
+          message += ` ${errorCount} candidate(s) not found (${sampleErrors}${errorCount > 3 ? '...' : ''}).`;
         }
         messageType = 'success';
         regnos = '';
         await loadRoles();
       } else if (errorCount > 0) {
         const sampleErrors = result.errors.slice(0, 3).map((e: any) => e.identifier).join(', ');
-        message = `Failed to add students. ${errorCount} registration number(s) / Neo ID(s) not found in database: (${sampleErrors}${errorCount > 3 ? '...' : ''}).`;
+        message = `❌ Failed: ${errorCount} candidate(s) not found: (${sampleErrors}${errorCount > 3 ? '...' : ''}).`;
         messageType = 'error';
       } else {
-        message = 'No students were added. Please check the registration numbers.';
+        message = 'No candidate records processed.';
         messageType = 'error';
       }
-    } catch (error) {
-      message = 'Error adding students to selections';
+    } catch (error: any) {
+      message = `❌ Network Error: ${error.message}`;
       messageType = 'error';
-      console.error('Error:', error);
     }
 
-    setTimeout(() => {
-      message = '';
-    }, 6000);
+    setTimeout(() => { message = ''; }, 6000);
   }
 </script>
 
-
-<div class="px-3 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-4xl mx-auto space-y-6">
-  <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-300 dark:text-slate-200">✅ Add Final Selections</h2>
+<div class="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300">
   
-  <div class="bg-blue-50 dark:bg-blue-900/40 border-l-4 border-blue-500 p-3.5 sm:p-4 mb-6 rounded-r-lg">
-    <div class="flex">
-      <div class="flex-shrink-0">
-        <svg class="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-        </svg>
-      </div>
-      <div class="ml-3">
-        <p class="text-xs sm:text-sm text-blue-800 dark:text-blue-300">
-          <strong>Note:</strong> Use this to add students who received <strong>final selection/offer</strong> from the company.
-        </p>
-      </div>
+  <!-- Header -->
+  <div class="neon-card p-5 sm:p-6 space-y-1">
+    <div class="flex items-center gap-2">
+      <span class="text-xl">✅</span>
+      <h1 class="text-xl sm:text-2xl font-display font-extrabold text-white tracking-tight">
+        Add Final Offers & Selections
+      </h1>
     </div>
+    <p class="text-xs sm:text-sm text-slate-400 font-medium">
+      Record confirmed full-time offers or verified internship placements with direct analytics attribution.
+    </p>
   </div>
-  
-  <div class="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 mb-6">
-    <div class="mb-5 sm:mb-6">
-      <label for="company-search" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 dark:text-slate-300 mb-2">
-        Select Company *
-      </label>
-      <div class="space-y-2">
-        <input 
-          id="company-search"
-          type="text" 
-          placeholder="🔍 Type to search company by name, CTC, or text..."
-          bind:value={companySearchTerm}
-          class="w-full px-4 py-2 border-2 border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-        />
-        <select 
-          id="company" 
-          bind:value={selectedCompanyId}
-          class="w-full px-4 py-2 border-2 border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-        >
-          <option value="">-- Select a company ({filteredCompanies.length} available) --</option>
-          {#each filteredCompanies as company}
-            <option value={company.id}>{company.name} {company.ctc ? `(${company.ctc})` : ''}</option>
-          {/each}
-        </select>
-        <p class="text-xs text-gray-500 dark:text-slate-400">
-          Showing {filteredCompanies.length} of {companies.length} companies. New companies can be added from the <strong>Companies</strong> page.
-        </p>
+
+  {#if message}
+    <div class="p-3.5 rounded-xl text-xs sm:text-sm font-mono font-semibold border {messageType === 'error' ? 'bg-rose-950/40 text-rose-300 border-rose-800' : 'bg-[#BBF351]/10 text-[#BBF351] border-[#BBF351]/30'}">
+      {message}
+    </div>
+  {/if}
+
+  <!-- Main Form Card -->
+  <div class="neon-card p-5 sm:p-7 space-y-5">
+    
+    <!-- Company Selection (Mobile-Responsive & Non-Clipping) -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <label for="company-search" class="block text-xs font-mono font-bold uppercase text-zinc-400">
+          Select Recruiting Partner *
+        </label>
+        {#if selectedCompanyId}
+          <button
+            type="button"
+            class="text-[11px] font-mono text-[#a3e635] hover:underline cursor-pointer"
+            on:click={() => { selectedCompanyId = ''; companySearchTerm = ''; }}
+          >
+            Change Company ✕
+          </button>
+        {/if}
       </div>
+
+      {#if selectedCompany}
+        <!-- Selected Company Active Card -->
+        <div class="p-3.5 sm:p-4 rounded-xl bg-zinc-900/90 border border-[#a3e635]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-sm sm:text-base font-display font-bold text-white tracking-tight break-words">
+                {selectedCompany.name}
+              </span>
+              {#if selectedCompany.ctc}
+                <span class="neon-badge-lime px-2 py-0.5 rounded text-[10px] font-mono font-bold whitespace-nowrap">
+                  💰 {selectedCompany.ctc}
+                </span>
+              {/if}
+              {#if selectedCompany.category}
+                <span class="neon-badge-purple px-2 py-0.5 rounded text-[10px] font-mono">
+                  {selectedCompany.category}
+                </span>
+              {/if}
+            </div>
+            {#if selectedCompany.role}
+              <p class="text-xs font-mono text-[#38bdf8] mt-1 truncate">
+                💼 Default Role: {selectedCompany.role}
+              </p>
+            {/if}
+            {#if selectedCompany.job_location}
+              <p class="text-[11px] font-mono text-zinc-400 mt-0.5">
+                📍 {selectedCompany.job_location}
+              </p>
+            {/if}
+          </div>
+
+          <button
+            type="button"
+            on:click={() => { selectedCompanyId = ''; companySearchTerm = ''; }}
+            class="neon-btn-ghost px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium self-start sm:self-center shrink-0 touch-press"
+          >
+            Switch
+          </button>
+        </div>
+      {:else}
+        <!-- Search Input & Quick Select List -->
+        <div class="space-y-2">
+          <div class="relative">
+            <input 
+              id="company-search"
+              type="text" 
+              placeholder="🔍 Search company by name, CTC, or text..."
+              bind:value={companySearchTerm}
+              class="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm pr-8"
+            />
+            {#if companySearchTerm}
+              <button
+                type="button"
+                on:click={() => companySearchTerm = ''}
+                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs p-1"
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            {/if}
+          </div>
+
+          <!-- Quick Select Scrollable Container (Clips-safe, touch friendly on phone) -->
+          <div class="max-h-56 overflow-y-auto rounded-xl border border-white/10 bg-zinc-950 divide-y divide-white/[0.06] shadow-lg">
+            {#if filteredCompanies.length === 0}
+              <div class="p-4 text-center text-xs font-mono text-zinc-500">
+                No company matching "{companySearchTerm}"
+              </div>
+            {:else}
+              {#each filteredCompanies.slice(0, 30) as company}
+                <button
+                  type="button"
+                  class="w-full text-left p-3 hover:bg-white/[0.05] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 touch-press cursor-pointer"
+                  on:click={() => { selectedCompanyId = String(company.id); companySearchTerm = ''; }}
+                >
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="text-xs sm:text-sm font-bold text-zinc-100">{company.name}</span>
+                      {#if company.ctc}
+                        <span class="neon-badge-lime px-1.5 py-0.2 rounded text-[10px] font-mono font-semibold">
+                          {company.ctc}
+                        </span>
+                      {/if}
+                    </div>
+                    {#if company.role}
+                      <p class="text-[11px] font-mono text-[#38bdf8] truncate mt-0.5">{company.role}</p>
+                    {/if}
+                  </div>
+                  {#if company.job_location}
+                    <span class="text-[10px] font-mono text-zinc-400 shrink-0 self-start sm:self-center">
+                      {company.job_location}
+                    </span>
+                  {/if}
+                </button>
+              {/each}
+              {#if filteredCompanies.length > 30}
+                <div class="p-2 text-center text-[10px] font-mono text-zinc-500 bg-zinc-900/50">
+                  Showing 30 of {filteredCompanies.length} companies. Type to search more.
+                </div>
+              {/if}
+            {/if}
+          </div>
+        </div>
+      {/if}
     </div>
 
     <!-- Offer Type Selector -->
-    <div class="mb-6 bg-blue-50/70 dark:bg-blue-900/40 p-4 rounded-xl border border-blue-200">
-      <span class="block text-sm font-bold text-blue-900 dark:text-blue-300 mb-2">
+    <div class="bg-[#080C14] p-4 rounded-xl border border-slate-800 space-y-2.5">
+      <span class="block text-xs font-mono font-bold uppercase text-[#BBF351]">
         Offer / Selection Type *
       </span>
       <div class="grid grid-cols-2 gap-3">
         <button
           type="button"
-          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {offerStatus === 'placed' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-blue-300'}"
+          class="py-2.5 px-4 rounded-xl font-mono font-bold text-xs transition-all border touch-press
+            {offerStatus === 'placed' 
+              ? 'neon-badge-lime border-[#BBF351] shadow-[0_0_15px_rgba(187,243,81,0.2)]' 
+              : 'bg-slate-800/80 text-slate-400 border-slate-700'}"
           on:click={() => offerStatus = 'placed'}
         >
-          ✓ Placed (Full-Time)
+          ✓ Full-Time Placed
         </button>
         <button
           type="button"
-          class="py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border-2 {offerStatus === 'intern' ? 'bg-cyan-600 text-white border-cyan-600 shadow-sm' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-blue-300'}"
+          class="py-2.5 px-4 rounded-xl font-mono font-bold text-xs transition-all border touch-press
+            {offerStatus === 'intern' 
+              ? 'neon-badge-cyan border-[#00BCFF] shadow-[0_0_15px_rgba(0,188,255,0.2)]' 
+              : 'bg-slate-800/80 text-slate-400 border-slate-700'}"
           on:click={() => offerStatus = 'intern'}
         >
-          💼 Intern (Internship)
+          💼 Internship Offer
         </button>
       </div>
     </div>
 
-    <!-- Job Role / Profile Selection -->
-    <div class="mb-6 bg-slate-50 dark:bg-slate-900/60 p-5 rounded-xl border border-slate-200 dark:border-slate-700">
-      <div class="flex items-center justify-between gap-2 mb-2">
-        <label for="role-select" class="block text-sm font-bold text-gray-800 dark:text-slate-200">
-          💼 Offered Job Role / Profile
-        </label>
-        <button
-          type="button"
-          class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-          on:click={() => { isCustomRole = !isCustomRole; }}
-        >
-          {isCustomRole ? '← Choose from standard roles' : '➕ Type new custom role'}
+    <!-- Role Selection (Non-Clipping Search & Create Combo Box) -->
+    <div class="p-3.5 sm:p-4 rounded-xl bg-zinc-900/80 border border-white/[0.08] space-y-3">
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <div class="min-w-0 flex-1">
+          <span class="text-[10px] font-mono font-semibold uppercase text-zinc-400 block mb-0.5">
+            Offered Job Role
         </button>
       </div>
 
-      {#if isCustomRole}
-        <div class="space-y-2">
-          <input
-            id="custom-role-input"
-            type="text"
-            bind:value={customRoleName}
-            placeholder="e.g. Software Engineer, SDE Intern, Data Analyst"
-            class="w-full px-4 py-2.5 border-2 border-blue-300 dark:border-blue-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 text-sm font-medium"
-          />
-          <p class="text-xs text-gray-500 dark:text-slate-400">
-            This new role will be saved to your master roles list and recorded for this placement.
-          </p>
-        </div>
-      {:else}
-        <div class="space-y-3">
-          <select
-            id="role-select"
-            bind:value={selectedRole}
-            class="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 text-sm font-medium"
-          >
-            <option value="">-- General / No Specific Role --</option>
-            {#each availableRoles as role}
-              <option value={role.name}>
-                {role.name} {role.category ? `(${role.category})` : ''}
-              </option>
-            {/each}
-          </select>
+      {#if showRoleSelector}
+            <input
+              id="role-search-input"
+              bind:value={roleSearchTerm}
+              placeholder="🔍 Search role (e.g. SDE, Data Analyst, QA, Core)..."
+              class="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm pr-8 font-sans"
+            />
+            {#if roleSearchTerm}
+              <button
+                type="button"
+                on:click={() => roleSearchTerm = ''}
+                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs p-1"
+                aria-label="Clear role search"
+              >
+                ✕
+              </button>
+            {/if}
+          </div>
 
-          <!-- Quick Select Role Pills -->
-          {#if availableRoles.length > 0}
-            <div class="flex flex-wrap gap-1.5 pt-1">
-              {#each availableRoles.slice(0, 8) as role}
-                <button
-                  type="button"
-                  class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border {selectedRole === role.name ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-blue-300'}"
-                  on:click={() => { selectedRole = role.name; isCustomRole = false; }}
-                >
-                  {role.name}
-                </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      {/if}
-    </div>
-
-
-    <div class="mb-6">
-      <label for="regnos" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 dark:text-slate-300 mb-2">
-        Register Numbers or Neo IDs (one per line) *
-      </label>
-      <textarea 
-        id="regnos"
-        bind:value={regnos}
-        placeholder="Enter one Register Number or Neo ID per line:&#10;23BAI1008&#10;O3W3I4P1&#10;A621V0L6"
-        rows="10"
-        class="w-full px-4 py-3 border-2 border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-mono resize-vertical"
-      />
-      <div class="mt-2 text-sm text-gray-600 dark:text-slate-400 space-y-1">
-        <p>Enter Register Numbers (e.g. 23BAI1008) or Neo IDs (e.g. O3W3I4P1). Paste entire single lines or lists with names/headers — headers like "Neo ID" are automatically filtered out.</p>
-        {#if detectedTokens.length > 0}
-          <p class="text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/40 p-2 rounded border border-blue-200 inline-block mt-1">
-            🔍 Detected {detectedTokens.length} candidate identifier(s): {detectedTokens.slice(0, 5).join(', ')}{detectedTokens.length > 5 ? '...' : ''}
-          </p>
-        {/if}
-      </div>
-    </div>
-
-    <button 
-      on:click={addSelections}
-      class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
+          <!-- Role Suggestions & Custom Creation List (Clips-proof scroll container) -->
+          <div class="max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-zinc-950 divide-y divide-white/[0.06] shadow-lg">
+            
+            <!-- Custom role option if typed query is not an exact match -->
+            {#if roleSearchTerm.trim() && !isExactRoleMatch}
+              <button
     >
-      Add to Final Selections
+      💾 Confirm & Save Final Selections
     </button>
-
-    {#if message}
-      <div class="mt-6 p-4 rounded-lg border-l-4 {messageType === 'success' ? 'bg-green-50 dark:bg-green-900/40 border-green-500 text-green-800 dark:text-green-300' : 'bg-red-50 dark:bg-red-900/40 border-red-500 text-red-800 dark:text-red-300'}">
-        <p class="font-semibold">{message}</p>
-      </div>
-    {/if}
   </div>
 
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6">
-    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-300 dark:text-slate-200 mb-4">ℹ️ Instructions</h3>
-    <ul class="space-y-3 text-gray-700 dark:text-gray-300 dark:text-slate-300">
-      <li class="flex items-start">
-        <span class="text-primary-600 mr-2">•</span>
-        <span>Select an existing company from the dropdown list. (New companies can be created on the <strong>Companies</strong> page)</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-primary-600 mr-2">•</span>
-        <span>Select the Offer Type (Full-Time Placed vs Internship)</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-primary-600 mr-2">•</span>
-        <span>Paste Register Numbers or Neo IDs of selected candidates (one per line)</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-primary-600 mr-2">•</span>
-        <span>Unmapped Neo IDs are recorded into the database mapping table automatically</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-primary-600 mr-2">•</span>
-        <span>Company analytics update instantly</span>
-      </li>
-    </ul>
-  </div>
 </div>

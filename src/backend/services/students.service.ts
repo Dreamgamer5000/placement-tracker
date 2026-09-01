@@ -11,6 +11,9 @@ export interface GetStudentsParams {
   unmappedChennai?: boolean;
   masters?: boolean;
   sort?: string;
+  statusFilter?: string;
+  topcoderFilter?: string;
+  campusFilter?: string;
 }
 
 export class StudentsService {
@@ -18,8 +21,11 @@ export class StudentsService {
     const search = params.search?.trim() || '';
     const page = Math.max(1, params.page || 1);
     const limit = Math.min(100, Math.max(1, params.limit || 50));
-    const unmappedChennai = !!params.unmappedChennai;
-    const mastersFilter = !!params.masters;
+    const unmappedChennai = !!params.unmappedChennai || params.campusFilter === 'unmapped_chennai';
+    const mastersFilter = !!params.masters || params.statusFilter === 'masters';
+    const statusFilter = params.statusFilter;
+    const topcoderFilter = params.topcoderFilter;
+    const campusFilter = params.campusFilter;
 
     const offset = (page - 1) * limit;
     const conditions: string[] = [];
@@ -29,10 +35,28 @@ export class StudentsService {
       conditions.push(
         `(s.campus = 'Chennai' OR s.campus LIKE '%Chennai%') AND (s.neo_id IS NULL OR s.neo_id = '' OR s.neo_id = 'Unknown')`
       );
+    } else if (campusFilter === 'chennai') {
+      conditions.push(`(s.campus = 'Chennai' OR s.campus LIKE '%Chennai%')`);
+    } else if (campusFilter === 'vellore') {
+      conditions.push(`(s.campus = 'Vellore' OR s.campus LIKE '%Vellore%')`);
     }
 
     if (mastersFilter) {
-      conditions.push(`s.masters = 1`);
+      conditions.push(`(s.masters = 1 OR s.status = 'masters')`);
+    } else if (statusFilter === 'placed') {
+      conditions.push(`(s.status = 'placed' OR (s.placed = 1 AND s.status != 'intern'))`);
+    } else if (statusFilter === 'placed_all') {
+      conditions.push(`(s.status = 'placed' OR s.status = 'intern' OR s.placed = 1)`);
+    } else if (statusFilter === 'intern') {
+      conditions.push(`s.status = 'intern'`);
+    } else if (statusFilter === 'not_placed') {
+      conditions.push(`(s.status = 'not_placed' OR s.status IS NULL OR s.status = '') AND (s.masters IS NULL OR s.masters = 0) AND (s.placed IS NULL OR s.placed = 0)`);
+    }
+
+    if (topcoderFilter === 'true' || topcoderFilter === '1') {
+      conditions.push(`s.topcoder = 1`);
+    } else if (topcoderFilter === 'false' || topcoderFilter === '0') {
+      conditions.push(`(s.topcoder IS NULL OR s.topcoder = 0)`);
     }
 
     if (search) {
@@ -49,26 +73,81 @@ export class StudentsService {
     const totalCount = totalRow ? totalRow.count : 0;
     const totalPages = Math.ceil(totalCount / limit) || 1;
 
-    // Global count of unmapped Chennai students
+    // Global count breakdown for quick badges
     const unmappedChennaiRow = db.prepare(
       `SELECT COUNT(*) as count FROM temp_students WHERE (campus = 'Chennai' OR campus LIKE '%Chennai%') AND (neo_id IS NULL OR neo_id = '' OR neo_id = 'Unknown')`
     ).get() as { count: number } | undefined;
     const unmappedChennaiCount = unmappedChennaiRow ? unmappedChennaiRow.count : 0;
 
-    // Global count of masters students
     const mastersRow = db.prepare(
-      `SELECT COUNT(*) as count FROM temp_students WHERE masters = 1`
+      `SELECT COUNT(*) as count FROM temp_students WHERE masters = 1 OR status = 'masters'`
     ).get() as { count: number } | undefined;
     const mastersCount = mastersRow ? mastersRow.count : 0;
 
-    const sortParam = params.sort || (params.sortByShortlists ? 'shortlists' : 'default');
+    const placedRow = db.prepare(
+      `SELECT COUNT(*) as count FROM temp_students WHERE status = 'placed' OR (placed = 1 AND status != 'intern')`
+    ).get() as { count: number } | undefined;
+    const placedCount = placedRow ? placedRow.count : 0;
 
-    let orderClause = 'ORDER BY s.name ASC';
-    if (sortParam === 'shortlists') {
-      orderClause = 'ORDER BY shortlist_count DESC, s.name ASC';
-    } else if (sortParam === 'placed') {
-      orderClause = `ORDER BY CASE WHEN s.status = 'placed' THEN 1 WHEN s.status = 'intern' THEN 2 WHEN s.status = 'masters' THEN 3 ELSE 4 END ASC, s.name ASC`;
+    const internRow = db.prepare(
+      `SELECT COUNT(*) as count FROM temp_students WHERE status = 'intern'`
+    ).get() as { count: number } | undefined;
+    const internCount = internRow ? internRow.count : 0;
+
+    const notPlacedRow = db.prepare(
+      `SELECT COUNT(*) as count FROM temp_students WHERE (status = 'not_placed' OR status IS NULL OR status = '') AND (masters IS NULL OR masters = 0) AND (placed IS NULL OR placed = 0)`
+    ).get() as { count: number } | undefined;
+    const notPlacedCount = notPlacedRow ? notPlacedRow.count : 0;
+
+    const topcoderRow = db.prepare(
+      `SELECT COUNT(*) as count FROM temp_students WHERE topcoder = 1`
+    ).get() as { count: number } | undefined;
+    const topcoderCount = topcoderRow ? topcoderRow.count : 0;
+
+    // Build Multi-Sort Clause
+    const sortParam = params.sort || (params.sortByShortlists ? 'shortlists_desc' : 'default');
+    const sortList: string[] = [];
+
+    if (sortParam && sortParam !== 'default') {
+      const tokens = sortParam.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+      for (const token of tokens) {
+        if (token === 'shortlists_desc' || token === 'shortlists') {
+          sortList.push('shortlist_count DESC');
+        } else if (token === 'shortlists_asc') {
+          sortList.push('shortlist_count ASC');
+        } else if (token === 'cgpa_desc' || token === 'cgpa') {
+          sortList.push('CAST(s.cgpa AS REAL) DESC');
+        } else if (token === 'cgpa_asc') {
+          sortList.push('CAST(s.cgpa AS REAL) ASC');
+        } else if (token === 'topcoder_desc' || token === 'topcoder') {
+          sortList.push('s.topcoder DESC');
+        } else if (token === 'topcoder_asc') {
+          sortList.push('s.topcoder ASC');
+        } else if (token === 'status_placed' || token === 'placed_desc' || token === 'placed') {
+          sortList.push(`CASE WHEN s.status = 'placed' THEN 1 WHEN s.status = 'intern' THEN 2 WHEN s.status = 'masters' THEN 3 ELSE 4 END ASC`);
+        } else if (token === 'status_unplaced' || token === 'unplaced_first') {
+          sortList.push(`CASE WHEN s.status = 'not_placed' OR s.status IS NULL OR s.status = '' THEN 1 WHEN s.status = 'intern' THEN 2 WHEN s.status = 'masters' THEN 3 ELSE 4 END ASC`);
+        } else if (token === 'status_masters') {
+          sortList.push(`CASE WHEN s.status = 'masters' OR s.masters = 1 THEN 1 WHEN s.status = 'placed' THEN 2 WHEN s.status = 'intern' THEN 3 ELSE 4 END ASC`);
+        } else if (token === 'name_desc') {
+          sortList.push('s.name DESC');
+        } else if (token === 'name_asc') {
+          sortList.push('s.name ASC');
+        } else if (token === 'regno_asc') {
+          sortList.push('s.regno ASC');
+        } else if (token === 'regno_desc') {
+          sortList.push('s.regno DESC');
+        }
+      }
     }
+
+    if (sortList.length === 0) {
+      sortList.push('s.name ASC');
+    } else if (!sortList.some(s => s.includes('s.name'))) {
+      sortList.push('s.name ASC');
+    }
+
+    const orderClause = `ORDER BY ${sortList.join(', ')}`;
 
     const dataSql = `
       SELECT 
@@ -91,6 +170,10 @@ export class StudentsService {
       totalCount,
       unmappedChennaiCount,
       mastersCount,
+      placedCount,
+      internCount,
+      notPlacedCount,
+      topcoderCount,
       page,
       limit,
       totalPages

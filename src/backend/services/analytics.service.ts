@@ -107,16 +107,18 @@ export class AnalyticsService {
     `).all();
 
     const internCampusStats = db.prepare(`
-      SELECT s.campus, COUNT(DISTINCT s.regno) as total,
-        COUNT(DISTINCT sel_sub.student_id) as interned
-      FROM temp_students s
-      LEFT JOIN (
-        SELECT DISTINCT s2.regno as student_id
-        FROM temp_students s2
-        JOIN temp_interns_selected sel ON (s2.regno = sel.regno OR (sel.neo_id IS NOT NULL AND sel.neo_id != '' AND s2.neo_id = sel.neo_id))
-      ) sel_sub ON s.regno = sel_sub.student_id
-      GROUP BY s.campus
-      ORDER BY total DESC
+      SELECT 
+        CASE 
+          WHEN COALESCE(s.campus, n.campus) LIKE '%Chennai%' THEN 'Chennai'
+          WHEN COALESCE(s.campus, n.campus) LIKE '%Vellore%' THEN 'Vellore'
+          ELSE 'Unknown'
+        END as campus,
+        COUNT(DISTINCT COALESCE(s.regno, sel.regno, sel.neo_id)) as interned
+      FROM temp_interns_selected sel
+      LEFT JOIN temp_students s ON (s.regno = sel.regno OR (sel.neo_id IS NOT NULL AND sel.neo_id != '' AND s.neo_id = sel.neo_id))
+      LEFT JOIN temp_neoid_table n ON (n.neoid = sel.neo_id OR (sel.regno IS NOT NULL AND sel.regno != '' AND n.regno = sel.regno))
+      GROUP BY 1
+      ORDER BY interned DESC
     `).all();
 
     // All companies with at least 1 intern offer (broken down by campus)

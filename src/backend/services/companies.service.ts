@@ -483,7 +483,15 @@ export class CompaniesService {
 
   static addSelections(companyId: string | number, rawInput: any, statusInput?: string, roleInput?: string) {
     const selectionStatus = statusInput === 'intern' ? 'intern' : 'placed';
-    const role = roleInput ? String(roleInput).trim() : null;
+    
+    // For final selections, if role is not explicitly provided, default to the company's designated job description/role
+    let role = roleInput ? String(roleInput).trim() : null;
+    if (!role) {
+      const comp = db.prepare('SELECT role FROM companies WHERE id = ?').get(companyId) as { role?: string } | undefined;
+      if (comp && comp.role && comp.role.trim()) {
+        role = comp.role.trim();
+      }
+    }
     if (role) RolesService.ensureRoleExists(role);
 
     const tokens = extractCleanTokens(rawInput);
@@ -538,7 +546,7 @@ export class CompaniesService {
           if (insertResult.changes > 0) {
             results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, role: role, success: true });
           } else {
-            results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, role: role, success: true, note: 'Already selected' });
+            results.push({ identifier: resolved.token, regno: resolved.regno, neo_id: resolved.neo_id, role: role, success: true, note: 'Already recorded' });
           }
         } catch (error: any) {
           errors.push({ identifier: item, error: error.message });

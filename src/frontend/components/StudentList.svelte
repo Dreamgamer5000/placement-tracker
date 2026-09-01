@@ -31,15 +31,26 @@
   let totalCount = 0;
   let totalPages = 1;
 
+  // Global Counts from Backend
+  let unmappedChennaiCount = 0;
+  let mastersCount = 0;
+  let placedCount = 0;
+  let internCount = 0;
+  let notPlacedCount = 0;
+  let topcoderCount = 0;
+
+  // Multi-Sort State Array (in order of priority)
+  let activeSorts: string[] = [];
+
+  // Active Category Filters
+  let statusFilter: 'all' | 'placed' | 'intern' | 'masters' | 'not_placed' = 'all';
+  let topcoderFilter: 'all' | 'true' | 'false' = 'all';
+  let campusFilter: 'all' | 'unmapped_chennai' | 'chennai' | 'vellore' = 'all';
+
   let selectedStudent: any = null;
   let editingStudent: any = null;
   let saveLoading = false;
   let saveMessage = '';
-  let filterUnmappedChennai = false;
-  let unmappedChennaiCount = 0;
-  let filterMasters = false;
-  let mastersCount = 0;
-  let sortBy: 'default' | 'shortlists' | 'placed' = 'default';
   let recalculating = false;
   let syncMessage = '';
   let availableRoles: any[] = [];
@@ -91,16 +102,129 @@
     }, 300);
   }
 
-  async function toggleUnmappedChennaiFilter() {
-    filterUnmappedChennai = !filterUnmappedChennai;
+  // Filter Select Handlers
+  function setStatusFilter(filter: 'all' | 'placed' | 'intern' | 'masters' | 'not_placed') {
+    if (statusFilter === filter && filter !== 'all') {
+      statusFilter = 'all';
+    } else {
+      statusFilter = filter;
+    }
     page = 1;
-    await loadStudents();
+    loadStudents();
   }
 
-  async function toggleMastersFilter() {
-    filterMasters = !filterMasters;
+  function setTopcoderFilter(filter: 'all' | 'true' | 'false') {
+    if (topcoderFilter === filter && filter !== 'all') {
+      topcoderFilter = 'all';
+    } else {
+      topcoderFilter = filter;
+    }
     page = 1;
-    await loadStudents();
+    loadStudents();
+  }
+
+  function setCampusFilter(filter: 'all' | 'unmapped_chennai' | 'chennai' | 'vellore') {
+    if (campusFilter === filter && filter !== 'all') {
+      campusFilter = 'all';
+    } else {
+      campusFilter = filter;
+    }
+    page = 1;
+    loadStudents();
+  }
+
+  function resetAllFiltersAndSorts() {
+    activeSorts = [];
+    statusFilter = 'all';
+    topcoderFilter = 'all';
+    campusFilter = 'all';
+    searchTerm = '';
+    debouncedSearch = '';
+    page = 1;
+    loadStudents();
+  }
+
+  // Multi-Sort Column Header Cycling
+  function toggleSortColumn(type: 'shortlists' | 'cgpa' | 'status' | 'topcoder' | 'name' | 'regno') {
+    if (type === 'shortlists') {
+      if (activeSorts.includes('shortlists_desc')) {
+        activeSorts = activeSorts.map(s => s === 'shortlists_desc' ? 'shortlists_asc' : s);
+      } else if (activeSorts.includes('shortlists_asc')) {
+        activeSorts = activeSorts.filter(s => s !== 'shortlists_asc');
+      } else {
+        activeSorts = [type === 'shortlists' ? 'shortlists_desc' : '', ...activeSorts].filter(Boolean);
+      }
+    } else if (type === 'cgpa') {
+      if (activeSorts.includes('cgpa_desc')) {
+        activeSorts = activeSorts.map(s => s === 'cgpa_desc' ? 'cgpa_asc' : s);
+      } else if (activeSorts.includes('cgpa_asc')) {
+        activeSorts = activeSorts.filter(s => s !== 'cgpa_asc');
+      } else {
+        activeSorts = ['cgpa_desc', ...activeSorts];
+      }
+    } else if (type === 'topcoder') {
+      if (activeSorts.includes('topcoder_desc')) {
+        activeSorts = activeSorts.map(s => s === 'topcoder_desc' ? 'topcoder_asc' : s);
+      } else if (activeSorts.includes('topcoder_asc')) {
+        activeSorts = activeSorts.filter(s => s !== 'topcoder_asc');
+      } else {
+        activeSorts = ['topcoder_desc', ...activeSorts];
+      }
+    } else if (type === 'status') {
+      if (activeSorts.includes('status_placed')) {
+        activeSorts = activeSorts.map(s => s === 'status_placed' ? 'status_unplaced' : s);
+      } else if (activeSorts.includes('status_unplaced')) {
+        activeSorts = activeSorts.map(s => s === 'status_unplaced' ? 'status_masters' : s);
+      } else if (activeSorts.includes('status_masters')) {
+        activeSorts = activeSorts.filter(s => s !== 'status_masters');
+      } else {
+        activeSorts = ['status_placed', ...activeSorts];
+      }
+    } else if (type === 'name') {
+      if (activeSorts.includes('name_asc')) {
+        activeSorts = activeSorts.map(s => s === 'name_asc' ? 'name_desc' : s);
+      } else if (activeSorts.includes('name_desc')) {
+        activeSorts = activeSorts.filter(s => s !== 'name_desc');
+      } else {
+        activeSorts = ['name_asc', ...activeSorts];
+      }
+    } else if (type === 'regno') {
+      if (activeSorts.includes('regno_asc')) {
+        activeSorts = activeSorts.map(s => s === 'regno_asc' ? 'regno_desc' : s);
+      } else if (activeSorts.includes('regno_desc')) {
+        activeSorts = activeSorts.filter(s => s !== 'regno_desc');
+      } else {
+        activeSorts = ['regno_asc', ...activeSorts];
+      }
+    }
+
+    page = 1;
+    loadStudents();
+  }
+
+  function removeSortToken(token: string) {
+    activeSorts = activeSorts.filter(s => s !== token);
+    page = 1;
+    loadStudents();
+  }
+
+  function getSortLabel(token: string): string {
+    switch (token) {
+      case 'shortlists_desc': return '📊 Shortlists: High ➔ Low (⬇)';
+      case 'shortlists_asc': return '📊 Shortlists: Low ➔ High (⬆)';
+      case 'cgpa_desc': return '🎯 CGPA: High ➔ Low (⬇)';
+      case 'cgpa_asc': return '🎯 CGPA: Low ➔ High (⬆)';
+      case 'topcoder_desc': return '⚡ TopCoder First (⬇)';
+      case 'topcoder_asc': return '⚡ Non-TopCoder First (⬆)';
+      case 'status_placed': return '✅ Placed First (⬇)';
+      case 'status_unplaced': return '⭕ Not Placed First (⬆)';
+      case 'status_masters': return '🎓 Masters First (⬇)';
+      case 'name_asc': return '👤 Name: A ➔ Z (⬇)';
+      case 'name_desc': return '👤 Name: Z ➔ A (⬆)';
+      case 'regno_asc': return '🔢 RegNo: Ascending (⬇)';
+      case 'regno_desc': return '🔢 RegNo: Descending (⬆)';
+      default: return token;
+    }
   }
 
   async function loadStudents() {
@@ -109,12 +233,22 @@
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
-        search: debouncedSearch,
-        sort: sortBy,
-        sortByShortlists: (sortBy === 'shortlists').toString(),
-        unmappedChennai: filterUnmappedChennai.toString(),
-        masters: filterMasters.toString()
+        search: debouncedSearch
       });
+
+      if (activeSorts.length > 0) {
+        params.set('sort', activeSorts.join(','));
+      }
+      if (statusFilter && statusFilter !== 'all') {
+        params.set('statusFilter', statusFilter);
+      }
+      if (topcoderFilter && topcoderFilter !== 'all') {
+        params.set('topcoderFilter', topcoderFilter);
+      }
+      if (campusFilter && campusFilter !== 'all') {
+        params.set('campusFilter', campusFilter);
+      }
+
       const response = await fetch(`/api/students?${params.toString()}`);
       const data = await response.json();
 
@@ -123,6 +257,10 @@
         totalCount = data.totalCount || data.students.length;
         unmappedChennaiCount = data.unmappedChennaiCount || 0;
         mastersCount = data.mastersCount || 0;
+        placedCount = data.placedCount || 0;
+        internCount = data.internCount || 0;
+        notPlacedCount = data.notPlacedCount || 0;
+        topcoderCount = data.topcoderCount || 0;
         totalPages = data.totalPages || 1;
       } else if (Array.isArray(data)) {
         students = data;
@@ -193,7 +331,6 @@
       const updated = await response.json();
       saveMessage = '✅ Student details updated successfully!';
       
-      // Update in local state (keyed by regno since temp_students has no integer id)
       students = students.map(s => s.regno === updated.regno ? { ...s, ...updated } : s);
       if (selectedStudent && selectedStudent.regno === updated.regno) {
         selectedStudent = { ...selectedStudent, ...updated };
@@ -207,1176 +344,713 @@
       saveLoading = false;
     }
   }
-
-  async function toggleSort() {
-    if (sortBy === 'shortlists') {
-      sortBy = 'default';
-    } else {
-      sortBy = 'shortlists';
-    }
-    page = 1;
-    await loadStudents();
-  }
-
-  async function togglePlacedSort() {
-    if (sortBy === 'placed') {
-      sortBy = 'default';
-    } else {
-      sortBy = 'placed';
-    }
-    page = 1;
-    await loadStudents();
-  }
 </script>
 
-<div class="student-list">
-  <div class="header-row">
-    <div>
-      <h2>👥 Student Directory</h2>
-      <p class="text-xs text-gray-500 mt-1">Manage students, Neo IDs, placement statuses, and company shortlists.</p>
+<div class="space-y-6 sm:space-y-8 animate-in fade-in duration-200">
+  
+  <!-- Header & Multi-Filter Control Console -->
+  <div class="neon-card p-5 sm:p-7 space-y-5">
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
+          Candidate Directory
+        </h1>
+        <p class="text-xs sm:text-sm text-zinc-400 font-normal mt-1">
+          Search candidate records, multi-sort fields together, and filter by placement status. (All students in this list are from Chennai only)
+        </p>
+      </div>
+
+      <!-- Synchronize Data Button -->
+      <div class="flex items-center gap-2">
+        <button 
+          type="button"
+          class="neon-btn-ghost px-4 py-2 rounded-xl text-xs sm:text-sm font-medium font-mono flex items-center gap-1.5 touch-press disabled:opacity-50 min-h-[38px]"
+          disabled={recalculating}
+          on:click={recalculateStudentAnalytics}
+        >
+          <span class={recalculating ? 'animate-spin' : ''}>↻</span>
+          <span>{recalculating ? 'Syncing…' : 'Sync data'}</span>
+        </button>
+
+        {#if activeSorts.length > 0 || statusFilter !== 'all' || topcoderFilter !== 'all' || campusFilter !== 'all' || searchTerm}
+          <button 
+            type="button"
+            class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium font-mono bg-rose-950/30 border border-rose-900/60 text-rose-300 hover:bg-rose-900/40 touch-press min-h-[38px] flex items-center gap-1"
+            on:click={resetAllFiltersAndSorts}
+          >
+            ✕ Reset filters
+          </button>
+        {/if}
+      </div>
     </div>
-    <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
+
+    <!-- Quick Action Filter Chips Carousel (1-Click Filtering) -->
+    <div class="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+      
+      <!-- All Filter -->
       <button 
         type="button"
-        class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 text-center {!filterUnmappedChennai ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-700 dark:text-gray-300 border-gray-300 hover:border-purple-400'}"
-        on:click={() => { if (filterUnmappedChennai) { filterUnmappedChennai = false; page = 1; loadStudents(); } }}
+        class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold font-mono transition-all border touch-press min-h-[38px]
+          {statusFilter === 'all' && campusFilter === 'all' && topcoderFilter === 'all'
+            ? 'bg-zinc-800 text-white border-zinc-600 shadow-sm font-bold'
+            : 'bg-zinc-900/80 text-zinc-400 border-white/[0.08] hover:text-white'}"
+        on:click={() => { statusFilter = 'all'; campusFilter = 'all'; topcoderFilter = 'all'; page = 1; loadStudents(); }}
       >
-        All ({filterUnmappedChennai ? 'Show All' : totalCount})
+        All ({totalCount})
       </button>
+
+      <!-- Placed Filter -->
       <button 
         type="button"
-        class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 text-center {filterUnmappedChennai ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-amber-50 dark:bg-amber-900/40 text-amber-900 dark:text-amber-300 border-amber-300 hover:bg-amber-100 dark:bg-amber-900/40'}"
-        on:click={toggleUnmappedChennaiFilter}
+        class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold font-mono transition-all border touch-press min-h-[38px]
+          {statusFilter === 'placed'
+            ? 'bg-[#a3e635]/15 text-[#a3e635] border-[#a3e635]/50 shadow-sm font-bold'
+            : 'bg-zinc-900/80 text-lime-400 border-white/[0.08] hover:border-[#a3e635]/40'}"
+        on:click={() => setStatusFilter('placed')}
       >
-        ⚠️ Unmapped ({unmappedChennaiCount})
+        Placed ({placedCount})
       </button>
+
+      <!-- Intern Filter -->
       <button 
         type="button"
-        class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 text-center {filterMasters ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-900 dark:text-indigo-300 border-indigo-300 hover:bg-indigo-100 dark:bg-indigo-900/40'}"
-        on:click={toggleMastersFilter}
+        class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold font-mono transition-all border touch-press min-h-[38px]
+          {statusFilter === 'intern'
+            ? 'bg-amber-500/15 text-amber-300 border-amber-500/50 shadow-sm font-bold'
+            : 'bg-zinc-900/80 text-amber-400/80 border-white/[0.08] hover:border-amber-500/40'}"
+        on:click={() => setStatusFilter('intern')}
       >
-        🎓 Masters ({mastersCount})
+        Interns ({internCount})
       </button>
+
+      <!-- Masters Filter -->
       <button 
         type="button"
-        class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-2 text-center bg-emerald-600 text-white border-emerald-600 shadow-sm hover:bg-emerald-700 disabled:opacity-50"
-        disabled={recalculating}
-        on:click={recalculateStudentAnalytics}
+        class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold font-mono transition-all border touch-press min-h-[38px]
+          {statusFilter === 'masters'
+            ? 'bg-purple-500/15 text-purple-300 border-purple-500/50 shadow-sm font-bold'
+            : 'bg-zinc-900/80 text-purple-400/80 border-white/[0.08] hover:border-purple-500/40'}"
+        on:click={() => setStatusFilter('masters')}
       >
-        {recalculating ? 'Syncing...' : '🔄 Sync Data'}
+        Masters ({mastersCount})
       </button>
+
+      <!-- Not Placed Filter -->
+      <button 
+        type="button"
+        class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold font-mono transition-all border touch-press min-h-[38px]
+          {statusFilter === 'not_placed'
+            ? 'bg-zinc-800 text-zinc-200 border-zinc-500 shadow-sm font-bold'
+            : 'bg-zinc-900/80 text-zinc-500 border-white/[0.08] hover:text-zinc-300'}"
+        on:click={() => setStatusFilter('not_placed')}
+      >
+        Unplaced ({notPlacedCount})
+      </button>
+
+      <!-- TopCoder Filter -->
+      <button 
+        type="button"
+        class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold font-mono transition-all border touch-press min-h-[38px]
+          {topcoderFilter === 'true'
+            ? 'bg-amber-500/20 text-amber-300 border-amber-400/60 shadow-sm font-bold'
+            : 'bg-zinc-900/80 text-amber-400 border-white/[0.08] hover:border-amber-500/40'}"
+        on:click={() => setTopcoderFilter('true')}
+      >
+        TopCoder ({topcoderCount})
+      </button>
+
+      <!-- Unmapped Chennai Filter -->
+      <button 
+        type="button"
+        class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold font-mono transition-all border touch-press min-h-[38px]
+          {campusFilter === 'unmapped_chennai'
+            ? 'bg-rose-500/15 text-rose-300 border-rose-500/50 shadow-sm font-bold'
+            : 'bg-zinc-900/80 text-rose-400/80 border-white/[0.08] hover:border-rose-500/40'}"
+        on:click={() => setCampusFilter('unmapped_chennai')}
+      >
+        Unmapped Chennai ({unmappedChennaiCount})
+      </button>
+
     </div>
+
+    <!-- Search Input -->
+    <div class="relative">
+      <input 
+        type="text" 
+        class="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl bg-zinc-900/90 border border-white/10 text-white placeholder-zinc-500 font-sans text-sm sm:text-base focus:border-[#a3e635]/60 focus:shadow-sm min-h-[46px]"
+        placeholder="Search by candidate name, registration number (e.g. 23BCE1087), Neo ID, or branch…" 
+        value={searchTerm}
+        on:input={handleSearchInput}
+      />
+    </div>
+
+    <!-- Active Multi-Sort Priority Bar -->
+    {#if activeSorts.length > 0}
+      <div class="bg-zinc-900/70 p-3 px-4 rounded-xl border border-white/[0.08] flex flex-wrap items-center gap-2">
+        <span class="text-[11px] font-mono font-medium text-zinc-400">
+          Combined sorts:
+        </span>
+        {#each activeSorts as sortToken, idx}
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-white/[0.06] border border-white/10 text-zinc-200">
+            <span class="text-[10px] text-zinc-400">#{idx + 1}</span>
+            <span>{getSortLabel(sortToken)}</span>
+            <!-- svelte-ignore a11y-click-events-have-key-events -->
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <span 
+              class="cursor-pointer text-zinc-400 hover:text-white text-xs ml-1"
+              on:click={() => removeSortToken(sortToken)}
+              title="Remove sort"
+            >
+              ✕
+            </span>
+          </span>
+        {/each}
+
+        <button 
+          class="text-[11px] font-mono text-zinc-400 hover:text-rose-300 ml-auto underline"
+          on:click={() => { activeSorts = []; page = 1; loadStudents(); }}
+        >
+          Clear all
+        </button>
+      </div>
+    {/if}
   </div>
 
   {#if syncMessage}
-    <div class="mb-4 p-3 rounded-xl text-sm font-semibold {syncMessage.includes('❌') ? 'bg-red-50 dark:bg-red-900/40 text-red-800 dark:text-red-300 border border-red-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}">
+    <div class="p-3.5 rounded-xl text-xs sm:text-sm font-mono font-medium border {syncMessage.includes('❌') ? 'bg-rose-950/30 text-rose-300 border-rose-900/60' : 'bg-[#a3e635]/10 text-[#a3e635] border-[#a3e635]/25'}">
       {syncMessage}
     </div>
   {/if}
-  
-  <div class="search-container">
-    <input 
-      type="text" 
-      class="search-box"
-      placeholder="🔍 Search by name, regno, neoID, or branch (fuzzy search)..." 
-      value={searchTerm}
-      on:input={handleSearchInput}
-    />
-  </div>
 
   {#if loading}
-    <div class="loading">
-      <div class="spinner"></div>
-      <p>Loading students...</p>
+    <div class="neon-card p-16 text-center flex flex-col items-center justify-center gap-4">
+      <div class="w-8 h-8 rounded-full border-2 border-white/20 border-t-[#a3e635] animate-spin"></div>
+      <p class="text-sm font-mono text-zinc-400">Loading student directory records…</p>
     </div>
   {:else if students.length === 0}
-    <div class="empty-state">
-      <p>No students found matching "{searchTerm}"</p>
+    <div class="neon-card p-16 text-center">
+      <div class="text-3xl mb-3 text-zinc-500">∅</div>
+      <h3 class="text-base font-semibold text-white">No Candidates Found</h3>
+      <p class="text-xs sm:text-sm text-zinc-400 font-mono mt-1">No candidate profile matches active filters and search query.</p>
     </div>
   {:else}
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>Reg No / Neo ID</th>
-            <th>Name</th>
-            <th>TopCoder</th>
-            <th>CGPA</th>
-            <th class="sortable" on:click={toggleSort}>
-              Shortlists 
-              {#if sortBy === 'shortlists'}
-                <span class="sort-icon">⬇</span>
-              {:else}
-                <span class="sort-icon">⬍</span>
-              {/if}
-            </th>
-            <th class="sortable" on:click={togglePlacedSort}>
-              Status 
-              {#if sortBy === 'placed'}
-                <span class="sort-icon">⬇</span>
-              {:else}
-                <span class="sort-icon">⬍</span>
-              {/if}
-            </th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each students as student}
-            <tr>
-              <td>
-                <div class="id-combined">
-                  <span class="regno-tag">{student.regno}</span>
-                  {#if student.neo_id}
-                    <span class="neo-badge has-neoid">{student.neo_id}</span>
-                  {/if}
-                </div>
-              </td>
-              <td class="name-cell">{student.name}</td>
-              <td>
-                {#if student.topcoder}
-                  <span class="status topcoder">⚡ TopCoder</span>
+    
+    <!-- Table Container with Multi-Sort Clickable Headers -->
+    <div class="neon-card overflow-hidden">
+      <div class="table-responsive">
+        <table class="w-full text-left text-xs border-collapse min-w-[700px]">
+          <thead>
+            <tr class="border-b border-white/[0.08] bg-zinc-900/70 text-zinc-400 font-mono text-[11px] uppercase tracking-wider select-none">
+              
+              <!-- RegNo & Neo ID Header (Clickable Sort) -->
+              <th 
+                class="py-3 px-4 cursor-pointer hover:text-white transition-colors"
+                on:click={() => toggleSortColumn('regno')}
+                title="Click to sort by RegNo"
+              >
+                Reg No / Neo ID
+                {#if activeSorts.includes('regno_asc')}
+                  <span class="text-[#a3e635] font-bold">↑ A-Z</span>
+                {:else if activeSorts.includes('regno_desc')}
+                  <span class="text-[#a3e635] font-bold">↓ Z-A</span>
                 {:else}
-                  <span class="text-gray-400 text-xs">No</span>
+                  <span class="text-zinc-600">↕</span>
                 {/if}
-              </td>
-              <td><strong>{student.cgpa || 'N/A'}</strong></td>
-              <td>
-                <span class="shortlist-count" class:has-shortlists={student.shortlist_count > 0}>
-                  {student.shortlist_count || 0}
-                </span>
-              </td>
-              <td>
-                {#if student.status === 'placed'}
-                  <div class="flex flex-col gap-1 items-start">
-                    <span class="status placed">✓ Placed</span>
-                    {#if student.role}
-                      <span class="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700">
-                        💼 {student.role}
-                      </span>
-                    {/if}
-                  </div>
-                {:else if student.status === 'intern'}
-                  <div class="flex flex-col gap-1 items-start">
-                    <span class="status intern">💼 Intern</span>
-                    {#if student.role}
-                      <span class="text-xs font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700">
-                        💼 {student.role}
-                      </span>
-                    {/if}
-                  </div>
-                {:else if student.status === 'masters'}
-                  <span class="status masters">🎓 Masters</span>
+              </th>
+
+              <!-- Name & Branch Header (Clickable Sort) -->
+              <th 
+                class="py-3 px-4 cursor-pointer hover:text-white transition-colors"
+                on:click={() => toggleSortColumn('name')}
+                title="Click to sort by Name"
+              >
+                Candidate Name
+                {#if activeSorts.includes('name_asc')}
+                  <span class="text-[#a3e635] font-bold">↑ A-Z</span>
+                {:else if activeSorts.includes('name_desc')}
+                  <span class="text-[#a3e635] font-bold">↓ Z-A</span>
                 {:else}
-                  <span class="status not-placed">Not Placed</span>
+                  <span class="text-zinc-600">↕</span>
                 {/if}
-              </td>
-              <td class="action-cells">
-                <button class="btn-action btn-view" on:click={() => viewStudent(student.regno)}>
-                  View Details
-                </button>
-              </td>
+              </th>
+
+              <!-- TopCoder Header (Clickable Sort) -->
+              <th 
+                class="py-3 px-3 cursor-pointer hover:text-white transition-colors"
+                on:click={() => toggleSortColumn('topcoder')}
+                title="Click to sort TopCoder"
+              >
+                TopCoder
+                {#if activeSorts.includes('topcoder_desc')}
+                  <span class="text-amber-400 font-bold">↓ First</span>
+                {:else if activeSorts.includes('topcoder_asc')}
+                  <span class="text-zinc-400 font-bold">↑ Standard</span>
+                {:else}
+                  <span class="text-zinc-600">↕</span>
+                {/if}
+              </th>
+
+              <!-- CGPA Header (Clickable Sort) -->
+              <th 
+                class="py-3 px-3 cursor-pointer hover:text-white transition-colors"
+                on:click={() => toggleSortColumn('cgpa')}
+                title="Click to sort CGPA"
+              >
+                CGPA
+                {#if activeSorts.includes('cgpa_desc')}
+                  <span class="text-[#a3e635] font-bold">↓ High</span>
+                {:else if activeSorts.includes('cgpa_asc')}
+                  <span class="text-[#a3e635] font-bold">↑ Low</span>
+                {:else}
+                  <span class="text-zinc-600">↕</span>
+                {/if}
+              </th>
+
+              <!-- Shortlists Header (Clickable Sort) -->
+              <th 
+                class="py-3 px-3 cursor-pointer hover:text-white transition-colors"
+                on:click={() => toggleSortColumn('shortlists')}
+                title="Click to sort Shortlists"
+              >
+                Shortlists
+                {#if activeSorts.includes('shortlists_desc')}
+                  <span class="text-[#38bdf8] font-bold">↓ High</span>
+                {:else if activeSorts.includes('shortlists_asc')}
+                  <span class="text-[#38bdf8] font-bold">↑ Low</span>
+                {:else}
+                  <span class="text-zinc-600">↕</span>
+                {/if}
+              </th>
+
+              <!-- Status Header (Clickable Sort) -->
+              <th 
+                class="py-3 px-4 cursor-pointer hover:text-white transition-colors"
+                on:click={() => toggleSortColumn('status')}
+                title="Click to sort Status: Placed ➔ Unplaced ➔ Masters ➔ Off"
+              >
+                Status
+                {#if activeSorts.includes('status_placed')}
+                  <span class="text-[#a3e635] font-bold">Placed first</span>
+                {:else if activeSorts.includes('status_unplaced')}
+                  <span class="text-zinc-300 font-bold">Unplaced first</span>
+                {:else if activeSorts.includes('status_masters')}
+                  <span class="text-purple-300 font-bold">Masters first</span>
+                {:else}
+                  <span class="text-zinc-600">↕</span>
+                {/if}
+              </th>
+
+              <th class="py-3 px-4 text-right">Actions</th>
             </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody class="divide-y divide-white/[0.06] font-mono">
+            {#each students as student}
+              <tr class="hover:bg-white/[0.03] transition-colors">
+                
+                <!-- Reg No & Neo ID -->
+                <td class="py-3 px-4">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-zinc-200">{student.regno}</span>
+                    {#if student.neo_id}
+                      <span class="neon-badge-cyan px-2 py-0.5 rounded text-[10px] font-medium">
+                        {student.neo_id}
+                      </span>
+                    {/if}
+                  </div>
+                </td>
 
-    <!-- Pagination Bar -->
-    <div class="pagination-bar">
-      <span class="pagination-info">
-        Showing <strong>{(page - 1) * limit + 1}</strong> to <strong>{Math.min(page * limit, totalCount)}</strong> of <strong>{totalCount}</strong> students
-      </span>
+                <!-- Name & Branch -->
+                <td class="py-3 px-4 font-sans">
+                  <div class="font-medium text-zinc-100 text-sm">{student.name}</div>
+                  {#if student.branch}
+                    <span class="text-[11px] font-mono text-zinc-400 uppercase">{student.branch} • {student.campus || 'Chennai'}</span>
+                  {/if}
+                </td>
 
-      <div class="pagination-controls">
-        <button class="btn-page" disabled={page === 1} on:click={() => changePage(page - 1)}>
-          ← Previous
-        </button>
-        <span class="page-indicator">Page {page} of {totalPages}</span>
-        <button class="btn-page" disabled={page >= totalPages} on:click={() => changePage(page + 1)}>
-          Next →
-        </button>
+                <!-- TopCoder Flag -->
+                <td class="py-3 px-3">
+                  {#if student.topcoder}
+                    <span class="neon-badge-amber px-2 py-0.5 rounded text-[10px] font-medium">
+                      TopCoder
+                    </span>
+                  {:else}
+                    <span class="text-zinc-600 text-[11px]">—</span>
+                  {/if}
+                </td>
+
+                <!-- CGPA with Clean Color Thresholds -->
+                <td class="py-3 px-3 font-mono font-semibold tabular-nums">
+                  {#if !student.cgpa}
+                    <span class="text-zinc-600 text-xs">N/A</span>
+                  {:else if parseFloat(student.cgpa) >= 9.0}
+                    <span class="text-[#a3e635]">{student.cgpa}</span>
+                  {:else if parseFloat(student.cgpa) >= 8.0}
+                    <span class="text-[#38bdf8]">{student.cgpa}</span>
+                  {:else}
+                    <span class="text-zinc-300">{student.cgpa}</span>
+                  {/if}
+                </td>
+
+                <!-- Shortlists Count -->
+                <td class="py-3 px-3 font-mono font-medium tabular-nums">
+                  {#if student.shortlist_count > 0}
+                    <span class="neon-badge-cyan px-2 py-0.5 rounded-full text-xs font-semibold">
+                      {student.shortlist_count}
+                    </span>
+                  {:else}
+                    <span class="text-zinc-600 text-xs">0</span>
+                  {/if}
+                </td>
+
+                <!-- Status Badge -->
+                <td class="py-3 px-4">
+                  {#if student.status === 'placed' || (student.placed == 1 && student.status !== 'intern')}
+                    <div class="flex flex-col gap-0.5 items-start">
+                      <span class="neon-badge-lime px-2.5 py-0.5 rounded-full text-[11px] font-semibold">
+                        Placed
+                      </span>
+                      {#if student.role}
+                        <span class="text-[10px] font-sans font-medium text-emerald-300/80 truncate max-w-[160px]">
+                          {student.role}
+                        </span>
+                      {/if}
+                    </div>
+                  {:else if student.status === 'intern'}
+                    <div class="flex flex-col gap-0.5 items-start">
+                      <span class="neon-badge-amber px-2.5 py-0.5 rounded-full text-[11px] font-semibold">
+                        Intern
+                      </span>
+                      {#if student.role}
+                        <span class="text-[10px] font-sans font-medium text-amber-300/80 truncate max-w-[160px]">
+                          {student.role}
+                        </span>
+                      {/if}
+                    </div>
+                  {:else if student.status === 'masters' || student.masters}
+                    <span class="neon-badge-purple px-2.5 py-0.5 rounded-full text-[11px] font-semibold">
+                      Masters
+                    </span>
+                  {:else}
+                    <span class="bg-zinc-800/80 text-zinc-400 border border-white/[0.08] px-2.5 py-0.5 rounded-full text-[10px]">
+                      Unplaced
+                    </span>
+                  {/if}
+                </td>
+
+                <!-- Actions Button -->
+                <td class="py-3 px-4 text-right">
+                  <button 
+                    class="neon-btn-ghost px-3.5 py-1.5 rounded-xl text-xs font-medium touch-press min-h-[34px]"
+                    on:click={() => viewStudent(student.regno)}
+                  >
+                    View
+                  </button>
+                </td>
+
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Responsive Pagination Bar -->
+      <div class="p-4 sm:p-5 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#0F172A]/50">
+        <span class="text-xs sm:text-sm font-mono text-slate-400 text-center sm:text-left">
+          Showing <strong class="text-white">{(page - 1) * limit + 1}</strong> to <strong class="text-white">{Math.min(page * limit, totalCount)}</strong> of <strong class="text-[#BBF351]">{totalCount}</strong> candidates
+        </span>
+
+        <div class="flex items-center gap-2">
+          <button 
+            class="neon-btn-ghost px-4 py-2 rounded-xl text-xs font-bold font-mono disabled:opacity-30 touch-press min-h-[40px]"
+            disabled={page === 1} 
+            on:click={() => changePage(page - 1)}
+          >
+            ← Prev
+          </button>
+          
+          <span class="px-4 py-2 text-xs font-mono font-bold text-slate-300 bg-slate-800 rounded-xl border border-slate-700">
+            Page {page} / {totalPages}
+          </span>
+          
+          <button 
+            class="neon-btn-ghost px-4 py-2 rounded-xl text-xs font-bold font-mono disabled:opacity-30 touch-press min-h-[40px]"
+            disabled={page >= totalPages} 
+            on:click={() => changePage(page + 1)}
+          >
+            Next →
+          </button>
+        </div>
       </div>
     </div>
+
   {/if}
 </div>
 
+<!-- 👤 STUDENT DETAILS BOTTOM SHEET / MODAL -->
 {#if selectedStudent}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-  <div class="modal" on:click|self={() => selectedStudent = null} role="dialog" aria-modal="true">
-    <div class="modal-content text-left cursor-default">
-      <button class="close-btn" on:click={() => selectedStudent = null}>×</button>
+  <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200" on:click|self={() => selectedStudent = null} role="dialog" aria-modal="true">
+    <div class="w-full sm:max-w-2xl rounded-t-3xl sm:rounded-3xl bg-[#0F172A] border border-slate-700/80 p-5 sm:p-7 max-h-[88vh] overflow-y-auto shadow-2xl relative">
       
-      <div class="modal-header">
-        <h3>{selectedStudent.name}</h3>
-        <button class="btn-primary btn-edit-header" on:click={() => openEdit(selectedStudent)}>
-          ✏️ Edit Details
+      <!-- Mobile Bottom Sheet Grab Handle -->
+      <div class="sheet-handle sm:hidden"></div>
+
+      <!-- Close Button -->
+      <button 
+        class="absolute top-4 right-4 w-10 h-10 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center border border-slate-700 touch-press text-base"
+        on:click={() => selectedStudent = null}
+        aria-label="Close dialog"
+      >
+        ✕
+      </button>
+
+      <div class="flex items-start justify-between gap-4 mb-5 pr-10">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-display font-extrabold text-white">{selectedStudent.name}</h2>
+          <div class="flex items-center gap-2 mt-1 font-mono text-xs text-slate-400 flex-wrap">
+            <span class="text-slate-200 font-bold">{selectedStudent.regno}</span>
+            {#if selectedStudent.neo_id}
+              <span>•</span>
+              <span class="text-[#00BCFF] font-bold">{selectedStudent.neo_id}</span>
+            {/if}
+            {#if selectedStudent.campus}
+              <span>•</span>
+              <span class="text-purple-300 font-semibold">{selectedStudent.campus}</span>
+            {/if}
+          </div>
+        </div>
+
+        <button 
+          class="neon-btn-primary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 touch-press min-h-[38px]"
+          on:click={() => openEdit(selectedStudent)}
+        >
+          ✏️ Edit
         </button>
       </div>
 
-      <div class="details-grid">
-        <div class="detail-item"><strong>Registration No:</strong> {selectedStudent.regno}</div>
-        <div class="detail-item">
-          <strong>Neo ID:</strong> 
-          <span class="neo-badge" class:has-neoid={selectedStudent.neo_id}>
-            {selectedStudent.neo_id || 'Not Assigned'}
-          </span>
+      <!-- Candidate Metric Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-6">
+        <div class="bg-[#080C14] p-3 rounded-xl border border-slate-800 text-center">
+          <span class="text-[10px] font-mono text-slate-400 uppercase">CGPA</span>
+          <div class="text-lg font-bold font-mono text-[#BBF351] mt-0.5">{selectedStudent.cgpa || 'N/A'}</div>
         </div>
-        <div class="detail-item"><strong>Email:</strong> {selectedStudent.email}</div>
-        <div class="detail-item"><strong>Phone:</strong> {selectedStudent.phone || 'N/A'}</div>
-        <div class="detail-item"><strong>Personal Email:</strong> {selectedStudent.personal_email || 'N/A'}</div>
-        <div class="detail-item"><strong>Gender:</strong> {selectedStudent.gender || 'N/A'}</div>
-        <div class="detail-item"><strong>CGPA:</strong> {selectedStudent.cgpa || 'N/A'}</div>
-        <div class="detail-item"><strong>10th Marks:</strong> {selectedStudent.tenth_marks || 'N/A'}</div>
-        <div class="detail-item"><strong>12th Marks:</strong> {selectedStudent.twelfth_marks || 'N/A'}</div>
-        <div class="detail-item"><strong>Status:</strong> {selectedStudent.status}</div>
-        <div class="detail-item">
-          <strong>TopCoder:</strong> 
-          {#if selectedStudent.topcoder}
-            <span class="status topcoder">⚡ Yes (TopCoder)</span>
-          {:else}
-            No
-          {/if}
+        <div class="bg-[#080C14] p-3 rounded-xl border border-slate-800 text-center">
+          <span class="text-[10px] font-mono text-slate-400 uppercase">10th Marks</span>
+          <div class="text-lg font-bold font-mono text-slate-200 mt-0.5">{selectedStudent.tenth_marks ? `${selectedStudent.tenth_marks}%` : 'N/A'}</div>
+        </div>
+        <div class="bg-[#080C14] p-3 rounded-xl border border-slate-800 text-center">
+          <span class="text-[10px] font-mono text-slate-400 uppercase">12th Marks</span>
+          <div class="text-lg font-bold font-mono text-slate-200 mt-0.5">{selectedStudent.twelfth_marks ? `${selectedStudent.twelfth_marks}%` : 'N/A'}</div>
+        </div>
+        <div class="bg-[#080C14] p-3 rounded-xl border border-slate-800 text-center">
+          <span class="text-[10px] font-mono text-slate-400 uppercase">TopCoder</span>
+          <div class="text-lg font-bold font-mono {selectedStudent.topcoder ? 'text-amber-400' : 'text-slate-500'} mt-0.5">
+            {selectedStudent.topcoder ? '⚡ Yes' : 'No'}
+          </div>
         </div>
       </div>
 
-      {#if selectedStudent.resume_link}
-        <div class="detail-item">
-          <strong>Resume:</strong> 
-          <a href={selectedStudent.resume_link} target="_blank" rel="noopener noreferrer">
-            View Resume 🔗
-          </a>
+      <!-- Contact Details -->
+      <div class="bg-[#080C14]/70 p-4 rounded-xl border border-slate-800/80 space-y-2 text-xs font-mono mb-6">
+        <div class="flex justify-between py-1 border-b border-slate-800/60 flex-wrap gap-1">
+          <span class="text-slate-400">Institutional Email:</span>
+          <span class="text-slate-200 font-semibold break-all">{selectedStudent.email || 'N/A'}</span>
         </div>
-      {/if}
+        <div class="flex justify-between py-1 border-b border-slate-800/60">
+          <span class="text-slate-400">Phone:</span>
+          <span class="text-slate-200 font-semibold">{selectedStudent.phone || 'N/A'}</span>
+        </div>
+        <div class="flex justify-between py-1">
+          <span class="text-slate-400">Gender:</span>
+          <span class="text-slate-200 font-semibold">{selectedStudent.gender || 'N/A'}</span>
+        </div>
+        {#if selectedStudent.resume_link}
+          <div class="pt-2 border-t border-slate-800 flex justify-between items-center">
+            <span class="text-slate-400">Resume / CV:</span>
+            <a href={selectedStudent.resume_link} target="_blank" rel="noopener noreferrer" class="text-[#00BCFF] hover:underline font-bold flex items-center gap-1">
+              View Document ↗
+            </a>
+          </div>
+        {/if}
+      </div>
 
+      <!-- Shortlists & Selections History -->
       {#if selectedStudent.loadingDetails}
-        <div class="py-8 text-center text-gray-500 font-medium">
-          <div class="spinner mx-auto mb-2"></div>
+        <div class="py-8 text-center text-xs font-mono text-slate-400">
+          <div class="w-6 h-6 rounded-full border-2 border-[#BBF351] border-t-transparent animate-spin mx-auto mb-2"></div>
           Loading full placement records...
         </div>
       {:else}
-        <!-- Shortlisted Companies Section -->
-        <div class="mt-6 pt-6 border-t border-gray-100 dark:border-slate-700">
-          <h4 class="text-sm font-bold uppercase tracking-wider text-purple-900 dark:text-purple-300 mb-3 flex items-center gap-2">
-            <span>📋</span> Shortlisted Companies ({selectedStudent.shortlists ? selectedStudent.shortlists.length : 0})
-          </h4>
+        
+        <!-- Shortlisted Companies -->
+        <div class="mb-5">
+          <h3 class="text-xs font-mono font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+            <span>📋</span>
+            <span>Shortlisted Companies ({selectedStudent.shortlists ? selectedStudent.shortlists.length : 0})</span>
+          </h3>
+
           {#if selectedStudent.shortlists && selectedStudent.shortlists.length > 0}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {#each selectedStudent.shortlists as company}
-                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 rounded-xl bg-purple-50/70 dark:bg-indigo-950/40 border border-purple-100 dark:border-indigo-900/50 hover:border-purple-200 transition-all">
-                  <div class="font-semibold text-gray-800 dark:text-gray-300 text-sm">{company.name}</div>
-                  <div class="flex items-center gap-1.5 flex-wrap">
-                    {#if company.round_name || company.round_number}
-                      <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-purple-200 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200">
-                        {company.round_name || `Round ${company.round_number}`}
-                      </span>
-                    {/if}
-                    {#if company.shortlist_role || company.role}
-                      <span class="text-xs font-bold px-2 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-950/80 text-purple-900 dark:text-purple-200 border border-purple-300 dark:border-purple-700">
-                        💼 {company.shortlist_role || company.role}
-                      </span>
-                    {/if}
-                  </div>
+                <div class="bg-[#080C14] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+                  <span class="font-bold text-slate-200 text-xs font-sans">{company.name}</span>
+                  <span class="neon-badge-cyan px-2 py-0.5 rounded-md text-[10px] font-bold font-mono">
+                    {company.round_name || `Round ${company.round_number}`}
+                  </span>
                 </div>
               {/each}
             </div>
           {:else}
-            <p class="text-xs text-gray-400 italic">No shortlists recorded for this student.</p>
+            <p class="text-xs text-slate-500 italic">No shortlists recorded.</p>
           {/if}
         </div>
 
-        <!-- Selections & Internships Section -->
-        <div class="mt-6 pt-6 border-t border-gray-100 dark:border-slate-700">
-          <h4 class="text-sm font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-300 mb-3 flex items-center gap-2">
-            <span>✅</span> Selections & Offers ({selectedStudent.selections ? selectedStudent.selections.length : 0})
-          </h4>
+        <!-- Selections & Final Offers -->
+        <div>
+          <h3 class="text-xs font-mono font-bold uppercase tracking-wider text-[#BBF351] mb-3 flex items-center gap-2">
+            <span>✅</span>
+            <span>Confirmed Selections & Offers ({selectedStudent.selections ? selectedStudent.selections.length : 0})</span>
+          </h3>
+
           {#if selectedStudent.selections && selectedStudent.selections.length > 0}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {#each selectedStudent.selections as selection}
-                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 rounded-xl bg-emerald-50/80 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50 hover:border-emerald-300 transition-all">
-                  <div>
-                    <div class="font-bold text-emerald-950 dark:text-emerald-100 text-sm">{selection.name}</div>
-                    {#if selection.ctc_lpa || selection.package_lpa}
-                      <div class="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Package: {selection.ctc_lpa || selection.package_lpa} LPA</div>
-                    {/if}
-                  </div>
-                  <div class="flex items-center gap-1.5 flex-wrap">
-                    {#if selection.selection_role || selection.role}
-                      <span class="text-xs font-bold px-2 py-0.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700">
-                        💼 {selection.selection_role || selection.role}
-                      </span>
-                    {/if}
-                    <span class="text-xs font-bold px-2.5 py-1 rounded-lg {selection.offer_type === 'intern' ? 'bg-indigo-600 text-white' : 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-emerald-950'} shadow-xs">
-                      {selection.offer_type === 'intern' ? '💼 Intern Offer' : '✓ Full-Time Placed'}
-                    </span>
-                  </div>
+                <div class="bg-[#080C14] p-3 rounded-xl border border-emerald-900/40 flex items-center justify-between gap-2">
+                  <span class="font-bold text-emerald-200 text-xs font-sans">{selection.name}</span>
+                  <span class="neon-badge-lime px-2 py-0.5 rounded-md text-[10px] font-bold font-mono">
+                    {selection.offer_type === 'intern' ? '💼 Intern' : '✓ Full-Time'}
+                  </span>
                 </div>
               {/each}
             </div>
           {:else}
-            <p class="text-xs text-gray-400 italic">No selections recorded for this student.</p>
+            <p class="text-xs text-slate-500 italic">No confirmed offers recorded.</p>
           {/if}
         </div>
 
-        <!-- Final Placed / Interned Company Banner -->
-        {#if selectedStudent.finalCompany}
-          {#if selectedStudent.status === 'intern' || selectedStudent.status?.toLowerCase().includes('intern')}
-            <div class="mt-6 p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <span class="text-xs uppercase font-bold tracking-wider opacity-90">Internship Record</span>
-                <h4 class="text-base sm:text-lg font-extrabold m-0 text-white">
-                  Interned at {selectedStudent.finalCompany.name}
-                </h4>
-                {#if selectedStudent.role}
-                  <span class="block text-xs font-semibold text-white/95 mt-0.5">Role: {selectedStudent.role}</span>
-                {/if}
-              </div>
-              {#if selectedStudent.finalCompany.ctc_lpa}
-                <span class="text-sm font-extrabold bg-white/20 dark:bg-slate-800/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/30">
-                  {selectedStudent.finalCompany.ctc_lpa} LPA
-                </span>
-              {/if}
-            </div>
-          {:else}
-            <div class="mt-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <span class="text-xs uppercase font-bold tracking-wider opacity-90">Official Placement</span>
-                <h4 class="text-base sm:text-lg font-extrabold m-0 text-white">
-                  Placed at {selectedStudent.finalCompany.name}
-                </h4>
-                {#if selectedStudent.role}
-                  <span class="block text-xs font-semibold text-white/95 mt-0.5">Role: {selectedStudent.role}</span>
-                {/if}
-              </div>
-              {#if selectedStudent.finalCompany.ctc_lpa}
-                <span class="text-sm font-extrabold bg-white/20 dark:bg-slate-800/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/30">
-                  {selectedStudent.finalCompany.ctc_lpa} LPA
-                </span>
-              {/if}
-            </div>
-          {/if}
-        {/if}
       {/if}
+
     </div>
   </div>
 {/if}
 
+<!-- ✏️ EDIT STUDENT MODAL -->
 {#if editingStudent}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-  <div class="modal" on:click|self={() => editingStudent = null} role="dialog" aria-modal="true">
-    <div class="modal-content edit-modal text-left cursor-default">
-      <button class="close-btn" on:click={() => editingStudent = null}>×</button>
-      <h3>✏️ Edit Student Details</h3>
-      <p class="text-xs text-gray-500 dark:text-slate-400 mb-4 font-semibold">Editing student record for <strong>{editingStudent.regno}</strong></p>
+  <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md" on:click|self={() => editingStudent = null} role="dialog" aria-modal="true">
+    <div class="w-full sm:max-w-xl rounded-t-3xl sm:rounded-3xl bg-[#0F172A] border border-slate-700 p-5 sm:p-7 max-h-[90vh] overflow-y-auto shadow-2xl relative">
+      
+      <div class="sheet-handle sm:hidden"></div>
+
+      <button 
+        class="absolute top-4 right-4 w-10 h-10 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center border border-slate-700 text-base touch-press"
+        on:click={() => editingStudent = null}
+        aria-label="Close edit modal"
+      >
+        ✕
+      </button>
+
+      <h3 class="text-xl font-display font-extrabold text-white mb-1">✏️ Edit Candidate Record</h3>
+      <p class="text-xs text-slate-400 font-mono mb-4">Editing profile for <strong class="text-[#BBF351]">{editingStudent.regno}</strong></p>
 
       {#if saveMessage}
-        <div class="alert" class:alert-error={saveMessage.includes('❌')} class:alert-success={saveMessage.includes('✅')}>
+        <div class="mb-4 p-3 rounded-xl text-xs font-mono font-semibold border {saveMessage.includes('❌') ? 'bg-rose-950/40 text-rose-300 border-rose-800' : 'bg-[#BBF351]/10 text-[#BBF351] border-[#BBF351]/30'}">
           {saveMessage}
         </div>
       {/if}
 
-      <form on:submit|preventDefault={initiateSaveStudent} class="edit-form">
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="edit-name">Name *</label>
-            <input id="edit-name" type="text" bind:value={editingStudent.name} required />
+      <form on:submit|preventDefault={initiateSaveStudent} class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="edit-name" class="block text-[11px] font-mono uppercase text-slate-400 mb-1">Name *</label>
+            <input id="edit-name" type="text" class="w-full px-3.5 py-2.5 rounded-xl text-xs" bind:value={editingStudent.name} required />
           </div>
 
-          <div class="form-group">
-            <label for="edit-email">Email ID *</label>
-            <input id="edit-email" type="email" bind:value={editingStudent.email} required placeholder="student@example.com" />
+          <div>
+            <label for="edit-email" class="block text-[11px] font-mono uppercase text-slate-400 mb-1">Email ID *</label>
+            <input id="edit-email" type="email" class="w-full px-3.5 py-2.5 rounded-xl text-xs" bind:value={editingStudent.email} required />
           </div>
 
-          <div class="form-group">
-            <label for="edit-phone">Phone Number</label>
-            <input id="edit-phone" type="text" bind:value={editingStudent.phone} placeholder="e.g. 9876543210" />
+          <div>
+            <label for="edit-phone" class="block text-[11px] font-mono uppercase text-slate-400 mb-1">Phone Number</label>
+            <input id="edit-phone" type="text" class="w-full px-3.5 py-2.5 rounded-xl text-xs" bind:value={editingStudent.phone} />
           </div>
 
-          <div class="form-group">
-            <label for="edit-neoid">Neo ID (e.g. O3U8P6W1)</label>
-            <input id="edit-neoid" type="text" bind:value={editingStudent.neo_id} placeholder="O3U8P6W1" />
+          <div>
+            <label for="edit-neoid" class="block text-[11px] font-mono uppercase text-slate-400 mb-1">Neo ID</label>
+            <input id="edit-neoid" type="text" class="w-full px-3.5 py-2.5 rounded-xl text-xs" bind:value={editingStudent.neo_id} />
           </div>
 
-          <div class="form-group">
-            <label for="edit-cgpa">CGPA</label>
-            <input id="edit-cgpa" type="number" step="0.01" min="0" max="10" bind:value={editingStudent.cgpa} placeholder="e.g. 8.75" />
+          <div>
+            <label for="edit-cgpa" class="block text-[11px] font-mono uppercase text-slate-400 mb-1">CGPA</label>
+            <input id="edit-cgpa" type="number" step="0.01" min="0" max="10" class="w-full px-3.5 py-2.5 rounded-xl text-xs" bind:value={editingStudent.cgpa} />
           </div>
 
-          <div class="form-group">
-            <label for="edit-tenth">10th Marks (%)</label>
-            <input id="edit-tenth" type="number" step="0.01" min="0" max="100" bind:value={editingStudent.tenth_marks} placeholder="e.g. 92.5" />
-          </div>
-
-          <div class="form-group full-width">
-            <label for="edit-twelfth">12th Marks (%)</label>
-            <input id="edit-twelfth" type="number" step="0.01" min="0" max="100" bind:value={editingStudent.twelfth_marks} placeholder="e.g. 95.0" />
-          </div>
-
-          <div class="form-group full-width">
-            <label for="edit-role">Job Role / Profile</label>
-            <input id="edit-role" type="text" list="student-roles-list" bind:value={editingStudent.role} placeholder="e.g. Software Engineer, Data Analyst" />
-            <datalist id="student-roles-list">
-              {#each availableRoles as role}
-                <option value={role.name}>{role.category ? `${role.name} (${role.category})` : role.name}</option>
-              {/each}
-            </datalist>
-          </div>
-
-          <div class="form-group full-width bg-indigo-50/80 dark:bg-indigo-950/70 p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800/60 shadow-xs">
-            <label for="edit-masters" class="flex items-center gap-3 cursor-pointer">
-              <input 
-                id="edit-masters" 
-                type="checkbox" 
-                checked={editingStudent.status === 'masters' || Boolean(editingStudent.masters)} 
-                on:change={(e) => {
-                  const checked = e.currentTarget.checked;
-                  if (checked) {
-                    editingStudent.status = 'masters';
-                    editingStudent.masters = 1;
-                  } else {
-                    if (editingStudent.status === 'masters') {
-                      editingStudent.status = 'not_placed';
-                    }
-                    editingStudent.masters = 0;
-                  }
-                }}
-                class="w-5 h-5 accent-indigo-600 rounded cursor-pointer" 
-              />
-              <span class="font-bold text-indigo-950 dark:text-indigo-200 text-sm">
-                🎓 Masters / Higher Studies
-              </span>
-            </label>
+          <div>
+            <label for="edit-tenth" class="block text-[11px] font-mono uppercase text-slate-400 mb-1">10th Marks (%)</label>
+            <input id="edit-tenth" type="number" step="0.01" min="0" max="100" class="w-full px-3.5 py-2.5 rounded-xl text-xs" bind:value={editingStudent.tenth_marks} />
           </div>
         </div>
 
-        <div class="form-actions">
-          <button type="button" class="btn-secondary" on:click={() => editingStudent = null}>Cancel</button>
-          <button class="btn-primary flex items-center justify-center gap-1.5" type="button" on:click={initiateSaveStudent} disabled={saveLoading}>
-            {#if saveLoading}
-              <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              Saving...
-            {:else}
-              <span>💾</span> Save Changes
-            {/if}
+        <div>
+          <label for="edit-twelfth" class="block text-[11px] font-mono uppercase text-slate-400 mb-1">12th Marks (%)</label>
+          <input id="edit-twelfth" type="number" step="0.01" min="0" max="100" class="w-full px-3.5 py-2.5 rounded-xl text-xs" bind:value={editingStudent.twelfth_marks} />
+        </div>
+
+        <div>
+          <label for="edit-role" class="block text-[11px] font-mono uppercase text-slate-400 mb-1">Job Role / Profile</label>
+          <input id="edit-role" type="text" list="student-roles-list" class="w-full px-3.5 py-2.5 rounded-xl text-xs" bind:value={editingStudent.role} />
+          <datalist id="student-roles-list">
+            {#each availableRoles as role}
+              <option value={role.name}>{role.category ? `${role.name} (${role.category})` : role.name}</option>
+            {/each}
+          </datalist>
+        </div>
+
+        <div class="bg-purple-950/30 p-3.5 rounded-xl border border-purple-800/40">
+          <label for="edit-masters" class="flex items-center gap-3 cursor-pointer">
+            <input 
+              id="edit-masters" 
+              type="checkbox" 
+              checked={editingStudent.status === 'masters' || Boolean(editingStudent.masters)} 
+              on:change={(e) => {
+                const checked = e.currentTarget.checked;
+                if (checked) {
+                  editingStudent.status = 'masters';
+                  editingStudent.masters = 1;
+                } else {
+                  if (editingStudent.status === 'masters') {
+                    editingStudent.status = 'not_placed';
+                  }
+                  editingStudent.masters = 0;
+                }
+              }}
+              class="w-5 h-5 accent-purple-500 rounded cursor-pointer" 
+            />
+            <span class="font-bold text-purple-200 text-xs sm:text-sm">
+              🎓 Masters / Higher Studies Status
+            </span>
+          </label>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-3">
+          <button type="button" class="neon-btn-ghost px-4 py-2.5 rounded-xl text-xs font-semibold min-h-[42px]" on:click={() => editingStudent = null}>
+            Cancel
+          </button>
+          <button type="submit" class="neon-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold min-h-[42px]" disabled={saveLoading}>
+            {saveLoading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </form>
+
     </div>
   </div>
 {/if}
 
-<style>
-  .student-list {
-    padding: 0.5rem;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-  @media (min-width: 640px) {
-    .student-list {
-      padding: 1.5rem;
-    }
-  }
-
-  .header-row {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.85rem;
-    margin-bottom: 1rem;
-  }
-  @media (min-width: 640px) {
-    .header-row {
-      flex-direction: row;
-      align-items: center;
-      margin-bottom: 1.5rem;
-    }
-  }
-
-  h2 {
-    color: #1e293b;
-    font-size: 1.4rem;
-    font-weight: 700;
-    margin: 0;
-  }
-  @media (min-width: 640px) {
-    h2 {
-      font-size: 1.875rem;
-    }
-  }
-
-  .search-container {
-    margin-bottom: 1.25rem;
-  }
-
-  .search-box {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    font-size: 0.95rem;
-    background: #ffffff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-    transition: all 0.2s ease-in-out;
-  }
-  @media (min-width: 640px) {
-    .search-box {
-      padding: 1rem 1.25rem;
-      font-size: 1.05rem;
-    }
-  }
-
-  .loading, .empty-state {
-    text-align: center;
-    padding: 3rem 1.5rem;
-    background: #ffffff;
-    border-radius: 16px;
-    color: #64748b;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-  }
-
-  .spinner {
-    width: 2.5rem;
-    height: 2.5rem;
-    border: 3px solid #e2e8f0;
-    border-top-color: #6366f1;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin: 0 auto 1rem auto;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-
-  .table-container {
-    background: white;
-    border-radius: 14px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-    overflow-x: auto;
-    border: 1px solid #f1f5f9;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    min-width: 620px;
-  }
-
-  th {
-    background: #f8fafc;
-    font-weight: 700;
-    color: #475569;
-    padding: 0.75rem 0.85rem;
-    text-align: left;
-    border-bottom: 2px solid #e2e8f0;
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-  }
-  @media (min-width: 640px) {
-    th {
-      padding: 1.1rem 1.25rem;
-      font-size: 0.85rem;
-    }
-  }
-
-  td {
-    padding: 0.75rem 0.85rem;
-    text-align: left;
-    border-bottom: 1px solid #f1f5f9;
-    color: #334155;
-    font-size: 0.875rem;
-    vertical-align: middle;
-  }
-  @media (min-width: 640px) {
-    td {
-      padding: 1.1rem 1.25rem;
-      font-size: 0.95rem;
-    }
-  }
-
-  tbody tr {
-    transition: background 0.15s ease-in-out;
-  }
-
-  tbody tr:hover {
-    background: #f8fafc;
-  }
-
-  .name-cell {
-    font-weight: 600;
-    color: #0f172a;
-  }
-
-  .id-combined {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  .regno-tag {
-    font-family: monospace;
-    font-weight: 700;
-    color: #334155;
-    background: #f1f5f9;
-    padding: 0.25rem 0.6rem;
-    border-radius: 6px;
-    font-size: 0.9rem;
-  }
-
-  .sortable {
-    cursor: pointer;
-    user-select: none;
-  }
-
-  .sortable:hover {
-    color: #4338ca;
-  }
-
-  .sort-icon {
-    font-size: 0.85rem;
-    margin-left: 0.35rem;
-  }
-
-  .neo-badge {
-    display: inline-block;
-    padding: 0.35rem 0.75rem;
-    border-radius: 8px;
-    background: #f1f5f9;
-    color: #94a3b8;
-    font-size: 0.85rem;
-    font-family: monospace;
-  }
-
-  .neo-badge.has-neoid {
-    background: #e0e7ff;
-    color: #4338ca;
-    font-weight: 700;
-  }
-
-  .shortlist-count {
-    display: inline-block;
-    padding: 0.3rem 0.8rem;
-    border-radius: 20px;
-    background: #f1f5f9;
-    color: #64748b;
-    font-weight: 700;
-    min-width: 2.2rem;
-    text-align: center;
-  }
-
-  .shortlist-count.has-shortlists {
-    background: #6366f1;
-    color: white;
-  }
-
-  .status {
-    padding: 0.35rem 0.85rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    background: #fef3c7;
-    color: #d97706;
-    white-space: nowrap;
-    word-break: keep-all;
-    display: inline-block;
-  }
-
-  .status.placed {
-    background: #dcfce7;
-    color: #15803d;
-    border: 1px solid #bbf7d0;
-  }
-
-  .status.intern {
-    background: #e0f2fe;
-    color: #0369a1;
-    border: 1px solid #bae6fd;
-    font-weight: 700;
-  }
-
-  .status.masters {
-    background: #f3e8ff;
-    color: #7e22ce;
-    border: 1px solid #e9d5ff;
-  }
-
-  .status.topcoder {
-    background: #fef3c7;
-    color: #b45309;
-    border: 1px solid #fde68a;
-    font-weight: 700;
-  }
-
-  .action-cells {
-    display: flex;
-    gap: 0.6rem;
-    align-items: center;
-  }
-
-  .btn-action {
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    border: none;
-    font-weight: 600;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-view {
-    background: #4f46e5;
-    color: white;
-  }
-
-  .btn-view:hover {
-    background: #4338ca;
-  }
-
-  .pagination-bar {
-    display: flex;
-    flex-direction: column;
-    gap: 0.85rem;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem;
-    background: #ffffff;
-    border-radius: 14px;
-    margin-top: 1.25rem;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-    border: 1px solid #f1f5f9;
-  }
-  @media (min-width: 640px) {
-    .pagination-bar {
-      flex-direction: row;
-      padding: 1.25rem 1.75rem;
-    }
-  }
-
-  .pagination-info {
-    color: #64748b;
-    font-size: 0.875rem;
-    text-align: center;
-  }
-
-  .pagination-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    justify-content: center;
-    width: 100%;
-  }
-  @media (min-width: 640px) {
-    .pagination-controls {
-      width: auto;
-      gap: 1.25rem;
-    }
-  }
-
-  .btn-page {
-    padding: 0.45rem 0.9rem;
-    background: #ffffff;
-    border: 1.5px solid #cbd5e1;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: #334155;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  @media (min-width: 640px) {
-    .btn-page {
-      padding: 0.6rem 1.25rem;
-      border-radius: 10px;
-      font-size: 0.95rem;
-    }
-  }
-
-  .btn-page:hover:not(:disabled) {
-    background: #6366f1;
-    border-color: #6366f1;
-    color: white;
-  }
-
-  .btn-page:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  .page-indicator {
-    font-weight: 700;
-    color: #1e293b;
-    font-size: 0.875rem;
-  }
-
-  /* Modals */
-  .modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    padding: 0.5rem;
-  }
-  @media (min-width: 640px) {
-    .modal {
-      padding: 1.5rem;
-    }
-  }
-
-  .modal-content {
-    background: white;
-    padding: 1.25rem 1rem;
-    border-radius: 16px;
-    max-width: 850px;
-    width: 100%;
-    max-height: 94vh;
-    overflow-y: auto;
-    position: relative;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-  }
-  @media (min-width: 640px) {
-    .modal-content {
-      padding: 2.5rem;
-      border-radius: 20px;
-    }
-  }
-
-  .close-btn {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    background: #f1f5f9;
-    border: none;
-    font-size: 1.25rem;
-    width: 2.2rem;
-    height: 2.2rem;
-    border-radius: 50%;
-    cursor: pointer;
-    color: #64748b;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  @media (min-width: 640px) {
-    .close-btn {
-      top: 1.5rem;
-      right: 1.5rem;
-      font-size: 1.5rem;
-      width: 2.5rem;
-      height: 2.5rem;
-    }
-  }
-
-  .close-btn:hover {
-    background: #e2e8f0;
-    color: #0f172a;
-  }
-
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    padding-right: 2.5rem;
-  }
-  @media (min-width: 640px) {
-    .modal-header {
-      margin-bottom: 1.5rem;
-      padding-right: 3rem;
-    }
-  }
-
-  .modal-header h3 {
-    margin: 0;
-    font-size: 1.25rem;
-    color: #0f172a;
-  }
-  @media (min-width: 640px) {
-    .modal-header h3 {
-      font-size: 1.5rem;
-    }
-  }
-
-  .details-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.85rem;
-    margin: 1.25rem 0;
-    padding: 1rem;
-    background: #f8fafc;
-    border-radius: 12px;
-    border: 1px solid #f1f5f9;
-  }
-  @media (min-width: 640px) {
-    .details-grid {
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1.5rem;
-      margin: 2rem 0;
-      padding: 1.5rem;
-      border-radius: 14px;
-    }
-  }
-
-  .detail-item {
-    font-size: 0.9rem;
-    color: #334155;
-  }
-
-  .detail-item strong {
-    display: block;
-    color: #64748b;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 0.2rem;
-  }
-
-  .form-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
-    margin-top: 1rem;
-  }
-  @media (min-width: 640px) {
-    .form-grid {
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1.5rem;
-      margin-top: 1.5rem;
-    }
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-
-  .form-group.full-width {
-    grid-column: 1 / -1;
-  }
-
-  .form-group label {
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: #334155;
-  }
-
-  .form-group input {
-    padding: 0.8rem 1rem;
-    border: 1.5px solid #cbd5e1;
-    border-radius: 12px;
-    font-size: 0.95rem;
-    transition: all 0.2s;
-    background: #f8fafc;
-  }
-
-  .form-group input:focus {
-    outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-  }
-
-  .form-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 1.25rem;
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid #e2e8f0;
-  }
-
-  .btn-primary {
-    padding: 0.75rem 1.75rem;
-    background: #6366f1;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 1rem;
-    transition: background 0.2s;
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    background: #4f46e5;
-  }
-
-  .btn-secondary {
-    padding: 0.75rem 1.5rem;
-    background: #f1f5f9;
-    color: #475569;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 1rem;
-  }
-
-  .btn-secondary:hover {
-    background: #e2e8f0;
-  }
-
-  .alert {
-    padding: 1rem 1.25rem;
-    border-radius: 10px;
-    margin-bottom: 1.5rem;
-    font-weight: 600;
-  }
-
-  .alert-success {
-    background: #dcfce7;
-    color: #15803d;
-    border: 1px solid #bbf7d0;
-  }
-
-  .alert-error {
-    background: #fee2e2;
-    color: #b91c1c;
-    border: 1px solid #fca5a5;
-  }
-
-  /* --- Dark Mode Overrides --- */
-  :global(.dark) .student-list h2 { color: #f8fafc; }
-  :global(.dark) .student-list p { color: #94a3b8; }
-  
-  :global(.dark) .search-box {
-    background: #1e293b;
-    border-color: #334155;
-    color: #f8fafc;
-  }
-  :global(.dark) .search-box::placeholder {
-    color: #94a3b8;
-  }
-  :global(.dark) .search-box:focus {
-    border-color: #818cf8;
-    box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.15);
-  }
-
-  :global(.dark) .loading, :global(.dark) .empty-state {
-    background: #1e293b;
-    color: #94a3b8;
-  }
-  
-  :global(.dark) .table-container {
-    background: #1e293b;
-    border-color: #334155;
-  }
-  
-  :global(.dark) th {
-    background: #0f172a;
-    color: #cbd5e1;
-    border-bottom-color: #334155;
-  }
-  
-  :global(.dark) td {
-    color: #f1f5f9;
-    border-bottom-color: #334155;
-  }
-  
-  :global(.dark) tbody tr:hover {
-    background: #334155;
-  }
-  
-  :global(.dark) .name-cell { color: #f8fafc; }
-  
-  :global(.dark) .regno-tag {
-    background: #334155;
-    color: #f8fafc;
-  }
-  
-  :global(.dark) .neo-badge {
-    background: #334155;
-    color: #cbd5e1;
-  }
-  :global(.dark) .neo-badge.has-neoid {
-    background: #3730a3;
-    color: #e0e7ff;
-  }
-  
-  :global(.dark) .shortlist-count {
-    background: #334155;
-    color: #cbd5e1;
-  }
-  
-  :global(.dark) .pagination-bar {
-    background: #1e293b;
-    border-color: #334155;
-  }
-  :global(.dark) .pagination-info {
-    color: #94a3b8;
-  }
-  
-  :global(.dark) .btn-page {
-    background: #1e293b;
-    border-color: #475569;
-    color: #e2e8f0;
-  }
-  :global(.dark) .btn-page:hover:not(:disabled) {
-    background: #818cf8;
-    border-color: #818cf8;
-    color: #ffffff;
-  }
-  :global(.dark) .page-indicator { color: #f8fafc; }
-
-  /* Modals in Dark Mode */
-  :global(.dark) .modal-content {
-    background: #1e293b;
-    color: #f8fafc;
-  }
-  :global(.dark) .modal-header h3 { color: #f8fafc; }
-  :global(.dark) .close-btn {
-    background: #334155;
-    color: #cbd5e1;
-  }
-  :global(.dark) .close-btn:hover {
-    background: #475569;
-    color: #f8fafc;
-  }
-  
-  :global(.dark) .details-grid {
-    background: #0f172a;
-    border-color: #334155;
-  }
-  :global(.dark) .detail-item { color: #e2e8f0; }
-  :global(.dark) .detail-item strong { color: #94a3b8; }
-  
-  :global(.dark) .form-group input {
-    background: #0f172a;
-    border-color: #334155;
-    color: #f8fafc;
-  }
-  :global(.dark) .form-actions { border-top-color: #334155; }
-  :global(.dark) .btn-secondary {
-    background: #334155;
-    color: #cbd5e1;
-  }
-  :global(.dark) .btn-secondary:hover {
-    background: #475569;
-    color: #f8fafc;
-  }
-
-  :global(.dark) .status.topcoder {
-    background: rgba(180, 83, 9, 0.35);
-    color: #fcd34d;
-    border-color: #f59e0b;
-  }
-</style>
 <PasswordModal 
-  show={showPasswordModal}
+  isOpen={showPasswordModal}
   title={passwordModalTitle}
   message={passwordModalMessage}
   on:submit={handlePasswordSubmit}

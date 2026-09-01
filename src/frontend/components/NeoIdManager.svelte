@@ -238,99 +238,96 @@
   }
 </script>
 
-<div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+<div class="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-200">
 
-  <!-- Page Header -->
-  <div class="flex items-center gap-4">
-    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-2xl shadow-lg shadow-indigo-500/20">
-      🔗
-    </div>
-    <div>
-      <h1 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Neo ID Manager</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Search, map, and manage Neo IDs for the 2027 batch</p>
-    </div>
+  <!-- Header -->
+  <div class="neon-card p-5 sm:p-6 space-y-1">
+    <h1 class="text-2xl font-display font-bold text-white tracking-tight">
+      Neo ID Directory & Batch Mapper
+    </h1>
+    <p class="text-xs sm:text-sm text-zinc-400 font-normal">
+      Search anonymous Neo IDs, map student registration numbers, and batch lookup candidates.
+    </p>
   </div>
 
-  <!-- ─── Section 1: Single Search ─────────────────────────────────────── -->
-  <div class="bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 backdrop-blur-sm">
-    <h2 class="text-base font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-      <span class="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-sm">🔍</span>
-      Look Up a Neo ID
+  <!-- Single Neo ID Lookup Widget -->
+  <div class="neon-card p-5 sm:p-7 space-y-4">
+    <h2 class="text-xs font-mono font-semibold uppercase text-zinc-400">
+      Search Neo ID
     </h2>
 
-    <div class="flex gap-3">
+    <div class="flex flex-col sm:flex-row gap-2.5">
       <input
         id="neoid-search-input"
         bind:value={searchQuery}
         on:keydown={handleSearchKey}
         type="text"
-        placeholder="e.g. D1D9H1A1"
-        class="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white placeholder:text-slate-400 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+        placeholder="Enter Neo ID (e.g. O3W3I4P1, D1D9H1A1)…"
+        class="flex-1 px-4 py-2.5 rounded-xl font-mono text-sm uppercase text-white"
       />
       <button
         id="neoid-search-btn"
         on:click={doSearch}
         disabled={searchLoading || !searchQuery.trim()}
-        class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm shadow-md hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+        class="neon-btn-primary px-6 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider touch-press disabled:opacity-40 min-h-[40px]"
       >
-        {searchLoading ? 'Searching…' : 'Search'}
+        {searchLoading ? 'Searching…' : 'Inspect'}
       </button>
     </div>
 
     {#if searchResult !== null}
-      <div class="mt-5 rounded-xl border {searchResult.found ? 'border-indigo-200 dark:border-indigo-700/50 bg-indigo-50/60 dark:bg-indigo-900/20' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40'} p-5 transition-all">
+      <div class="rounded-xl border {searchResult.found ? 'border-[#00BCFF]/40 bg-[#080C14]' : 'border-slate-800 bg-[#080C14]'} p-4 transition-all">
         {#if searchResult.found}
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
             <div>
-              <span class="block text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Neo ID</span>
-              <span class="font-mono font-bold text-slate-900 dark:text-white">{searchResult.neoid}</span>
+              <span class="block text-[10px] text-slate-400 uppercase">Neo ID</span>
+              <span class="font-bold text-[#00BCFF] text-sm">{searchResult.neoid}</span>
             </div>
             <div>
-              <span class="block text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Campus</span>
-              <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold
-                {searchResult.campus === 'Chennai' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' :
-                 searchResult.campus === 'Vellore' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
-                 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}">
+              <span class="block text-[10px] text-slate-400 uppercase">Campus</span>
+              <span class="px-2 py-0.5 rounded text-[11px] font-bold
+                {searchResult.campus === 'Chennai' ? 'neon-badge-cyan' :
+                 searchResult.campus === 'Vellore' ? 'neon-badge-purple' :
+                 'bg-slate-800 text-slate-400'}">
                 {searchResult.campus || 'Unknown'}
               </span>
             </div>
             <div>
-              <span class="block text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Reg No</span>
+              <span class="block text-[10px] text-slate-400 uppercase">Reg No</span>
               {#if searchResult.regno}
-                <span class="font-mono font-bold text-emerald-700 dark:text-emerald-400">{searchResult.regno}</span>
+                <span class="font-bold text-[#BBF351]">{searchResult.regno}</span>
               {:else}
-                <span class="text-sm text-slate-400 italic">Unmapped</span>
+                <span class="text-slate-500 italic">Unmapped</span>
               {/if}
             </div>
             <div>
-              <span class="block text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">TopCoder</span>
-              <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold
-                {searchResult.topcoder ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}">
-                {searchResult.topcoder ? '✓ Yes' : '✗ No'}
+              <span class="block text-[10px] text-slate-400 uppercase">TopCoder</span>
+              <span class="font-bold {searchResult.topcoder ? 'text-amber-400' : 'text-slate-500'}">
+                {searchResult.topcoder ? '⚡ Yes' : 'No'}
               </span>
             </div>
           </div>
           {#if searchResult.studentName}
-            <div class="mt-3 pt-3 border-t border-indigo-100 dark:border-indigo-800/40">
-              <span class="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">Student</span>
-              <span class="ml-2 text-sm font-semibold text-slate-800 dark:text-white">{searchResult.studentName}</span>
+            <div class="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+              <span class="text-slate-400 font-mono">Resolved Candidate:</span>
+              <span class="font-bold text-white font-sans">{searchResult.studentName}</span>
             </div>
           {/if}
         {:else}
-          <div class="flex items-center gap-3 text-slate-500 dark:text-slate-400">
-            <span class="text-2xl">🤷</span>
-            <span class="text-sm">No record found for <span class="font-mono font-bold text-slate-700 dark:text-slate-200">{searchResult.neoid}</span></span>
+          <div class="flex items-center gap-2 text-slate-400 text-xs font-mono">
+            <span>🤷</span>
+            <span>No record found for Neo ID: <strong class="text-white">{searchResult.neoid}</strong></span>
           </div>
         {/if}
       </div>
     {/if}
   </div>
 
-  <!-- ─── Section 2: Batch Operations ──────────────────────────────────── -->
-  <div class="bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm backdrop-blur-sm overflow-hidden">
-
-    <!-- Tab bar -->
-    <div class="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/40">
+  <!-- Batch Operations Console -->
+  <div class="neon-card overflow-hidden">
+    
+    <!-- Tab Controls -->
+    <div class="flex border-b border-slate-800 bg-[#080C14]/90">
       {#each [
         { id: 'map',    label: 'Map Reg Numbers', icon: '🗺️' },
         { id: 'campus', label: 'Set Campus',       icon: '🏫' },
@@ -340,56 +337,37 @@
         <button
           id="neoid-tab-{tab.id}"
           on:click={() => setActiveTab(tab.id)}
-          class="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all
+          class="flex-1 flex items-center justify-center gap-2 px-3 py-3 text-xs font-mono font-bold transition-all border-b-2 touch-press
             {activeTab === tab.id
-              ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 bg-white dark:bg-slate-800'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/50'}"
+              ? 'text-[#BBF351] border-[#BBF351] bg-[#0F172A]'
+              : 'text-slate-400 border-transparent hover:text-white hover:bg-slate-800/40'}"
         >
-          <span class="hidden sm:inline">{tab.icon}</span>
-          {tab.label}
+          <span>{tab.icon}</span>
+          <span class="hidden sm:inline">{tab.label}</span>
         </button>
       {/each}
     </div>
 
-    <div class="p-6">
+    <div class="p-5 sm:p-7 space-y-4">
 
-      <!-- ── Tab 1: Map Registration Numbers ── -->
+      <!-- Tab 1: Map Registration Numbers -->
       {#if activeTab === 'map'}
         <div class="space-y-4">
-          <p class="text-sm text-slate-500 dark:text-slate-400">
-            Paste <span class="font-mono bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-xs">NeoID → RegNo</span> mappings — one per line, separated by a tab, comma, or space.
+          <p class="text-xs text-slate-400">
+            Paste <span class="font-mono text-[#00BCFF]">NeoID → RegNo</span> pairs (one per line, separated by tab or comma):
           </p>
 
           <textarea
             id="neoid-map-textarea"
             bind:value={mapInput}
             rows="8"
-            placeholder="X3O3M8I3&#9;23BDS1093&#10;E0X7R3D1&#9;23BCE1529&#10;X1Q9F0L0&#9;23BCB7092"
-            class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white placeholder:text-slate-400 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y transition"
+            placeholder="X3O3M8I3&#9;23BDS1093&#10;E0X7R3D1&#9;23BCE1529"
+            class="w-full px-4 py-3 rounded-xl font-mono text-xs text-white"
           ></textarea>
 
-          {#if mapParsed.length > 0}
-            <div class="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-              <div class="bg-slate-50 dark:bg-slate-900/40 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 flex justify-between">
-                <span>Preview — {mapParsed.length} mapping{mapParsed.length !== 1 ? 's' : ''}</span>
-              </div>
-              <div class="max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/60">
-                {#each mapParsed as m, i}
-                  <div class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                    <span class="text-xs text-slate-400 w-6 shrink-0">{i + 1}</span>
-                    <span class="font-mono font-semibold text-indigo-600 dark:text-indigo-400 w-28 shrink-0">{m.neoid}</span>
-                    <span class="text-slate-400">→</span>
-                    <span class="font-mono text-emerald-700 dark:text-emerald-400">{m.regno}</span>
-                  </div>
-                {/each}
-              </div>
-            </div>
-          {/if}
-
           {#if mapToast}
-            <div class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold
-              {mapToast.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700/50' : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-700/50'}">
-              {mapToast.type === 'success' ? '✅' : '❌'} {mapToast.msg}
+            <div class="p-3 rounded-xl text-xs font-mono font-semibold border {mapToast.type === 'success' ? 'bg-[#BBF351]/10 text-[#BBF351] border-[#BBF351]/30' : 'bg-rose-950/40 text-rose-300 border-rose-800'}">
+              {mapToast.msg}
             </div>
           {/if}
 
@@ -398,33 +376,27 @@
               id="neoid-map-submit-btn"
               on:click={submitMap}
               disabled={mapLoading || mapParsed.length === 0}
-              class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm shadow-md hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              class="neon-btn-primary px-6 py-2.5 rounded-xl text-xs font-bold uppercase touch-press disabled:opacity-40"
             >
-              {mapLoading ? 'Submitting…' : `Submit ${mapParsed.length > 0 ? mapParsed.length + ' Mapping' + (mapParsed.length !== 1 ? 's' : '') : ''}`}
+              {mapLoading ? 'Saving...' : `Map ${mapParsed.length} Identifier${mapParsed.length !== 1 ? 's' : ''}`}
             </button>
           </div>
         </div>
 
-      <!-- ── Tab 2: Set Campus ── -->
+      <!-- Tab 2: Set Campus -->
       {:else if activeTab === 'campus'}
         <div class="space-y-4">
-          <p class="text-sm text-slate-500 dark:text-slate-400">
-            Paste Neo IDs (one per line) and select their campus to bulk-update.
-          </p>
-
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="grid grid-cols-3 gap-3">
             {#each ['Chennai', 'Vellore', 'Unknown'] as c}
               <button
                 id="neoid-campus-{c.toLowerCase()}-btn"
                 on:click={() => setCampus(c)}
-                class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 font-semibold text-sm transition-all
+                class="py-2.5 px-3 rounded-xl font-mono font-bold text-xs border transition-all touch-press
                   {campusSelected === c
-                    ? c === 'Chennai' ? 'border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-600'
-                    : c === 'Vellore' ? 'border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-600'
-                    : 'border-slate-500 bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-500'
-                    : 'border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500'}"
+                    ? 'neon-badge-lime border-[#BBF351]'
+                    : 'bg-[#080C14] text-slate-400 border-slate-800'}"
               >
-                {c === 'Chennai' ? '🌴' : c === 'Vellore' ? '🏛️' : '❓'} {c}
+                {c}
               </button>
             {/each}
           </div>
@@ -433,20 +405,13 @@
             id="neoid-campus-textarea"
             bind:value={campusInput}
             rows="8"
-            placeholder="D1D9H1A1&#10;X3O3M8I3&#10;E0X7R3D1"
-            class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white placeholder:text-slate-400 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y transition"
+            placeholder="Paste Neo IDs to tag with this campus (one per line)..."
+            class="w-full px-4 py-3 rounded-xl font-mono text-xs text-white"
           ></textarea>
 
-          {#if campusParsed.length > 0}
-            <p class="text-sm text-slate-500 dark:text-slate-400">
-              Ready to set <strong class="text-slate-700 dark:text-slate-200">{campusParsed.length}</strong> Neo ID{campusParsed.length !== 1 ? 's' : ''} → campus <strong class="text-slate-700 dark:text-slate-200">{campusSelected}</strong>
-            </p>
-          {/if}
-
           {#if campusToast}
-            <div class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold
-              {campusToast.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700/50' : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-700/50'}">
-              {campusToast.type === 'success' ? '✅' : '❌'} {campusToast.msg}
+            <div class="p-3 rounded-xl text-xs font-mono font-semibold border {campusToast.type === 'success' ? 'bg-[#BBF351]/10 text-[#BBF351] border-[#BBF351]/30' : 'bg-rose-950/40 text-rose-300 border-rose-800'}">
+              {campusToast.msg}
             </div>
           {/if}
 
@@ -455,26 +420,22 @@
               id="neoid-campus-submit-btn"
               on:click={submitCampus}
               disabled={campusLoading || campusParsed.length === 0}
-              class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm shadow-md hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              class="neon-btn-primary px-6 py-2.5 rounded-xl text-xs font-bold uppercase touch-press disabled:opacity-40"
             >
-              {campusLoading ? 'Updating…' : `Set Campus for ${campusParsed.length > 0 ? campusParsed.length + ' ID' + (campusParsed.length !== 1 ? 's' : '') : '…'}`}
+              {campusLoading ? 'Updating...' : `Set Campus for ${campusParsed.length} ID${campusParsed.length !== 1 ? 's' : ''}`}
             </button>
           </div>
         </div>
 
-      <!-- ── Tab 3: Lookup Names ── -->
+      <!-- Tab 3: Lookup Names -->
       {:else if activeTab === 'lookup'}
         <div class="space-y-4">
-          <p class="text-sm text-slate-500 dark:text-slate-400">
-            Paste student names (one per line) to find their registration numbers from <span class="font-mono bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-xs">temp_students</span>.
-          </p>
-
           <textarea
             id="neoid-lookup-textarea"
             bind:value={lookupInput}
             rows="8"
-            placeholder="Abhiram Sharma&#10;Saksham Anand&#10;Harshini Devendran"
-            class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y transition"
+            placeholder="Paste student names to resolve Reg Numbers (one per line)..."
+            class="w-full px-4 py-3 rounded-xl text-xs text-white font-sans"
           ></textarea>
 
           <div class="flex justify-between items-center">
@@ -482,123 +443,65 @@
               id="neoid-lookup-submit-btn"
               on:click={doLookup}
               disabled={lookupLoading || !lookupInput.trim()}
-              class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm shadow-md hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              class="neon-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold uppercase touch-press disabled:opacity-40"
             >
-              {lookupLoading ? 'Looking up…' : 'Lookup Names'}
+              {lookupLoading ? 'Resolving…' : 'Lookup Candidates'}
             </button>
 
             {#if lookupDone && lookupResults.length > 0}
               <button
                 id="neoid-lookup-copy-btn"
                 on:click={copyLookupResults}
-                class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold transition-all active:scale-95"
+                class="neon-btn-ghost px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 touch-press"
               >
-                {#if copyToastVisible}
-                  ✅ Copied!
-                {:else}
-                  📋 Copy Reg Numbers
-                {/if}
+                {copyToastVisible ? '✅ Copied!' : '📋 Copy Reg Numbers'}
               </button>
             {/if}
           </div>
-
-          {#if lookupDone && lookupResults.length > 0}
-            <div class="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-              <div class="bg-slate-50 dark:bg-slate-900/40 px-4 py-2.5 flex justify-between items-center">
-                <span class="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Results — {lookupResults.length} quer{lookupResults.length !== 1 ? 'ies' : 'y'}</span>
-                <span class="text-xs text-slate-400">
-                  {lookupResults.filter(r => r.found).length} found · {lookupResults.filter(r => !r.found).length} not found
-                </span>
-              </div>
-              <div class="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/60">
-                {#each lookupResults as row}
-                  {#if row.found}
-                    {#each row.matches as match}
-                      <div class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                        <span class="w-5 h-5 rounded-full {match.score >= 0.99 ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400' : 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'} flex items-center justify-center text-xs shrink-0">✓</span>
-                        <div class="flex-1 min-w-0">
-                          <span class="text-slate-700 dark:text-slate-200">{row.searchedName}</span>
-                          {#if match.score < 0.99}
-                            <span class="ml-1 text-xs text-slate-400 dark:text-slate-500">→ <span class="italic">{match.name}</span></span>
-                          {/if}
-                        </div>
-                        {#if match.score < 0.99}
-                          <span class="text-xs font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 shrink-0">{Math.round(match.score * 100)}%</span>
-                        {/if}
-                        <span class="font-mono text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-lg shrink-0">{match.regno}</span>
-                        {#if match.neo_id}
-                          <span class="font-mono text-xs text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-lg hidden sm:block shrink-0">{match.neo_id}</span>
-                        {/if}
-                      </div>
-                    {/each}
-                  {:else}
-                    <div class="flex items-center gap-3 px-4 py-2.5 text-sm opacity-60 hover:opacity-80 hover:bg-slate-50 dark:hover:bg-slate-700/20">
-                      <span class="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs text-slate-400 shrink-0">✗</span>
-                      <span class="flex-1 text-slate-500 dark:text-slate-400 line-through">{row.searchedName}</span>
-                      <span class="text-xs font-semibold text-slate-400 italic">Not Found</span>
-                    </div>
-                  {/if}
-                {/each}
-              </div>
-            </div>
-          {/if}
         </div>
+
+      <!-- Tab 4: Batch Lookup Neo IDs -->
       {:else if activeTab === 'lookup-neoid'}
         <div class="space-y-4">
-          <p class="text-sm text-slate-500 dark:text-slate-400">
-            Paste Neo IDs (one per line) to bulk lookup their registration numbers, names, and campus details.
-          </p>
-
           <textarea
-            id="batch-neoid-lookup-textarea"
             bind:value={batchLookupInput}
             rows="8"
-            placeholder="D1D9H1A1&#10;X3O3M8I3"
-            class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white placeholder:text-slate-400 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y transition"
+            placeholder="Paste Neo IDs to resolve (one per line)..."
+            class="w-full px-4 py-3 rounded-xl font-mono text-xs text-white"
           ></textarea>
 
-          <div class="flex justify-between items-center">
+          <div class="flex justify-end">
             <button
-              id="batch-neoid-lookup-submit-btn"
               on:click={doBatchLookup}
               disabled={batchLookupLoading || !batchLookupInput.trim()}
-              class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm shadow-md hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              class="neon-btn-primary px-6 py-2.5 rounded-xl text-xs font-bold uppercase touch-press disabled:opacity-40"
             >
-              {batchLookupLoading ? 'Looking up…' : 'Lookup Neo IDs'}
+              {batchLookupLoading ? 'Querying…' : 'Run Batch Lookup'}
             </button>
           </div>
 
           {#if batchLookupDone && batchLookupResults.length > 0}
-            <div class="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-              <div class="bg-slate-50 dark:bg-slate-900/40 px-4 py-2.5 flex justify-between items-center">
-                <span class="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Results — {batchLookupResults.length} quer{batchLookupResults.length !== 1 ? 'ies' : 'y'}</span>
-                <span class="text-xs text-slate-400">
-                  {batchLookupResults.filter(r => r.found).length} found · {batchLookupResults.filter(r => !r.found).length} not found
-                </span>
-              </div>
-              <div class="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/60">
-                {#each batchLookupResults as row}
-                  {#if row.found}
-                    <div class="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                      <span class="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs shrink-0">✓</span>
-                      <span class="font-mono font-semibold text-indigo-600 dark:text-indigo-400 w-24 shrink-0">{row.neoid}</span>
-                      {#if row.regno}
-                        <span class="font-mono text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-lg shrink-0">{row.regno}</span>
-                      {:else}
-                        <span class="text-xs font-semibold text-slate-400 italic w-[84px] shrink-0">Unmapped</span>
-                      {/if}
-                      <span class="flex-1 text-slate-700 dark:text-slate-200 min-w-0 truncate">{row.studentName || 'Unknown Name'}</span>
-                      <span class="text-xs font-semibold px-2 py-1 rounded-lg {row.campus === 'Chennai' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' : row.campus === 'Vellore' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'} hidden sm:block shrink-0">{row.campus || 'Unknown'}</span>
-                    </div>
-                  {:else}
-                    <div class="flex items-center gap-3 px-4 py-2.5 text-sm opacity-60 hover:opacity-80 hover:bg-slate-50 dark:hover:bg-slate-700/20">
-                      <span class="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs text-slate-400 shrink-0">✗</span>
-                      <span class="font-mono font-semibold text-slate-500 dark:text-slate-400 w-24 shrink-0">{row.neoid}</span>
-                      <span class="text-xs font-semibold text-slate-400 italic">Not Found</span>
-                    </div>
-                  {/if}
-                {/each}
-              </div>
+            <div class="table-responsive rounded-xl border border-slate-800 bg-[#080C14] max-h-60 overflow-y-auto">
+              <table class="w-full text-left text-xs font-mono">
+                <thead class="bg-[#0F172A] text-slate-400 text-[10px] uppercase">
+                  <tr>
+                    <th class="p-2.5 px-3">Neo ID</th>
+                    <th class="p-2.5 px-3">Campus</th>
+                    <th class="p-2.5 px-3">Reg No</th>
+                    <th class="p-2.5 px-3">Name</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">
+                  {#each batchLookupResults as res}
+                    <tr class="hover:bg-slate-800/30">
+                      <td class="p-2 px-3 font-bold text-[#00BCFF]">{res.neoid}</td>
+                      <td class="p-2 px-3">{res.campus || 'Unknown'}</td>
+                      <td class="p-2 px-3 text-[#BBF351] font-bold">{res.regno || '—'}</td>
+                      <td class="p-2 px-3 font-sans font-semibold text-slate-200">{res.studentName || '—'}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
             </div>
           {/if}
         </div>
@@ -609,19 +512,19 @@
 
 </div>
 
-<!-- Password Modals -->
+<!-- Password Authorizations -->
 <PasswordModal
-  bind:show={mapShowModal}
-  title="Authorize Mapping"
-  message="You are about to map Neo IDs to registration numbers. Enter the admin password to proceed."
+  isOpen={mapShowModal}
+  title="Authorize RegNo Mapping"
+  message="Admin authorization required to bulk-map candidate registration numbers."
   on:submit={(e) => doMapSubmit(e.detail)}
   on:cancel={() => (mapShowModal = false)}
 />
 
 <PasswordModal
-  bind:show={campusShowModal}
-  title="Authorize Campus Update"
-  message="You are about to batch-update campus for Neo IDs. Enter the admin password to proceed."
+  isOpen={campusShowModal}
+  title="Authorize Campus Assignment"
+  message="Admin authorization required to update campus tags for these Neo IDs."
   on:submit={(e) => doCampusSubmit(e.detail)}
   on:cancel={() => (campusShowModal = false)}
 />

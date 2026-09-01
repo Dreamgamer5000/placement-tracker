@@ -354,40 +354,31 @@
       </div>
     </div>
 
-    <!-- Role Selection (Non-Clipping Search & Create Combo Box) -->
-    <div class="p-3.5 sm:p-4 rounded-xl bg-zinc-900/80 border border-white/[0.08] space-y-3">
-      <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="min-w-0 flex-1">
-          <span class="text-[10px] font-mono font-semibold uppercase text-zinc-400 block mb-0.5">
-            Offered Job Role
-        </button>
+    <!-- Candidate Registration Numbers Input -->
+    <div>
+      <div class="flex items-center justify-between mb-1.5">
+        <label for="regnos" class="text-xs font-mono font-bold uppercase text-slate-400">
+          Selected Candidate Identifiers (Reg No / Neo ID) *
+        </label>
+        {#if detectedTokens.length > 0}
+          <span class="neon-badge-lime px-2 py-0.5 rounded text-[10px] font-mono font-bold">
+            {detectedTokens.length} Detected
+          </span>
+        {/if}
       </div>
 
-      {#if showRoleSelector}
-            <input
-              id="role-search-input"
-              bind:value={roleSearchTerm}
-              placeholder="🔍 Search role (e.g. SDE, Data Analyst, QA, Core)..."
-              class="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm pr-8 font-sans"
-            />
-            {#if roleSearchTerm}
-              <button
-                type="button"
-                on:click={() => roleSearchTerm = ''}
-                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs p-1"
-                aria-label="Clear role search"
-              >
-                ✕
-              </button>
-            {/if}
-          </div>
+      <textarea 
+        id="regnos"
+        bind:value={regnos}
+        placeholder="Paste selected candidates here (one per line):&#10;23BCE1087&#10;O3W3I4P1&#10;23BAI1008"
+        rows="8"
+        class="w-full px-4 py-3 rounded-xl font-mono text-xs text-white"
+      />
+    </div>
 
-          <!-- Role Suggestions & Custom Creation List (Clips-proof scroll container) -->
-          <div class="max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-zinc-950 divide-y divide-white/[0.06] shadow-lg">
-            
-            <!-- Custom role option if typed query is not an exact match -->
-            {#if roleSearchTerm.trim() && !isExactRoleMatch}
-              <button
+    <button 
+      on:click={addSelections}
+      class="w-full py-3.5 neon-btn-primary rounded-xl text-xs font-bold uppercase tracking-wider touch-press cursor-pointer"
     >
       💾 Confirm & Save Final Selections
     </button>

@@ -5,8 +5,11 @@ PROJECT_ID="your-gcp-project-id"
 ZONE="us-west1-b"
 VM_NAME="db-tracker"
 
-if [ ! -f placement.db ]; then
-    echo "❌ Error: Local placement.db not found!"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+if [ ! -f "$ROOT_DIR/placement.db" ]; then
+    echo "❌ Error: Local placement.db not found at $ROOT_DIR/placement.db!"
     exit 1
 fi
 
@@ -24,7 +27,7 @@ echo ""
 echo "========================================="
 echo "1. Uploading placement.db to VM..."
 echo "========================================="
-gcloud compute scp ./placement.db $VM_NAME:~/app-data/data/placement.db --zone=$ZONE --project=$PROJECT_ID
+gcloud compute scp "$ROOT_DIR/placement.db" $VM_NAME:~/app-data/data/placement.db --zone=$ZONE --project=$PROJECT_ID
 
 echo ""
 echo "========================================="

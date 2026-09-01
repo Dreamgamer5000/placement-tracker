@@ -20,9 +20,9 @@
     "sync:neoids": "tsx src/backend/scripts/sync-matched-neoids.ts",
     "update:masters": "tsx src/backend/scripts/update-masters-batch.ts",
     "recalculate:analytics": "tsx src/backend/scripts/recalculate-analytics.ts",
-    "pull:db": "bash ./pull-db-from-vm.sh",
-    "push:db": "bash ./push-db-to-vm.sh",
-    "docker:test": "bash ./test-docker.sh",
+    "pull:db": "bash ./scripts/pull-db-from-vm.sh",
+    "push:db": "bash ./scripts/push-db-to-vm.sh",
+    "docker:test": "bash ./scripts/test-docker.sh",
     "docker:compose": "docker compose up --build"
   },
   "dependencies": {

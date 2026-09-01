@@ -45,7 +45,6 @@ Open your browser to:
 - 🌐 **Frontend App**: `http://localhost:5173` (or `http://localhost:3005` for local Docker)
 - ⚙️ **Backend API**: `http://localhost:3001`
 
-
 ---
 
 ## 🧭 How to Use Each View
@@ -98,31 +97,10 @@ Open your browser to:
 | Command | Action |
 |---|---|
 | `npm run dev` | Launch both backend API and Vite dev server concurrently |
-| `npm run setup-db` | Execute database initialization & schema migrations |
-| `npm run import-data` | Import master CSV student & Neo ID datasets into SQLite |
-| `npm run import-company-details`| Bulk parse & import company profiles from `company_details.md` |
+| `npm run setup:db` | Execute database initialization & schema migrations |
+| `npm run import:data` | Import master CSV student & Neo ID datasets into SQLite |
+| `npm run import:company-details`| Bulk parse & import company profiles from `docs/company_details.md` |
+| `npm run pull:db` | Pull latest live database from production VM to local |
+| `npm run push:db` | Push local database changes up to production VM |
 | `npm run build` | Compile frontend Vite app & TypeScript backend for production |
 | `npm run start` | Start production Node.js server |
-
----
-
-## 📧 Email Quick-Parser Example
-
-When a new placement email arrives:
-
-```text
-Saviynt
-Super Dream Internship/ Placement
-B.Tech (CSE, IT & ECE related courses)
-Eligibility Criteria: % in X and XII – 90% or 9.0 CGPA, in Pursuing Degree – 90% or 9.0 CGPA, No Standing Arrears
-CTC: 21,00,000 (If converted)
-Stipend: 50000 per month
-Website: saviynt.com
-Job location: Bengaluru
-Job profile: Associate Engineer / Associate Engineer (SRE)
-```
-
-1. Navigate to **Companies** ➔ **+ Add Company**.
-2. Paste the text into **Clipboard Quick Auto-Fill from Placement Email**.
-3. Click **⚡ Parse & Fill Fields**.
-4. Click **💾 Save Company Profile**.

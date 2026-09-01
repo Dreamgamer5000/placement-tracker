@@ -621,5 +621,3 @@
 - **ROUND-BY-ROUND DETAILS / INSTRUCTIONS**:
 - Round 1 (PPT & Online Test): Scheduled on 08th August 2026 by 10 AM @ Respective campus venues
 - Round 2 & 3 (Interviews): Scheduled on 19th August 2026 by 9 AM @ VIT Vellore campus (Physical mode)
-
----

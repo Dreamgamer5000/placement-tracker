@@ -1,12 +1,16 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 PORT=3005
 CONTAINER_NAME="tracker-local-test"
 
 echo "========================================="
 echo "🛠️  1. Building Docker image locally..."
 echo "========================================="
+cd "$ROOT_DIR"
 docker build -t tracker-local .
 
 echo ""
@@ -25,7 +29,7 @@ docker run --init --rm -it \
   --name $CONTAINER_NAME \
   --env-file .env \
   -p ${PORT}:3001 \
-  -v "$(pwd)/placement.db:/app/placement.db" \
+  -v "$ROOT_DIR/placement.db:/app/placement.db" \
   -e NODE_ENV=production \
   -e DB_PATH=placement.db \
   tracker-local

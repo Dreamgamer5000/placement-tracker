@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 # Configuration
 PROJECT_ID="your-gcp-project-id"
 REGION="us-west1"
@@ -10,6 +13,7 @@ IMAGE_NAME="us-west1-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/tracker-app:latest"
 echo "========================================="
 echo "1. Building Docker image locally..."
 echo "========================================="
+cd "$ROOT_DIR"
 docker build -t $IMAGE_NAME .
 
 echo ""
@@ -45,5 +49,5 @@ gcloud compute ssh db-tracker --zone=us-west1-b --project=$PROJECT_ID --command=
 
 echo ""
 echo "========================================="
-echo "✅ Deployment Complete! "
+echo "✅ Deployment Complete!"
 echo "========================================="

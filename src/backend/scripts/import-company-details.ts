@@ -138,7 +138,9 @@ export function parseCompanyDetailsMd(filePath: string): ParsedCompany[] {
 }
 
 export async function importOrUpdateCompanyDetails() {
-  const mdPath = path.join(process.cwd(), 'company_details.md');
+  const docsPath = path.join(process.cwd(), 'docs', 'company_details.md');
+  const rootPath = path.join(process.cwd(), 'company_details.md');
+  const mdPath = fs.existsSync(docsPath) ? docsPath : rootPath;
   if (!fs.existsSync(mdPath)) {
     console.error(`File not found: ${mdPath}`);
     return;

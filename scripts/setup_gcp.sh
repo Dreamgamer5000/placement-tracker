@@ -60,6 +60,6 @@ gcloud compute ssh db-tracker \
 
 echo ""
 echo "========================================="
-echo "✅ First-time setup complete! "
+echo "✅ First-time setup complete!"
 echo "========================================="
 echo "NOTE: The VM might need a reboot or a re-login for the docker group changes to take effect."

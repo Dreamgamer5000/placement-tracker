@@ -1,13 +1,19 @@
 #!/bin/bash
 set -e
 
-# Project configuration
-PROJECT_ID="your-gcp-project-id"
-ZONE="us-west1-b"
-VM_NAME="db-tracker"
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Load configuration from .env if present
+if [ -f "$ROOT_DIR/.env" ]; then
+    set -a
+    source "$ROOT_DIR/.env"
+    set +a
+fi
+
+PROJECT_ID="${GCP_PROJECT_ID:?Error: GCP_PROJECT_ID is not set. Please define it in .env or your environment.}"
+ZONE="${GCP_ZONE:-us-west1-b}"
+VM_NAME="${GCP_VM_NAME:-db-tracker}"
 
 mkdir -p "$ROOT_DIR/backups"
 

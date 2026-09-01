@@ -28,6 +28,10 @@ coverage
 *.sql
 backup.sql
 
+# Data & CSV files
+*.csv
+csvs/
+
 # AI Agents, Prompts & Local Skills (Prevent pushing agent configs)
 .agents/
 .gemini/

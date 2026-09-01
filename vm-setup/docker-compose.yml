@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    image: us-west1-docker.pkg.dev/your-gcp-project-id/tracker-repo/tracker-app:latest
+    image: ${GCP_REGION:-us-west1}-docker.pkg.dev/${GCP_PROJECT_ID:-your-gcp-project-id}/${GCP_REPO_NAME:-tracker-repo}/tracker-app:latest
     init: true
     container_name: tracker-app
     restart: always

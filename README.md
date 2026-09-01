@@ -102,8 +102,8 @@ your-domain.com {
 ### 2. One-Command Production Deployment
 Run the automated deployment script locally:
 ```bash
-chmod +x deploy.sh
-./deploy.sh
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh
 ```
 
 This script:
@@ -115,15 +115,13 @@ This script:
 ### 3. Database Sync Utilities
 - **Push database to VM**:
   ```bash
-  chmod +x push-db-to-vm.sh
-  ./push-db-to-vm.sh
-  # or: npm run push:db
+  npm run push:db
+  # or: bash ./scripts/push-db-to-vm.sh
   ```
 - **Pull database from VM**:
   ```bash
-  chmod +x pull-db-from-vm.sh
-  ./pull-db-from-vm.sh
-  # or: npm run pull:db
+  npm run pull:db
+  # or: bash ./scripts/pull-db-from-vm.sh
   ```
 
 

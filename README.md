@@ -70,24 +70,24 @@ docker compose up -d --build
 The application is deployed on a Google Cloud Compute Engine VM (`db-tracker`) using Docker and a centralized **Caddy Reverse Proxy** running in `~/caddy/` on a shared Docker bridge network (`web_net`).
 
 ```
-                    [ Internet (your-domain.com) ]
-                                   │
-                                   ▼  (Ports 80 & 443)
-               ┌───────────────────────────────────────┐
-               │    ~/caddy/ (Dedicated Caddy Ingress) │
-               └───────────────────┬───────────────────┘
-                                   │
-             ┌─────────────────────┴─────────────────────┐
-             │         Shared Docker Network: web_net    │
-             └───────────┬─────────────────┬─────────────┘
-                         │                 │
-                         ▼                 ▼
-          ┌──────────────────────┐  ┌──────────────────────┐
-          │     ~/app-data/      │  │     ~/soc-track/     │
-          │    (Placement App)   │  │   (Soc Track App)    │
-          │  container: tracker-app│ │ container: soc_track_app│
-          │     Port 3001        │  │     Port 3000        │
-          └──────────────────────┘  └──────────────────────┘
+                     [ Internet (your-domain.com) ]
+                                    │
+                                    ▼  (Ports 80 & 443)
+                ┌───────────────────────────────────────┐
+                │    ~/caddy/ (Dedicated Caddy Ingress) │
+                └───────────────────┬───────────────────┘
+                                    │
+              ┌─────────────────────┴─────────────────────┐
+              │         Shared Docker Network: web_net    │
+              └───────────┬─────────────────┬─────────────┘
+                          │                 │
+                          ▼                 ▼
+           ┌──────────────────────┐  ┌──────────────────────┐
+           │     ~/app-data/      │  │     ~/app-two/       │
+           │    (Placement App)   │  │    (Other Service)   │
+           │  container: tracker-app│ │ container: other-app │
+           │     Port 3001        │  │     Port 3000        │
+           └──────────────────────┘  └──────────────────────┘
 ```
 
 ### 1. Central Caddy Configuration (`~/caddy/Caddyfile` on VM)

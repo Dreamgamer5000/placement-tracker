@@ -13,7 +13,43 @@
   let selectedRole = '';
   let customRoleName = '';
   let isCustomRole = false;
+  let showRoleSelector = false;
+  let roleSearchTerm = '';
   let previousCompanyId = '';
+
+  $: filteredRoles = Array.isArray(availableRoles) ? availableRoles.filter(r => {
+    if (!roleSearchTerm || !roleSearchTerm.trim()) return true;
+    const term = roleSearchTerm.toLowerCase().trim();
+    return (r.name && r.name.toLowerCase().includes(term)) || (r.category && r.category.toLowerCase().includes(term));
+  }) : [];
+
+  $: isExactRoleMatch = Array.isArray(availableRoles) && availableRoles.some(r => r.name.toLowerCase().trim() === roleSearchTerm.toLowerCase().trim());
+
+  function applyCustomRole(roleName: string) {
+    if (!roleName || !roleName.trim()) return;
+    const trimmed = roleName.trim();
+    selectedRole = trimmed;
+    customRoleName = trimmed;
+    isCustomRole = true;
+    roleSearchTerm = '';
+    showRoleSelector = false;
+  }
+
+  function selectStandardRole(roleName: string) {
+    selectedRole = roleName;
+    customRoleName = '';
+    isCustomRole = false;
+    roleSearchTerm = '';
+    showRoleSelector = false;
+  }
+
+  function clearRole() {
+    selectedRole = '';
+    customRoleName = '';
+    isCustomRole = false;
+    roleSearchTerm = '';
+    showRoleSelector = false;
+  }
 
   $: selectedCompany = Array.isArray(companies) ? companies.find(c => String(c.id) === String(selectedCompanyId)) || null : null;
 
@@ -352,6 +388,145 @@
           💼 Internship Offer
         </button>
       </div>
+    </div>
+
+    <!-- Role Selection (Mobile-Friendly Search & Custom Role Combo) -->
+    <div class="p-3.5 sm:p-4 rounded-xl bg-zinc-900/80 border border-white/[0.08] space-y-3">
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <div class="min-w-0 flex-1">
+          <span class="text-[10px] font-mono font-semibold uppercase text-zinc-400 block mb-0.5">
+            Offered Job Role
+          </span>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            {#if isCustomRole && customRoleName.trim()}
+              <span class="neon-badge-lime px-2 py-0.5 rounded text-xs font-mono font-semibold truncate max-w-full">
+                💼 {customRoleName.trim()} (Custom)
+              </span>
+            {:else if selectedRole}
+              <span class="neon-badge-cyan px-2 py-0.5 rounded text-xs font-mono font-semibold truncate max-w-full">
+                💼 {selectedRole}
+              </span>
+            {:else}
+              <span class="text-xs font-mono text-zinc-400">
+                General / Company Default Role
+              </span>
+            {/if}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="neon-btn-ghost px-3 py-1.5 rounded-lg text-xs font-mono font-medium shrink-0 touch-press cursor-pointer"
+          on:click={() => { showRoleSelector = !showRoleSelector; roleSearchTerm = ''; }}
+        >
+          {showRoleSelector ? '✕ Done' : (selectedRole || (isCustomRole && customRoleName) ? '✏️ Change Role' : '+ Set / Custom Role')}
+        </button>
+      </div>
+
+      {#if showRoleSelector}
+        <div class="pt-3 border-t border-white/[0.08] space-y-2.5 animate-in fade-in duration-150">
+          <div class="flex gap-2">
+            <div class="relative flex-1 min-w-0">
+              <input
+                id="role-search-input"
+                type="text"
+                bind:value={roleSearchTerm}
+                placeholder="Type or search role (e.g. SDE Intern, QA, Analyst)..."
+                class="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm pr-8 font-sans"
+                on:keydown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (roleSearchTerm.trim()) {
+                      applyCustomRole(roleSearchTerm);
+                    }
+                  }
+                }}
+              />
+              {#if roleSearchTerm}
+                <button
+                  type="button"
+                  on:click={() => roleSearchTerm = ''}
+                  class="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs p-1"
+                  aria-label="Clear role search"
+                >
+                  ✕
+                </button>
+              {/if}
+            </div>
+            {#if roleSearchTerm.trim()}
+              <button
+                type="button"
+                class="neon-btn-primary px-3.5 py-2 rounded-xl text-xs font-mono font-bold shrink-0 touch-press cursor-pointer"
+                on:click={() => applyCustomRole(roleSearchTerm)}
+              >
+                Set Role
+              </button>
+            {/if}
+          </div>
+
+          <!-- Role Suggestions & Custom Creation List (Clips-proof scroll container) -->
+          <div class="max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-zinc-950 divide-y divide-white/[0.06] shadow-lg">
+            
+            <!-- Custom role button if typed query is not an exact match -->
+            {#if roleSearchTerm.trim() && !isExactRoleMatch}
+              <button
+                type="button"
+                class="w-full text-left p-2.5 bg-[#a3e635]/10 hover:bg-[#a3e635]/20 text-[#a3e635] text-xs font-mono font-bold flex items-center justify-between gap-2 touch-press cursor-pointer transition-colors"
+                on:click={() => applyCustomRole(roleSearchTerm)}
+              >
+                <div class="min-w-0 flex-1 truncate">
+                  <span>✨ Create & use role: </span>
+                  <span class="underline">"{roleSearchTerm.trim()}"</span>
+                </div>
+                <span class="text-[10px] uppercase font-semibold shrink-0">Apply ➔</span>
+              </button>
+            {/if}
+
+            <!-- Company Default Preset if available -->
+            {#if selectedCompany && selectedCompany.role}
+              <button
+                type="button"
+                class="w-full text-left p-2.5 hover:bg-white/[0.05] text-[#38bdf8] text-xs font-mono transition-colors cursor-pointer flex items-center justify-between gap-2"
+                on:click={() => selectStandardRole(selectedCompany.role)}
+              >
+                <span class="truncate">🏢 Company Default: {selectedCompany.role}</span>
+                <span class="text-[10px] uppercase font-semibold shrink-0">Select</span>
+              </button>
+            {/if}
+
+            <!-- Reset / Default Option -->
+            <button
+              type="button"
+              class="w-full text-left p-2.5 text-zinc-400 hover:text-white hover:bg-white/[0.04] text-xs font-mono transition-colors cursor-pointer"
+              on:click={clearRole}
+            >
+              -- Reset to General / Unspecified Role --
+            </button>
+
+            <!-- Filtered Standard Roles List -->
+            {#each filteredRoles.slice(0, 20) as role}
+              <button
+                type="button"
+                class="w-full text-left p-2.5 hover:bg-white/[0.05] transition-colors flex items-center justify-between gap-2 touch-press cursor-pointer"
+                on:click={() => selectStandardRole(role.name)}
+              >
+                <span class="text-xs font-medium text-zinc-200 truncate">{role.name}</span>
+                {#if role.category}
+                  <span class="neon-badge-purple px-1.5 py-0.2 rounded text-[10px] font-mono shrink-0">
+                    {role.category}
+                  </span>
+                {/if}
+              </button>
+            {/each}
+
+            {#if filteredRoles.length === 0 && !roleSearchTerm.trim()}
+              <div class="p-3 text-center text-xs font-mono text-zinc-500">
+                Type in the search box above to search or create a custom role.
+              </div>
+            {/if}
+          </div>
+        </div>
+      {/if}
     </div>
 
     <!-- Candidate Registration Numbers Input -->

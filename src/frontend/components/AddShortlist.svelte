@@ -31,6 +31,32 @@
 
   $: isExactRoleMatch = Array.isArray(availableRoles) && availableRoles.some(r => r.name.toLowerCase().trim() === roleSearchTerm.toLowerCase().trim());
 
+  function applyCustomRole(roleName: string) {
+    if (!roleName || !roleName.trim()) return;
+    const trimmed = roleName.trim();
+    selectedRole = trimmed;
+    customRoleName = trimmed;
+    isCustomRole = true;
+    roleSearchTerm = '';
+    showRoleSelector = false;
+  }
+
+  function selectStandardRole(roleName: string) {
+    selectedRole = roleName;
+    customRoleName = '';
+    isCustomRole = false;
+    roleSearchTerm = '';
+    showRoleSelector = false;
+  }
+
+  function clearRole() {
+    selectedRole = '';
+    customRoleName = '';
+    isCustomRole = false;
+    roleSearchTerm = '';
+    showRoleSelector = false;
+  }
+
   $: selectedCompany = Array.isArray(companies) ? companies.find(c => String(c.id) === String(selectedCompanyId)) || null : null;
 
   $: filteredCompanies = Array.isArray(companies) ? companies.filter(c => {
@@ -407,22 +433,41 @@
 
       {#if showRoleSelector}
         <div class="pt-3 border-t border-white/[0.08] space-y-2.5 animate-in fade-in duration-150">
-          <div class="relative">
-            <input
-              id="role-search-input"
-              type="text"
-              bind:value={roleSearchTerm}
-              placeholder="🔍 Search role (e.g. SDE, AI Intern, Technical Analyst)..."
-              class="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm pr-8 font-sans"
-            />
-            {#if roleSearchTerm}
+          <div class="flex gap-2">
+            <div class="relative flex-1 min-w-0">
+              <input
+                id="role-search-input"
+                type="text"
+                bind:value={roleSearchTerm}
+                placeholder="Type or search role (e.g. SDE Intern, QA, Analyst)..."
+                class="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm pr-8 font-sans"
+                on:keydown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (roleSearchTerm.trim()) {
+                      applyCustomRole(roleSearchTerm);
+                    }
+                  }
+                }}
+              />
+              {#if roleSearchTerm}
+                <button
+                  type="button"
+                  on:click={() => roleSearchTerm = ''}
+                  class="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs p-1"
+                  aria-label="Clear role search"
+                >
+                  ✕
+                </button>
+              {/if}
+            </div>
+            {#if roleSearchTerm.trim()}
               <button
                 type="button"
-                on:click={() => roleSearchTerm = ''}
-                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs p-1"
-                aria-label="Clear role search"
+                class="neon-btn-primary px-3.5 py-2 rounded-xl text-xs font-mono font-bold shrink-0 touch-press cursor-pointer"
+                on:click={() => applyCustomRole(roleSearchTerm)}
               >
-                ✕
+                Set Role
               </button>
             {/if}
           </div>
@@ -435,19 +480,25 @@
               <button
                 type="button"
                 class="w-full text-left p-2.5 bg-[#a3e635]/10 hover:bg-[#a3e635]/20 text-[#a3e635] text-xs font-mono font-bold flex items-center justify-between gap-2 touch-press cursor-pointer transition-colors"
-                on:click={() => {
-                  selectedRole = roleSearchTerm.trim();
-                  isCustomRole = true;
-                  customRoleName = roleSearchTerm.trim();
-                  roleSearchTerm = '';
-                  showRoleSelector = false;
-                }}
+                on:click={() => applyCustomRole(roleSearchTerm)}
               >
                 <div class="min-w-0 flex-1 truncate">
-                  <span>✨ Use new custom role: </span>
+                  <span>✨ Create & use role: </span>
                   <span class="underline">"{roleSearchTerm.trim()}"</span>
                 </div>
-                <span class="text-[10px] uppercase font-semibold shrink-0">Select ➔</span>
+                <span class="text-[10px] uppercase font-semibold shrink-0">Apply ➔</span>
+              </button>
+            {/if}
+
+            <!-- Company Default Preset if available -->
+            {#if selectedCompany && selectedCompany.role}
+              <button
+                type="button"
+                class="w-full text-left p-2.5 hover:bg-white/[0.05] text-[#38bdf8] text-xs font-mono transition-colors cursor-pointer flex items-center justify-between gap-2"
+                on:click={() => selectStandardRole(selectedCompany.role)}
+              >
+                <span class="truncate">🏢 Company Default: {selectedCompany.role}</span>
+                <span class="text-[10px] uppercase font-semibold shrink-0">Select</span>
               </button>
             {/if}
 
@@ -455,13 +506,7 @@
             <button
               type="button"
               class="w-full text-left p-2.5 text-zinc-400 hover:text-white hover:bg-white/[0.04] text-xs font-mono transition-colors cursor-pointer"
-              on:click={() => {
-                selectedRole = '';
-                isCustomRole = false;
-                customRoleName = '';
-                roleSearchTerm = '';
-                showRoleSelector = false;
-              }}
+              on:click={clearRole}
             >
               -- No Role / Round Qualifier (Default) --
             </button>
@@ -471,13 +516,7 @@
               <button
                 type="button"
                 class="w-full text-left p-2.5 hover:bg-white/[0.05] transition-colors flex items-center justify-between gap-2 touch-press cursor-pointer"
-                on:click={() => {
-                  selectedRole = role.name;
-                  isCustomRole = false;
-                  customRoleName = '';
-                  roleSearchTerm = '';
-                  showRoleSelector = false;
-                }}
+                on:click={() => selectStandardRole(role.name)}
               >
                 <span class="text-xs font-medium text-zinc-200 truncate">{role.name}</span>
                 {#if role.category}
@@ -490,7 +529,7 @@
 
             {#if filteredRoles.length === 0 && !roleSearchTerm.trim()}
               <div class="p-3 text-center text-xs font-mono text-zinc-500">
-                Type in search box above to search or create a role.
+                Type in the search box above to search or create a custom role.
               </div>
             {/if}
           </div>

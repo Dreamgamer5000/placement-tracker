@@ -27,6 +27,7 @@ coverage
 *.sqlite3
 *.sql
 backup.sql
+backups/
 
 # Data & CSV files
 *.csv
